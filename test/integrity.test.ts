@@ -4,7 +4,7 @@ import {
   mapDirectory,
   mapFile,
   runScenarios,
-} from "./scenarios";
+} from "./scenarios.ts";
 
 const importMap = await mapFile("test/fixtures/importmap.json");
 

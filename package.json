@@ -12,11 +12,11 @@
     "jspm.js"
   ],
   "dependencies": {
-    "@jspm/generator": "^2.4.2",
+    "@jspm/generator": "^2.5.1",
     "cac": "^6.7.14",
-    "ora": "^6.3.0",
-    "picocolors": "^1.0.0",
-    "rollup": "^3.29.2"
+    "ora": "^8.2.0",
+    "picocolors": "^1.1.1",
+    "rollup": "^3.29.5"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^0.34.2",
@@ -27,7 +27,6 @@
     "eslint-config-prettier": "^8.8.0",
     "prettier": "^2.8.7",
     "tinyspy": "^1.1.1",
-    "tsx": "^4.16.2",
     "typescript": "^4.9.5"
   }
 }

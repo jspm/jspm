@@ -1,5 +1,5 @@
 import assert from "assert";
-import uninstall from "../src/uninstall";
+import uninstall from "../src/uninstall.ts";
 
 {
   /* basic uninstall */

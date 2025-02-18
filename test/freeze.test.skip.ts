@@ -1,5 +1,5 @@
 import assert from "assert";
-import { type Scenario, runScenarios } from "./scenarios";
+import { type Scenario, runScenarios } from "./scenarios.ts";
 
 const importMap = new Map([
   [

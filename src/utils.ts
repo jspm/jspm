@@ -5,8 +5,8 @@ import { pathToFileURL } from "node:url";
 import { Generator, analyzeHtml } from "@jspm/generator";
 import ora from "ora";
 import c from "picocolors";
-import { withType } from "./logger";
-import type { Flags, IImportMapJspm } from "./types";
+import { withType } from "./logger.ts";
+import type { Flags, IImportMapJspm } from "./types.ts";
 
 // Default import map to use if none is provided:
 const defaultMapPath = "importmap.json";

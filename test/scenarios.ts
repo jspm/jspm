@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
-import { cli } from "../src/cli";
+import { cli } from "../src/cli.ts";
 
 const defaultPackageJson = {
   name: "test",

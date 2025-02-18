@@ -1,5 +1,5 @@
 import c from "picocolors";
-import type { Flags } from "./types";
+import type { Flags } from "./types.ts";
 import {
   getEnv,
   getGenerator,
@@ -7,8 +7,8 @@ import {
   startSpinner,
   stopSpinner,
   writeOutput,
-} from "./utils";
-import { withType } from "./logger";
+} from "./utils.ts";
+import { withType } from "./logger.ts";
 
 export default async function update(packages: string[], flags: Flags) {
   const log = withType("update/update");

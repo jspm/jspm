@@ -16,14 +16,16 @@
 
 import c from "picocolors";
 import cac from "cac";
-import { version } from "../package.json";
-import clearCache from "./clearCache";
-import install from "./install";
-import link from "./link";
-import uninstall from "./uninstall";
-import update from "./update";
-import { JspmError, availableProviders, wrapCommand } from "./utils";
-import build from "./build/index";
+import { readFileSync } from "fs";
+import clearCache from "./clearCache.ts";
+import install from "./install.ts";
+import link from "./link.ts";
+import uninstall from "./uninstall.ts";
+import update from "./update.ts";
+import { JspmError, availableProviders, wrapCommand } from "./utils.ts";
+import build from "./build/index.ts";
+
+const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 export const cli = cac(c.yellow("jspm"));
 

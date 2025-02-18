@@ -1,5 +1,5 @@
 import assert from "assert";
-import { type Scenario, mapDirectory, runScenarios } from "./scenarios";
+import { type Scenario, mapDirectory, runScenarios } from "./scenarios.ts";
 
 const filesRoot = await mapDirectory("test/fixtures/scenario_roots");
 

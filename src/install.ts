@@ -1,6 +1,6 @@
 import c from "picocolors";
-import { withType } from "./logger";
-import type { Flags } from "./types";
+import { withType } from "./logger.ts";
+import type { Flags } from "./types.ts";
 import {
   JspmError,
   getEnv,
@@ -10,7 +10,7 @@ import {
   startSpinner,
   stopSpinner,
   writeOutput,
-} from "./utils";
+} from "./utils.ts";
 
 export default async function install(packages: string[], flags: Flags) {
   const log = withType("install/install");

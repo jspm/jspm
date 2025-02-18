@@ -1,6 +1,6 @@
 import assert from "assert";
-import type { IImportMap } from "../src/types";
-import { type Scenario, runScenarios } from "./scenarios";
+import type { IImportMap } from "../src/types.ts";
+import { type Scenario, runScenarios } from "./scenarios.ts";
 
 const scenarios: Scenario[] = [
   // Basic install:

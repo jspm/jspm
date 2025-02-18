@@ -3,7 +3,7 @@ import { extname } from "node:path";
 import { pathToFileURL } from "url";
 import c from "picocolors";
 import { type Generator } from "@jspm/generator";
-import type { Flags } from "./types";
+import type { Flags } from "./types.ts";
 import {
   getEnv,
   getGenerator,
@@ -14,8 +14,8 @@ import {
   startSpinner,
   stopSpinner,
   writeOutput,
-} from "./utils";
-import { withType } from "./logger";
+} from "./utils.ts";
+import { withType } from "./logger.ts";
 
 export default async function link(modules: string[], flags: Flags) {
   const log = withType("link/link");

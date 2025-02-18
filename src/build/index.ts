@@ -3,9 +3,9 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { type RollupOptions, rollup } from "rollup";
 
-import { JspmError, exists } from "../utils";
-import type { Flags } from "../types";
-import { RollupImportmapPlugin } from "./rollup-importmap-plugin";
+import { JspmError, exists } from "../utils.ts";
+import type { Flags } from "../types.ts";
+import { RollupImportmapPlugin } from "./rollup-importmap-plugin.ts";
 
 export default async function build(entry: string, options: Flags) {
   if (!entry && !options.config) {

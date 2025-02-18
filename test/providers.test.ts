@@ -1,11 +1,11 @@
 import assert from "assert";
-import { availableProviders } from "../src/utils";
+import { availableProviders } from "../src/utils.ts";
 import {
   type Scenario,
   mapDirectory,
   mapFile,
   runScenarios,
-} from "./scenarios";
+} from "./scenarios.ts";
 
 const scenarios: Scenario[] = [
   // Scenario that checks we can swap providers with a reinstall:

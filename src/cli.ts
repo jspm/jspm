@@ -14,9 +14,9 @@
  *    limitations under the License.
  */
 
+import { readFileSync } from "node:fs";
 import c from "picocolors";
 import cac from "cac";
-import { readFileSync } from "fs";
 import clearCache from "./clearCache.ts";
 import install from "./install.ts";
 import link from "./link.ts";

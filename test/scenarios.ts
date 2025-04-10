@@ -18,6 +18,8 @@ export interface Scenario {
   files?: Files;
   // Subdirectory within the temp dir to use as working directory
   cwd?: string;
+  // Use isolated config directory
+  isolateUserConfig?: boolean;
 }
 
 export async function run(scenario: Scenario) {
@@ -40,6 +42,14 @@ export async function run(scenario: Scenario) {
   
   process.chdir(workingDir);
 
+  // Create isolated user config environment
+  const originalUserConfig = process.env.JSPM_USER_CONFIG_DIR;
+  if (scenario.isolateUserConfig !== false) {
+    const isolatedConfigDir = path.join(dir, '.jspm-user-config');
+    await fs.mkdir(isolatedConfigDir, { recursive: true });
+    process.env.JSPM_USER_CONFIG_DIR = isolatedConfigDir;
+  }
+
   try {
     for (const cmd of scenario.commands) {
       const args = ["node", ...cmd.split(" "), "--silent"];
@@ -53,7 +63,13 @@ export async function run(scenario: Scenario) {
       cause: err,
     });
   } finally {
+    // Restore original environment
     process.chdir(originalCwd);
+    if (originalUserConfig !== undefined) {
+      process.env.JSPM_USER_CONFIG_DIR = originalUserConfig;
+    } else {
+      delete process.env.JSPM_USER_CONFIG_DIR;
+    }
     await deleteTmpPkg(dir);
   }
 }

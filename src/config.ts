@@ -6,7 +6,11 @@ import { exists } from './utils.ts';
 import { withType } from './logger.ts';
 
 // Configuration file paths
-const USER_CONFIG_PATH = path.join(os.homedir(), '.jspm', 'config');
+function getUserConfigPath() {
+  // Check for environment variable override
+  const userConfigDir = process.env.JSPM_USER_CONFIG_DIR || path.join(os.homedir(), '.jspm');
+  return path.join(userConfigDir, 'config');
+}
 
 // Simple configuration schema with provider configs
 export interface JspmConfig {
@@ -56,15 +60,16 @@ export async function loadConfig(): Promise<JspmConfig> {
   const configs: JspmConfig[] = [];
   
   // Load user config
-  if (await exists(USER_CONFIG_PATH)) {
+  const userConfigPath = getUserConfigPath();
+  if (await exists(userConfigPath)) {
     try {
-      log(`Loading user config from ${USER_CONFIG_PATH}`);
-      const configStr = await fs.readFile(USER_CONFIG_PATH, 'utf8');
+      log(`Loading user config from ${userConfigPath}`);
+      const configStr = await fs.readFile(userConfigPath, 'utf8');
       const config = JSON.parse(configStr);
       configs.push(config);
     } catch (err) {
       log(`Error loading user config: ${err.message}`);
-      console.warn(`${c.yellow('Warning:')} Could not read user config at ${USER_CONFIG_PATH}.`);
+      console.warn(`${c.yellow('Warning:')} Could not read user config at ${userConfigPath}.`);
     }
   }
   
@@ -93,7 +98,7 @@ export async function saveConfig(config: JspmConfig, scope: 'user' | 'local' = '
   const log = withType('config/saveConfig');
   
   const configPath = scope === 'user' 
-    ? USER_CONFIG_PATH 
+    ? getUserConfigPath() 
     : path.join(process.cwd(), '.jspmrc');
   
   try {

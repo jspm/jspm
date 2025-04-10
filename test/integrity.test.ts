@@ -4,7 +4,7 @@ import {
   mapDirectory,
   mapFile,
   runScenarios,
-} from "./scenarios";
+} from "./scenarios.ts";
 
 const importMap = await mapFile("test/fixtures/importmap.json");
 
@@ -48,16 +48,17 @@ const scenarios: Scenario[] = [
       assert(map.integrity);
     },
   },
+  // TODO: Disabled pending JSR support
   // Scenario installs package from denoland along with integrity attribute
-  {
-    files: new Map(),
-    commands: ["jspm install denoland:zod --integrity"],
-    validationFn: async (files) => {
-      const map = JSON.parse(files.get("importmap.json"));
-      assert(map.imports.zod.includes("deno.land"));
-      assert(map.integrity);
-    },
-  },
+  // {
+  //   files: new Map(),
+  //   commands: ["jspm install denoland:zod --integrity"],
+  //   validationFn: async (files) => {
+  //     const map = JSON.parse(files.get("importmap.json"));
+  //     assert(map.imports.zod.includes("deno.land"));
+  //     assert(map.integrity);
+  //   },
+  // },
   // Scenario installs package from skypack along with integrity attribute
   {
     files: new Map(),

@@ -1,7 +1,7 @@
 import assert from "assert";
 import { spyOn } from "tinyspy";
-import install from "../src/install";
-import { parsePackageSpec, wrapCommand } from "../src/utils";
+import install from "../src/install.ts";
+import { parsePackageSpec, wrapCommand } from "../src/utils.ts";
 
 {
   let errorStr = "";

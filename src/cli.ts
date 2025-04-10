@@ -22,6 +22,7 @@ import install from "./install.ts";
 import link from "./link.ts";
 import uninstall from "./uninstall.ts";
 import update from "./update.ts";
+import configCmd from "./config-cmd.ts";
 import { JspmError, availableProviders, wrapCommand } from "./utils.ts";
 import build from "./build/index.ts";
 
@@ -283,6 +284,58 @@ Clears the global module fetch cache, for situations where the contents of a dep
   )
   .alias("cc")
   .action(wrapCommand(clearCache));
+
+cli
+  .command("config <action> [key] [value]", "manage JSPM configuration")
+  .option("--local", "Use the local project configuration (default is user-level)", { default: false })
+  .option(...silentOpt)
+  .example(
+    (name) => `
+$ ${name} config set providers.npm.auth "your-auth-token"
+
+Set an authentication token for the npm provider in the user configuration.
+`
+  )
+  .example(
+    (name) => `
+$ ${name} config set providers.npm.baseUrl "https://registry.npmjs.org/" --local
+
+Set the npm registry URL in the local project configuration.
+`
+  )
+  .example(
+    (name) => `
+$ ${name} config get providers.npm
+
+Get the npm provider configuration.
+`
+  )
+  .example(
+    (name) => `
+$ ${name} config list
+
+List all configuration values.
+`
+  )
+  .usage(
+    `config <action> [key] [value]
+
+Manages JSPM configuration files. Configurations are loaded from the user directory (~/.jspm/config) 
+and local directory (.jspmrc), with local configuration taking precedence over user configuration.
+
+Actions:
+  get <key>             Get a configuration value
+  set <key> <value>     Set a configuration value
+  delete|rm <key>       Delete a configuration value
+  list|ls               List all configuration values
+  
+Configuration keys use dot notation (e.g., providers.npm.auth).
+Values are parsed as JSON if possible, otherwise used as strings.
+
+By default, the command affects the user configuration (~/.jspm/config).
+Use the --local flag to modify the project-specific configuration (.jspmrc).`
+  )
+  .action(wrapCommand(configCmd));
 
 cli
   .command("build [entry]", "Build the module using importmap")

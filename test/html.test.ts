@@ -1,10 +1,15 @@
+import { test } from "node:test";
 import assert from "assert";
-import { type Scenario, mapFile, runScenarios } from "./scenarios.ts";
+import { mapFile, run } from "./scenarios.ts";
 
-const importMap = await mapFile("test/fixtures/importmap.json");
+let importMap: Map<string, string>;
 
-const scenarios: Scenario[] = [
-  {
+test("setup", async () => {
+  importMap = await mapFile("test/fixtures/importmap.json");
+});
+
+test("linking inline modules in HTML", async () => {
+  await run({
     files: await mapFile([
       "test/fixtures/inlinemodules.html",
       "test/fixtures/a.js",
@@ -16,8 +21,11 @@ const scenarios: Scenario[] = [
       const html = files.get("inlinemodules.html");
       assert(html.includes("react-dom"));
     },
-  },
-  {
+  });
+});
+
+test("linking specific package to HTML", async () => {
+  await run({
     files: importMap,
     commands: ["jspm link react -o index.html"],
     validationFn: async (files: Map<string, string>) => {
@@ -29,8 +37,11 @@ const scenarios: Scenario[] = [
       assert(!files.get("index.html").includes("preload"));
       assert(!files.get("index.html").includes("integrity"));
     },
-  },
-  {
+  });
+});
+
+test("linking all packages to HTML", async () => {
+  await run({
     files: importMap,
     commands: ["jspm link -o index.html"],
     validationFn: async (files: Map<string, string>) => {
@@ -42,8 +53,11 @@ const scenarios: Scenario[] = [
       assert(!files.get("index.html").includes("preload"));
       assert(!files.get("index.html").includes("integrity"));
     },
-  },
-  {
+  });
+});
+
+test("linking with static preload", async () => {
+  await run({
     files: importMap,
     commands: ["jspm link react -o index.html --preload static"],
     validationFn: async (files: Map<string, string>) => {
@@ -55,8 +69,11 @@ const scenarios: Scenario[] = [
       assert(files.get("index.html").includes("preload"));
       assert(!files.get("index.html").includes("integrity"));
     },
-  },
-  {
+  });
+});
+
+test("installing with preload and integrity", async () => {
+  await run({
     files: importMap,
     commands: ["jspm install react -o index.html --preload --integrity"],
     validationFn: async (files: Map<string, string>) => {
@@ -70,7 +87,5 @@ const scenarios: Scenario[] = [
       assert(files.get("index.html").includes("preload"));
       assert(files.get("index.html").includes(reactIntegrity));
     },
-  },
-];
-
-runScenarios(scenarios);
+  });
+});

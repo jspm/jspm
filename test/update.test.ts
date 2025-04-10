@@ -1,12 +1,17 @@
+import { test } from "node:test";
 import assert from "assert";
-import { type Scenario, mapFile, runScenarios } from "./scenarios.ts";
+import { mapFile, run } from "./scenarios.ts";
 
-const importMap = await mapFile("test/fixtures/importmap.json");
-const packageJson = await mapFile("test/fixtures/package.json");
+let importMap: Map<string, string>;
+let packageJson: Map<string, string>;
 
-const scenarios: Scenario[] = [
-  // Basic upgrade to latest react version:
-  {
+test("setup", async () => {
+  importMap = await mapFile("test/fixtures/importmap.json");
+  packageJson = await mapFile("test/fixtures/package.json");
+});
+
+test("Basic upgrade to latest react version", async () => {
+  await run({
     files: importMap,
     commands: ["jspm update react"],
     validationFn: async (files: Map<string, string>) => {
@@ -17,10 +22,11 @@ const scenarios: Scenario[] = [
         "https://ga.jspm.io/npm:react@17.0.1/dev.index.js"
       );
     },
-  },
+  });
+});
 
-  // Basic upgrade without parameters should upgrade all:
-  {
+test("Basic upgrade without parameters should upgrade all", async () => {
+  await run({
     files: importMap,
     commands: ["jspm update"],
     validationFn: async (files: Map<string, string>) => {
@@ -31,10 +37,11 @@ const scenarios: Scenario[] = [
         "https://ga.jspm.io/npm:react@17.0.1/dev.index.js"
       );
     },
-  },
+  });
+});
 
-  // Upgrade should use version from package.json:
-  {
+test("Upgrade should use version from package.json", async () => {
+  await run({
     files: new Map([...importMap, ...packageJson]),
     commands: ["jspm update react -e development"],
     validationFn: async (files: Map<string, string>) => {
@@ -45,7 +52,5 @@ const scenarios: Scenario[] = [
         "https://ga.jspm.io/npm:react@18.1.0/dev.index.js"
       );
     },
-  },
-];
-
-runScenarios(scenarios);
+  });
+});

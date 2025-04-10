@@ -1,0 +1,8 @@
+{
+  "name": "nested-config-test",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Nested project for testing JSPM config inheritance",
+  "main": "index.js",
+  "dependencies": {}
+}

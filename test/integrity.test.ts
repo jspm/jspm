@@ -1,35 +1,41 @@
+import { test } from "node:test";
 import assert from "assert";
 import {
-  type Scenario,
   mapDirectory,
   mapFile,
-  runScenarios,
+  run
 } from "./scenarios.ts";
 
-const importMap = await mapFile("test/fixtures/importmap.json");
+let importMap: Map<string, string>;
 
-const scenarios: Scenario[] = [
-  // The inline improtmap should be linked and the integrity attribute should be added
-  {
+test("setup", async () => {
+  importMap = await mapFile("test/fixtures/importmap.json");
+});
+
+test("Inline importmap should be linked with integrity attribute", async () => {
+  await run({
     files: importMap,
     commands: ["jspm link react -o index.html --integrity"],
     validationFn: async (files: Map<string, string>) => {
       const html = files.get("index.html");
-
       assert(html.includes("integrity"));
     },
-  },
-  // The importmap generated should have integrity attribute
-  {
+  });
+});
+
+test("Generated importmap should have integrity attribute", async () => {
+  await run({
     files: importMap,
     commands: ["jspm link --integrity"],
     validationFn: async (files: Map<string, string>) => {
       const map = JSON.parse(files.get("importmap.json"));
       assert(map.integrity);
     },
-  },
-  // Scenario should detect the provider and add integrity attribute
-  {
+  });
+});
+
+test("Scenario should detect provider and add integrity attribute", async () => {
+  await run({
     files: await mapFile("test/fixtures/unpkg.importmap.json"),
     commands: [
       "jspm link -m unpkg.importmap.json -o importmap.json --integrity",
@@ -38,29 +44,35 @@ const scenarios: Scenario[] = [
       const map = JSON.parse(files.get("importmap.json"));
       assert(map.integrity);
     },
-  },
-  // Scenario should detect the provider and add integrity attribute
-  {
+  });
+});
+
+test("Scenario using nodemodules provider should add integrity attribute", async () => {
+  await run({
     files: await mapDirectory("test/fixtures/scenario_provider_swap"),
     commands: ["jspm install --provider nodemodules --integrity"],
     validationFn: async (files) => {
       const map = JSON.parse(files.get("importmap.json"));
       assert(map.integrity);
     },
-  },
-  // TODO: Disabled pending JSR support
-  // Scenario installs package from denoland along with integrity attribute
-  // {
-  //   files: new Map(),
-  //   commands: ["jspm install denoland:zod --integrity"],
-  //   validationFn: async (files) => {
-  //     const map = JSON.parse(files.get("importmap.json"));
-  //     assert(map.imports.zod.includes("deno.land"));
-  //     assert(map.integrity);
-  //   },
-  // },
-  // Scenario installs package from skypack along with integrity attribute
-  {
+  });
+});
+
+// TODO: Disabled pending JSR support
+// test("Installing package from denoland with integrity attribute", async () => {
+//   await run({
+//     files: new Map(),
+//     commands: ["jspm install denoland:zod --integrity"],
+//     validationFn: async (files) => {
+//       const map = JSON.parse(files.get("importmap.json"));
+//       assert(map.imports.zod.includes("deno.land"));
+//       assert(map.integrity);
+//     },
+//   });
+// });
+
+test("Installing package from skypack with integrity attribute", async () => {
+  await run({
     files: new Map(),
     commands: ["jspm install lit --provider skypack --integrity"],
     validationFn: async (files) => {
@@ -68,7 +80,5 @@ const scenarios: Scenario[] = [
       assert(map.imports.lit.includes("cdn.skypack.dev"));
       assert(map.integrity);
     },
-  },
-];
-
-runScenarios(scenarios);
+  });
+});

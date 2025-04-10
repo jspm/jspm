@@ -1,20 +1,24 @@
+import { test } from "node:test";
 import assert from "assert";
-import { type Scenario, runScenarios } from "./scenarios.ts";
+import { run } from "./scenarios.ts";
 
-const importMap = new Map([
-  [
-    "importmap.json",
-    JSON.stringify({
-      imports: {
-        fs: "https://ga.jspm.io/npm:@jspm/core@2.0.0-beta.20/nodelibs/node/fs.js",
-      },
-    }),
-  ],
-]);
+let importMap: Map<string, string>;
 
-const scenarios: Scenario[] = [
-  // Installing without freeze should bump the version of core:
-  {
+test("setup", async () => {
+  importMap = new Map([
+    [
+      "importmap.json",
+      JSON.stringify({
+        imports: {
+          fs: "https://ga.jspm.io/npm:@jspm/core@2.0.0-beta.20/nodelibs/node/fs.js",
+        },
+      }),
+    ],
+  ]);
+});
+
+test("Installing without freeze should bump the version of core", async () => {
+  await run({
     files: importMap,
     commands: ["jspm install node:process"],
     validationFn: async (files: Map<string, string>) => {
@@ -22,10 +26,11 @@ const scenarios: Scenario[] = [
       assert(!map.imports.fs.includes("2.0.0-beta.20"));
       assert(!map.imports.process.includes("2.0.0-beta.20"));
     },
-  },
+  });
+});
 
-  // Installing with freeze should keep it fixed:
-  {
+test("Installing with freeze should keep it fixed", async () => {
+  await run({
     files: importMap,
     commands: ["jspm install node:process --freeze"],
     validationFn: async (files: Map<string, string>) => {
@@ -33,7 +38,5 @@ const scenarios: Scenario[] = [
       assert(map.imports.fs.includes("2.0.0-beta.20"));
       assert(map.imports.process.includes("2.0.0-beta.20"));
     },
-  },
-];
-
-runScenarios(scenarios);
+  });
+});

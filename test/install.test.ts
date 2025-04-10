@@ -1,10 +1,10 @@
+import { test } from "node:test";
 import assert from "assert";
 import type { IImportMap } from "../src/types.ts";
-import { type Scenario, runScenarios } from "./scenarios.ts";
+import { run } from "./scenarios.ts";
 
-const scenarios: Scenario[] = [
-  // Basic install:
-  {
+test("Basic install", async () => {
+  await run({
     commands: ["jspm install react@17.0.1 react-dom@17.0.1"],
     validationFn: async (files: Map<string, string>) => {
       assert.equal(files.size, 2);
@@ -15,10 +15,11 @@ const scenarios: Scenario[] = [
         "https://ga.jspm.io/npm:react@17.0.1/dev.index.js"
       );
     },
-  },
+  });
+});
 
-  // Install, but with a production environment:
-  {
+test("Install with production environment", async () => {
+  await run({
     commands: ["jspm install react@17.0.1 react-dom@17.0.1 -e production"],
     validationFn: async (files: Map<string, string>) => {
       assert.equal(files.size, 2);
@@ -29,10 +30,11 @@ const scenarios: Scenario[] = [
         "https://ga.jspm.io/npm:react@17.0.1/index.js"
       );
     },
-  },
+  });
+});
 
-  // Install, but with deno environment:
-  {
+test("Install with deno environment", async () => {
+  await run({
     commands: ["jspm install react@17.0.1 react-dom@17.0.1 -e deno"],
     validationFn: async (files: Map<string, string>) => {
       assert.equal(files.size, 2);
@@ -46,10 +48,11 @@ const scenarios: Scenario[] = [
       // "deno" should replace "browser" env:
       assert.deepEqual(map.env, ["deno", "development", "module"]);
     },
-  },
+  });
+});
 
-  // Install, but with both deno _and_ browser environments:
-  {
+test("Install with both deno and browser environments", async () => {
+  await run({
     commands: ["jspm install react@17.0.1 react-dom@17.0.1 -e deno,browser"],
     validationFn: async (files: Map<string, string>) => {
       assert.equal(files.size, 2);
@@ -63,10 +66,11 @@ const scenarios: Scenario[] = [
       // Both "deno" and "browser" envs should be present:
       assert.deepEqual(map.env, ["browser", "deno", "development", "module"]);
     },
-  },
+  });
+});
 
-  // Install, but using a alias for the package:
-  {
+test("Install using an alias for the package", async () => {
+  await run({
     commands: ["jspm install -e production custom=react@17.0.1"],
     validationFn: async (files: Map<string, string>) => {
       assert.equal(files.size, 2);
@@ -77,10 +81,11 @@ const scenarios: Scenario[] = [
         "https://ga.jspm.io/npm:react@17.0.1/index.js"
       );
     },
-  },
+  });
+});
 
-  // Reinstall, changing from development to production:
-  {
+test("Reinstall, changing from development to production", async () => {
+  await run({
     commands: [
       "jspm install -e development react@17.0.1",
       "jspm install -e production",
@@ -92,10 +97,11 @@ const scenarios: Scenario[] = [
       assert(map.imports.react);
       assert(!map.imports.react.includes("dev"));
     },
-  },
+  });
+});
 
-  // Installing should respect the existing import map's "env" field:
-  {
+test("Installing should respect the existing import map's env field", async () => {
+  await run({
     commands: ["jspm install -e deno,production react@17.0.1", "jspm install"],
     validationFn: async (files: Map<string, string>) => {
       assert.equal(files.size, 2);
@@ -104,10 +110,11 @@ const scenarios: Scenario[] = [
       assert.deepEqual(map.env, ["deno", "module", "production"]);
       assert(map.imports.react);
     },
-  },
+  });
+});
 
-  // You should be able to swap providers using the -p flag:
-  {
+test("Swapping providers using the -p flag", async () => {
+  await run({
     commands: ["jspm install -p jsdelivr -e production,browser react@17.0.1"],
     validationFn: async (files: Map<string, string>) => {
       assert.equal(files.size, 2);
@@ -118,11 +125,11 @@ const scenarios: Scenario[] = [
         "https://cdn.jsdelivr.net/npm/react@17.0.1/index.js"
       );
     },
-  },
+  });
+});
 
-  // Even if you give "jspm install" a different output map, it should still
-  // behave additively and write all top-level pins to the output:
-  {
+test("Using different output map with additive behavior", async () => {
+  await run({
     commands: [
       "jspm install -e production,browser react@17.0.1 lodash@4.17.21",
       "jspm install -o output.importmap.json lodash", // extract lodash
@@ -142,10 +149,11 @@ const scenarios: Scenario[] = [
         "https://ga.jspm.io/npm:lodash@4.17.21/lodash.js"
       );
     },
-  },
+  });
+});
 
-  // Installing should always bump the version if possible.
-  {
+test("Installing should always bump the version if possible", async () => {
+  await run({
     commands: ["jspm install react@17.0.1", "jspm install react"],
     validationFn: async (files: Map<string, string>) => {
       const map: IImportMap = JSON.parse(files.get("importmap.json"));
@@ -154,7 +162,5 @@ const scenarios: Scenario[] = [
         "https://cdn.jsdelivr.net/npm/react@17.0.1/index.js"
       );
     },
-  },
-];
-
-await runScenarios(scenarios);
+  });
+});

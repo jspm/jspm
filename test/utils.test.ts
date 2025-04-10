@@ -1,9 +1,10 @@
+import { test } from "node:test";
 import assert from "assert";
 import { spyOn } from "tinyspy";
 import install from "../src/install.ts";
 import { parsePackageSpec, wrapCommand } from "../src/utils.ts";
 
-{
+test("wrapCommand should handle 404 without throwing stack message", async () => {
   let errorStr = "";
   spyOn(console, "error", (err) => {
     errorStr = err;
@@ -22,9 +23,9 @@ import { parsePackageSpec, wrapCommand } from "../src/utils.ts";
     )
   );
   process.exitCode = 0;
-}
+});
 
-{
+test("parsePackageSpec should correctly parse package specifiers", () => {
   // Check that we can parse (a subset of) package specifiers correctly:
   const testCases = [
     { input: "npm", output: "npm" },
@@ -37,4 +38,4 @@ import { parsePackageSpec, wrapCommand } from "../src/utils.ts";
   for (const { input, output } of testCases) {
     assert.strictEqual(parsePackageSpec(input), output);
   }
-}
+});

@@ -1,0 +1,8 @@
+{
+  "name": "config-test-project",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Test project for JSPM config tests",
+  "main": "index.js",
+  "dependencies": {}
+}

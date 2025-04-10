@@ -1,0 +1,7 @@
+{
+  "providers": {
+    "npm": {
+      "auth": "token123"
+    }
+  }
+}

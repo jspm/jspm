@@ -1,0 +1,9 @@
+{
+  "defaultProvider": "jsdelivr",
+  "providers": {
+    "npm": {
+      "baseUrl": "https://registry.example.com/"
+    }
+  },
+  "cacheDir": "./custom-cache"
+}

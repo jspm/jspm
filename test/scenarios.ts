@@ -16,22 +16,29 @@ export interface Scenario {
 
   // For configuring initial environment for the scenario:
   files?: Files;
+  // Subdirectory within the temp dir to use as working directory
+  cwd?: string;
 }
 
-export async function runScenarios(scenarios: Scenario[]) {
-  for (const scenario of scenarios) {
-    if (process.env.JSPM_TEST_LOG) {
-      console.log(`running scenario "${scenario.commands[0]}"`);
-    }
-
-    await runScenario(scenario);
+export async function run(scenario: Scenario) {
+  if (process.env.JSPM_TEST_LOG) {
+    console.log(`running scenario "${scenario.commands[0]}"`);
   }
-}
 
-export async function runScenario(scenario: Scenario) {
-  const cwd = process.cwd();
+  const originalCwd = process.cwd();
   const dir = await createTmpPkg(scenario);
-  process.chdir(dir);
+  
+  // Set working directory, considering the cwd option if provided
+  const workingDir = scenario.cwd 
+    ? path.join(dir, scenario.cwd) 
+    : dir;
+  
+  // Ensure the working directory exists
+  if (scenario.cwd) {
+    await fs.mkdir(workingDir, { recursive: true });
+  }
+  
+  process.chdir(workingDir);
 
   try {
     for (const cmd of scenario.commands) {
@@ -46,7 +53,7 @@ export async function runScenario(scenario: Scenario) {
       cause: err,
     });
   } finally {
-    process.chdir(cwd);
+    process.chdir(originalCwd);
     await deleteTmpPkg(dir);
   }
 }

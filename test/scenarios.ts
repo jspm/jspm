@@ -16,22 +16,49 @@ export interface Scenario {
 
   // For configuring initial environment for the scenario:
   files?: Files;
+  // Subdirectory within the temp dir to use as working directory
+  cwd?: string;
 }
 
-export async function runScenarios(scenarios: Scenario[]) {
-  for (const scenario of scenarios) {
-    if (process.env.JSPM_TEST_LOG) {
-      console.log(`running scenario "${scenario.commands[0]}"`);
-    }
-
-    await runScenario(scenario);
+export async function run(scenario: Scenario) {
+  if (process.env.JSPM_TEST_LOG) {
+    console.log(`running scenario "${scenario.commands[0]}"`);
   }
-}
 
-export async function runScenario(scenario: Scenario) {
-  const cwd = process.cwd();
+  const originalCwd = process.cwd();
   const dir = await createTmpPkg(scenario);
-  process.chdir(dir);
+  
+  // Set working directory, considering the cwd option if provided
+  const workingDir = scenario.cwd 
+    ? path.join(dir, scenario.cwd) 
+    : dir;
+  
+  // Ensure the working directory exists
+  if (scenario.cwd) {
+    await fs.mkdir(workingDir, { recursive: true });
+  }
+  
+  process.chdir(workingDir);
+
+  // Create isolated environment for tests
+  const originalUserConfig = process.env.JSPM_USER_CONFIG_DIR;
+  
+  // Create isolated user config directory for tests
+  const isolatedConfigDir = path.join(dir, '.jspm-user-config');
+  await fs.mkdir(isolatedConfigDir, { recursive: true });
+  process.env.JSPM_USER_CONFIG_DIR = isolatedConfigDir;
+  
+  // Create a fresh project config for tests by creating an isolated .jspmrc
+  // This ensures each test has its own isolated local config
+  // and won't be affected by or affect other tests
+  if (scenario.files && scenario.files.has(".jspmrc")) {
+    // Get the content of the original .jspmrc from fixtures
+    const originalContent = scenario.files.get(".jspmrc");
+    
+    // Create a copy in the temp directory
+    const configPath = path.join(dir, ".jspmrc");
+    await fs.writeFile(configPath, originalContent);
+  }
 
   try {
     for (const cmd of scenario.commands) {
@@ -46,7 +73,13 @@ export async function runScenario(scenario: Scenario) {
       cause: err,
     });
   } finally {
-    process.chdir(cwd);
+    // Restore original environment
+    process.chdir(originalCwd);
+    if (originalUserConfig !== undefined) {
+      process.env.JSPM_USER_CONFIG_DIR = originalUserConfig;
+    } else {
+      delete process.env.JSPM_USER_CONFIG_DIR;
+    }
     await deleteTmpPkg(dir);
   }
 }

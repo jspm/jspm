@@ -1,10 +1,15 @@
+import { test } from "node:test";
 import assert from "assert";
-import { type Scenario, mapDirectory, runScenarios } from "./scenarios.ts";
+import { mapDirectory, run } from "./scenarios.ts";
 
-const filesOwnName = await mapDirectory("test/fixtures/scenario_ownname");
+let filesOwnName: Map<string, string>;
 
-const scenarios: Scenario[] = [
-  {
+test("setup", async () => {
+  filesOwnName = await mapDirectory("test/fixtures/scenario_ownname");
+});
+
+test("Installing own-name package should upgrade transitive dependencies", async () => {
+  await run({
     files: filesOwnName,
     commands: ["jspm install app"],
     validationFn: async (files: Map<string, string>) => {
@@ -16,8 +21,11 @@ const scenarios: Scenario[] = [
         map?.imports?.["es-module-lexer"]?.includes("es-module-lexer@1.6.0")
       );
     },
-  },
-  {
+  });
+});
+
+test("Linking local module should respect input map versions", async () => {
+  await run({
     files: filesOwnName,
     commands: ["jspm link ./app.js -o outputmap.json"],
     validationFn: async (files: Map<string, string>) => {
@@ -30,8 +38,11 @@ const scenarios: Scenario[] = [
         map?.imports?.["es-module-lexer"]?.includes("es-module-lexer@0.10.5")
       );
     },
-  },
-  {
+  });
+});
+
+test("Linking own-name package should respect input map versions", async () => {
+  await run({
     files: filesOwnName,
     commands: ["jspm link app -o outputmap.json"],
     validationFn: async (files: Map<string, string>) => {
@@ -47,7 +58,5 @@ const scenarios: Scenario[] = [
         )
       );
     },
-  },
-];
-
-runScenarios(scenarios);
+  });
+});

@@ -6,6 +6,7 @@ import { Generator, analyzeHtml } from "@jspm/generator";
 import ora from "ora";
 import c from "picocolors";
 import { withType } from "./logger.ts";
+import { loadConfig } from "./config.ts";
 import type { Flags, IImportMapJspm } from "./types.ts";
 
 // Default import map to use if none is provided:
@@ -212,18 +213,27 @@ export async function getGenerator(
   log(
     `Creating generator with mapUrl ${mapUrl}, baseUrl ${baseUrl}, rootUrl ${rootUrl}`
   );
-
+  
+  // Load configuration
+  const config = await loadConfig();
+  log(`Loaded config with ${config.providers ? Object.keys(config.providers).length : 0} provider configurations`);
+  
+  // CLI flags take precedence over config file
+  const defaultProvider = getProvider(flags) || config.defaultProvider;
+  
   return new Generator({
     mapUrl,
     baseUrl,
     rootUrl,
     inputMap: await getInputMap(flags),
     env: setEnv ? await getEnv(flags) : undefined,
-    defaultProvider: getProvider(flags),
+    defaultProvider,
     resolutions: getResolutions(flags),
     cache: getCacheMode(flags),
     integrity: flags.integrity,
     commonJS: true, // TODO: only for --local flag
+    // Pass provider configs from configuration file
+    providerConfig: config.providers
   });
 }
 

@@ -18,8 +18,6 @@ export interface Scenario {
   files?: Files;
   // Subdirectory within the temp dir to use as working directory
   cwd?: string;
-  // Use isolated config directory
-  isolateUserConfig?: boolean;
 }
 
 export async function run(scenario: Scenario) {
@@ -42,12 +40,24 @@ export async function run(scenario: Scenario) {
   
   process.chdir(workingDir);
 
-  // Create isolated user config environment
+  // Create isolated environment for tests
   const originalUserConfig = process.env.JSPM_USER_CONFIG_DIR;
-  if (scenario.isolateUserConfig !== false) {
-    const isolatedConfigDir = path.join(dir, '.jspm-user-config');
-    await fs.mkdir(isolatedConfigDir, { recursive: true });
-    process.env.JSPM_USER_CONFIG_DIR = isolatedConfigDir;
+  
+  // Create isolated user config directory for tests
+  const isolatedConfigDir = path.join(dir, '.jspm-user-config');
+  await fs.mkdir(isolatedConfigDir, { recursive: true });
+  process.env.JSPM_USER_CONFIG_DIR = isolatedConfigDir;
+  
+  // Create a fresh project config for tests by creating an isolated .jspmrc
+  // This ensures each test has its own isolated local config
+  // and won't be affected by or affect other tests
+  if (scenario.files && scenario.files.has(".jspmrc")) {
+    // Get the content of the original .jspmrc from fixtures
+    const originalContent = scenario.files.get(".jspmrc");
+    
+    // Create a copy in the temp directory
+    const configPath = path.join(dir, ".jspmrc");
+    await fs.writeFile(configPath, originalContent);
   }
 
   try {

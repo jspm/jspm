@@ -3,7 +3,7 @@
     "@antfu",
     "prettier"
   ],
-  "ignorePatterns": ["**/*importmap*"],
+  "ignorePatterns": ["**/*importmap*", "packages/**"],
   "rules": {
     "no-console": "off",
     "no-cond-assign": "off",

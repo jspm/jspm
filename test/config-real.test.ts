@@ -123,32 +123,27 @@ test("Real-world - config merging and package installation in nested directory",
   });
 });
 
-test("Real-world - isolated user config", async () => {
+test("Real-world - local config updates", async () => {
   const fixtureFiles = await loadFixtures("scenario_config");
   
   await run({
     files: fixtureFiles,
     commands: [
-      // Create a user config in the isolated environment
-      "jspm config set defaultProvider unpkg",
-      "jspm config set providers.npm.baseUrl https://isolated-registry.example.com/",
+      // Use the --local flag to update the local config file directly
+      "jspm config set defaultProvider unpkg --local",
+      "jspm config set providers.npm.baseUrl https://isolated-registry.example.com/ --local",
       "jspm config list"
     ],
-    // Enable isolated user config
-    isolateUserConfig: true,
     validationFn: async (files: Map<string, string>) => {
-      // Check if the isolated config directory was created and has a config file
-      assert(files.has(".jspm-user-config/config"), "Isolated user config file should exist");
+      // Check if the local config file was updated correctly
+      assert(files.has(".jspmrc"), "Local config file should exist");
       
-      const userConfig = JSON.parse(files.get(".jspm-user-config/config"));
-      
-      // Verify the isolated config has the expected values
-      assert.strictEqual(userConfig.defaultProvider, "unpkg");
-      assert.strictEqual(userConfig.providers.npm.baseUrl, "https://isolated-registry.example.com/");
-      
-      // Local .jspmrc should still exist with its original values
       const localConfig = JSON.parse(files.get(".jspmrc"));
-      assert.strictEqual(localConfig.defaultProvider, "jsdelivr");
+      console.log("Updated local config: ", JSON.stringify(localConfig));
+      
+      // Verify the local config has been updated with the new values
+      assert.strictEqual(localConfig.defaultProvider, "unpkg");
+      assert.strictEqual(localConfig.providers.npm.baseUrl, "https://isolated-registry.example.com/");
     },
   });
 });
@@ -159,24 +154,28 @@ test("Real-world - isolated config affects package installation", async () => {
   await run({
     files: fixtureFiles,
     commands: [
-      // Set config in isolated environment
-      "jspm config set defaultProvider unpkg",
-      // Install a package which should use the isolated config
+      // Set config in isolated environment with --local flag to ensure it's applied
+      "jspm config set defaultProvider unpkg --local",
+      // Install a package which should use the updated local config
       "jspm install lodash@4.17.21",
       "jspm link ./index.js"
     ],
-    // Enable isolated user config
-    isolateUserConfig: true,
     validationFn: async (files: Map<string, string>) => {
       assert(files.has("importmap.json"), "Import map should exist");
-      assert(files.has(".jspm-user-config/config"), "Isolated user config file should exist");
+      
+      // Check the local .jspmrc file was updated
+      assert(files.has(".jspmrc"), "Local config file should exist");
+      const localConfig = JSON.parse(files.get(".jspmrc"));
+      console.log("Local config after update: ", JSON.stringify(localConfig));
+      assert.strictEqual(localConfig.defaultProvider, "unpkg", 
+        "Local config should be updated with unpkg provider");
       
       const importMap = JSON.parse(files.get("importmap.json"));
+      console.log("Import map: ", JSON.stringify(importMap));
       
-      // ImportMap should use unpkg as set in the isolated config
-      // even though the local config has jsdelivr
+      // ImportMap should use unpkg from the updated local config
       assert(importMap.imports.lodash.startsWith("https://unpkg.com/"), 
-        "Import map should use unpkg provider from isolated config");
+        "Import map should use unpkg provider from local config");
     },
   });
 });

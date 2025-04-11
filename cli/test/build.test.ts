@@ -4,7 +4,7 @@ import { mapDirectory, run } from "./scenarios.ts";
 
 // Windows tests are disabled
 test("build with rollup config", { skip: process.platform === 'win32' }, async () => {
-  const filesOwnName = await mapDirectory("test/fixtures/scenario_build_app");
+  const filesOwnName = await mapDirectory("fixtures/scenario_build_app");
 
   await run({
     files: filesOwnName,

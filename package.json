@@ -1,7 +1,7 @@
 {
   "workspaces": [
-    "cli",
+    "import-map",
     "generator",
-    "import-map"
+    "cli"
   ]
 }

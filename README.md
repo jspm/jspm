@@ -14,7 +14,7 @@ This monorepo includes the following tools:
 * [`generator`](./generator): JSPM Generator import map generation library (`@jspm/generator`)
 * [`import-map`](./import-map): JSPM Import Map low-level manipulation library (`@jspm/import-map`)
 
-Features:
+### Features
 
 * **Local Linking**: map packages to your local `node_modules` folder
 * **Common CDNs**: Resolve against common CDNs like [jspm.io](https://jspm.io/), [jsDelivr](https://jsdelivr.com), [UNPKG](https://unpkg.com/) and [more](#customProviders)
@@ -24,7 +24,12 @@ Features:
 * **Package Entrypoints**: Handles node-style package exports, imports and own-name resolution
 * **Importmap Injection**: Import map extraction/injection into HTML files, with module preloading and integrity attributes.
 
-See the [documentation](https://jspm.org/docs/jspm-cli) and [getting started](https://jspm.org/getting-started) guide on jspm.org.
+### Documentation
+
+* JSPM CLI: https://jspm.org/docs/jspm-cli
+* JSPM Generator: https://jspm.org/docs/generator
+* Import Map: https://jspm.org/docs/import-map
+* Getting Started: https://jspm.org/getting-started
 
 ## Contributing
 

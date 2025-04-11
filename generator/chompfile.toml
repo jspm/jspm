@@ -1,0 +1,202 @@
+version = 0.1
+default-task = 'build'
+
+[[task]]
+name = 'npm:install'
+targets = [
+    '../node_modules',
+    '../package-lock.json',
+]
+deps = ['package.json', '../package.json']
+validation = 'ok-only'
+display = 'init-only'
+run = 'npm install'
+
+[[task]]
+target = 'lib'
+deps = ['lib/**/*.js']
+
+[[task]]
+name = 'build'
+targets = [
+    'dist',
+    'dist/generator-deno.js',
+    'dist/generator.js',
+    'dist/fetch-vscode.js',
+    'dist/fetch-deno.js',
+    'dist/fetch-node.js',
+    'dist/fetch-native.js',
+]
+deps = [
+    'lib',
+    'npm:install',
+    'build:dec',
+    'lib/generator-deno.js',
+    'lib/generator.js',
+    'lib/common/fetch-vscode.js',
+    'lib/common/fetch-deno.js',
+    'lib/common/fetch-node.js',
+    'lib/common/fetch-native.js',
+    'npm:install',
+]
+engine = 'node'
+run = '''
+  import { rollup } from 'rollup';
+  import { rmSync } from 'fs';
+
+  rmSync('dist', { recursive: true });
+
+  const bundle = await rollup({
+    input: [
+      "lib/generator-deno.js",
+      "lib/generator.js",
+      "lib/common/fetch-vscode.js",
+      "lib/common/fetch-deno.js",
+      "lib/common/fetch-node.js",
+      "lib/common/fetch-native.js"
+    ],
+    onwarn () {},
+  });
+  await bundle.write({
+    "dir": "dist"
+  });
+'''
+
+[[task]]
+name = 'build:ts'
+targets = ['lib/##.js']
+deps = [
+    'src/##.ts',
+    'npm:install',
+]
+stdio = 'stderr-only'
+run = 'node ../node_modules/@swc/cli/bin/swc.js $DEP -o $TARGET --no-swcrc --source-maps -C inlineSourcesContent=false -C jsc.target=es2019 -C jsc.parser.syntax=typescript -C jsc.parser.importAttributes=true -C jsc.parser.topLevelAwait=true -C jsc.parser.importMeta=true -C jsc.parser.privateMethod=true -C jsc.parser.dynamicImport=true -C jsc.experimental.keepImportAssertions=true'
+
+[[task]]
+name = 'build:dec'
+deps = ['src/**/*.ts']
+run = 'tsc --emitDeclarationOnly'
+
+[[task]]
+target = 'lib/version.js'
+dep = 'package.json'
+engine = 'node'
+run = '''
+    import { readFileSync, writeFileSync } from 'fs';
+    const { version } = JSON.parse(readFileSync('package.json', 'utf8'));
+    writeFileSync('lib/version.js', `export default ${JSON.stringify(version)}`);
+'''
+
+[[task]]
+name = 'build:ts'
+targets = ['lib/##.js']
+deps = [
+    'src/##.ts',
+    'npm:install',
+]
+stdio = 'stderr-only'
+run = 'node ../node_modules/@swc/cli/bin/swc.js $DEP -o $TARGET --no-swcrc --source-maps -C inlineSourcesContent=false -C jsc.target=es2019 -C jsc.parser.syntax=typescript -C jsc.parser.importAttributes=true -C jsc.parser.topLevelAwait=true -C jsc.parser.importMeta=true -C jsc.parser.privateMethod=true -C jsc.parser.dynamicImport=true -C jsc.experimental.keepImportAssertions=true'
+
+[[task]]
+name = 'test'
+deps = [
+    'test:unit',
+    'test:integration',
+    'test:browser',
+]
+serial = true
+
+[[task]]
+name = 'test:unit'
+dep = 'unit:'
+
+[[task]]
+name = 'unit:#'
+deps = [
+    'lib/##.test.js',
+    'lib',
+]
+run = 'node -C source --enable-source-maps $DEP'
+
+[[task]]
+name = 'test:integration'
+dep = 'integration:'
+
+[[task]]
+name = 'integration:#'
+deps = [
+    'test/##.test.js',
+    'lib',
+]
+run = 'node -C source --enable-source-maps $DEP'
+
+[[task]]
+name = 'test:browser'
+deps = [
+    'build:ts',
+    'dist/*',
+    'test/test.html',
+]
+run = 'node test/server.mjs'
+
+[[task]]
+name = 'test:browser:watch'
+run = 'node test/server.mjs'
+
+[task.env]
+WATCH_MODE = '1'
+
+[[task]]
+name = 'cache-clear'
+engine = 'node'
+run = '''
+    import { clearCache } from '@jspm/generator';
+    clearCache();
+'''
+
+[[task]]
+target = 'test/test.html'
+deps = [
+    'src/**/*.ts',
+    'dist/generator.js',
+]
+engine = 'node'
+run = '''
+    import { Generator } from '@jspm/generator';
+    import { readFile, writeFile } from 'fs/promises';
+
+    const generator = new Generator({
+        mapUrl: new URL('./test/test.html', import.meta.url.replace('//[', '/[')),
+        env: ['browser', 'module', 'production']
+    });
+
+    await generator.link('@jspm/generator');
+    await generator.install('node:assert');
+
+    const html = await generator.htmlInject(await readFile(process.env.TARGET, 'utf8'), {
+        htmlUrl: new URL(process.env.TARGET, import.meta.url.replace('//[', '/['))
+    });
+    await writeFile(process.env.TARGET, html);
+'''
+
+[[task]]
+name = 'prettier'
+targets = []
+deps = [
+    'src/**/*.ts',
+    'test/**/*.js',
+    'npm:install',
+]
+watch-invalidation = 'skip-running'
+invalidation = 'always'
+run = 'prettier --cache --cache-strategy metadata --loglevel warn --ignore-path .prettierignore --write "src/**/*.ts" "test/**/*.js"'
+
+[[task]]
+name = 'typecheck'
+deps = [
+    'src/**/*.ts',
+    'src/*.ts',
+]
+run = '''
+    tsc --noEmit
+'''

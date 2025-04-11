@@ -1,0 +1,92 @@
+{
+  "name": "@jspm/generator",
+  "description": "Package Import Map Generation Tool",
+  "license": "Apache-2.0",
+  "version": "2.5.1",
+  "types": "lib/generator.d.ts",
+  "type": "module",
+  "scripts": {
+    "prepublishOnly": "chomp build",
+    "build": "chomp build",
+    "test": "chomp test"
+  },
+  "imports": {
+    "#fetch": {
+      "source": {
+        "vscode": "./lib/common/fetch-vscode.js",
+        "deno": "./lib/common/fetch-deno.js",
+        "node": "./lib/common/fetch-node.js",
+        "default": "./lib/common/fetch-native.js"
+      },
+      "default": {
+        "vscode": "./dist/fetch-vscode.js",
+        "deno": "./dist/fetch-deno.js",
+        "node": "./dist/fetch-node.js",
+        "default": "./dist/fetch-native.js"
+      }
+    },
+    "#test/*": {
+      "source": "./test/*.js"
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/generator.d.ts",
+      "source": {
+        "deno": "./lib/generator-deno.js",
+        "default": "./lib/generator.js"
+      },
+      "deno": "./dist/generator-deno.js",
+      "default": "./dist/generator.js"
+    },
+    "./*.js": {
+      "source": "./lib/*.js"
+    }
+  },
+  "dependencies": {
+    "@babel/core": "^7.24.7",
+    "@babel/plugin-syntax-import-attributes": "^7.24.7",
+    "@babel/preset-typescript": "^7.24.7",
+    "@jspm/import-map": "^1.1.0",
+    "es-module-lexer": "^1.5.4",
+    "make-fetch-happen": "^8.0.14",
+    "sver": "^1.8.4"
+  },
+  "devDependencies": {
+    "@jspm/core": "^2.0.1",
+    "@swc/cli": "^0.1.65",
+    "@swc/core": "^1.11.18",
+    "@types/node": "^22.14.0",
+    "@types/vscode": "^1.75.1",
+    "@vscode/test-electron": "^2.2.3",
+    "chalk": "^4.1.2",
+    "cross-env": "^7.0.3",
+    "kleur": "^4.1.5",
+    "lit-element": "^2.5.1",
+    "mocha": "^9.2.2",
+    "open": "^8.4.1",
+    "prettier": "^2.8.4",
+    "rollup": "^2.79.1",
+    "typescript": "^5.5.4"
+  },
+  "files": [
+    "dist",
+    "lib"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jspm/generator.git"
+  },
+  "keywords": [
+    "jspm",
+    "import maps",
+    "es modules",
+    "cdn",
+    "package manager"
+  ],
+  "author": "Guy Bedford",
+  "bugs": {
+    "url": "https://github.com/jspm/generator/issues"
+  },
+  "homepage": "https://github.com/jspm/generator#readme"
+}

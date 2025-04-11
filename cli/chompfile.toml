@@ -1,0 +1,90 @@
+version = 0.1
+default-task = 'build'
+
+[[task]]
+name = 'npm:install'
+targets = [
+    '../node_modules',
+    '../package-lock.json',
+]
+deps = ['package.json', '../package.json']
+validation = 'ok-only'
+display = 'init-only'
+run = 'npm install'
+
+[[task]]
+name = 'build'
+deps = [
+    'dist/cli.js',
+    'docs.md',
+]
+
+[[task]]
+target = 'dist/cli.js'
+deps = [
+    'src/**/*.ts',
+    'npm:install',
+]
+run = '../node_modules/.bin/esbuild src/cli.ts --bundle --platform=node --external:fsevents --external:@jspm/generator --external:ora --external:picocolors --external:@babel/core --format=esm --outfile=$TARGET'
+
+[[task]]
+name = 'docs'
+target = 'docs.md'
+deps = [
+    'src/**/*.ts',
+    'docs/intro.md',
+    'docs/config.md',
+    'dist/cli.js',
+]
+run = '''
+  node docs/generate.js > docs.md
+  node docs/finalize.js
+'''
+
+[[task]]
+name = 'lint'
+run = '../node_modules/.bin/eslint .'
+
+[[task]]
+name = 'lint:fix'
+run = '../node_modules/.bin/eslint . --fix'
+
+[[task]]
+name = 'prettier'
+targets = []
+deps = [
+    'src/**/*.ts',
+    'test/*.ts',
+    'npm:install',
+]
+watch-invalidation = 'skip-running'
+invalidation = 'always'
+run = '../node_modules/.bin/prettier --cache --cache-strategy metadata --loglevel warn --write "src/**/*.ts" "test/*.ts"'
+
+[[task]]
+name = 'typecheck'
+deps = [
+    'src/**/*.ts',
+    'test/*.ts',
+]
+run = 'tsc --noEmit'
+
+[[task]]
+name = 'link:test'
+dep = 'build'
+run = 'node jspm.js link ./test/fixtures/test.js --env=deno,node --strip-env'
+
+[[task]]
+name = 'deno:test'
+dep = 'link:test'
+run = 'deno run --importmap importmap.json -A ./test/fixtures/test.js'
+
+[[task]]
+name = 'test'
+dep = 'test:'
+
+[[task]]
+name = 'test:##'
+dep = 'test/##.test.ts'
+serial = true
+run = 'node --experimental-strip-types --test $DEP'

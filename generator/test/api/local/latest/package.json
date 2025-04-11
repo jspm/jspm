@@ -1,0 +1,8 @@
+{
+  "name": "latest",
+  "type": "module",
+  "exports": "./index.js",
+  "dependencies": {
+    "react": "~16.13.0"
+  }
+}

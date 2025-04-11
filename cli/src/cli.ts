@@ -1,5 +1,5 @@
 /**
- * Copyright 2022-2023 Guy Bedford
+ * Copyright 2022-2025 Guy Bedford
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 import { readFileSync } from "node:fs";
 import c from "picocolors";
-import cac from "cac";
+import cac, { type Command } from "cac";
 import clearCache from "./clearCache.ts";
 import install from "./install.ts";
 import link from "./link.ts";
@@ -30,78 +30,70 @@ const { version } = JSON.parse(readFileSync(new URL('../package.json', import.me
 
 export const cli = cac(c.yellow("jspm"));
 
-type opt = [string, string, any];
-const mapOpt: opt = [
-  "-m, --map <file>",
-  "File containing initial import map (defaults to importmap.json, or the input HTML if linking)",
-  {},
-];
-const envOpt: opt = [
-  "-e, --env <environments>",
-  "Comma-separated environment condition overrides",
-  {},
-];
-const resolutionOpt: opt = [
-  "-r, --resolution <resolutions>",
-  "Comma-separated dependency resolution overrides",
-  {},
-];
-const providerOpt: opt = [
-  "-p, --provider <provider>",
-  `Default module provider. Available providers: ${availableProviders.join(
-    ", "
-  )}`,
-  {},
-];
-const stdoutOpt: opt = [
-  "--stdout",
-  "Output the import map to stdout",
-  { default: false },
-];
-const compactOpt: opt = [
-  "--compact",
-  "Output a compact import map",
-  { default: false },
-];
-const outputOpt: opt = [
-  "-o, --output <file>",
-  "File to inject the final import map into (default: --map / importmap.json)",
-  {},
-];
-const preloadOpt: opt = [
-  "--preload [mode]",
-  "Add module preloads to HTML output (default: static, dynamic)",
-  {},
-];
-const integrityOpt: opt = [
-  "--integrity",
-  "Add module integrity attributes to the import map",
-  { default: false },
-];
-const cacheOpt: opt = [
-  "--cache <mode>",
-  "Cache mode for fetches (online, offline, no-cache)",
-  { default: "online" },
-];
-const rootOpt: opt = [
-  "--root <url>",
-  "URL to treat as server root, i.e. rebase import maps against",
-  {},
-];
-const silentOpt: opt = ["--silent", "Silence all output", { default: false }];
-const buildConfigOpt: opt = [
-  "--config <file>",
-  "Path to a rollup config file",
-  {},
-];
-const buildOutputOpt: opt = [
-  "--output <dir>",
-  "Path to the rollup output directory",
-  {},
-];
+type OptionGroup = (input: Command) => Command;
+
+const generateOpts: OptionGroup = cac =>
+  cac.option(
+    "-m, --map <file>",
+    "File containing initial import map (defaults to importmap.json, or the input HTML if linking)",
+    {}
+  ).option(
+    "-e, --env <environments>",
+    "Comma-separated environment condition overrides",
+    {}
+  ).option(
+    "-r, --resolution <resolutions>",
+    "Comma-separated dependency resolution overrides",
+    {}
+  ).option(
+    "-p, --provider <provider>",
+    `Default module provider. Available providers: ${availableProviders.join(
+      ", "
+    )}`,
+    {}
+  ).option(
+    "--cache <mode>",
+    "Cache mode for fetches (online, offline, no-cache)",
+    { default: "online" }
+  ).option(
+    "--integrity",
+    "Add module integrity attributes to the import map",
+    { default: false }
+  ).option(
+    "--preload [mode]",
+    "Add module preloads to HTML output (default: static, dynamic)",
+    {}
+  );
+
+const outputOpts: OptionGroup = cac =>
+  cac.option(
+    "--root <url>",
+    "URL to treat as server root, i.e. rebase import maps against",
+    {}
+  ).option(
+    "--compact",
+    "Output a compact import map",
+    { default: false }
+  ).option(
+    "--stdout",
+    "Output the import map to stdout",
+    { default: false }
+  ).option(
+    "-o, --output <file>",
+    "File to inject the final import map into (default: --map / importmap.json)",
+    {}
+  ).option(
+    "--strip-env",
+    "Do not inline the environment into the importmap.",
+    { default: false }
+  );
 
 cli
-  .option(...silentOpt)
+  .option(
+    "--silent",
+    "Silence all output",
+    { default: false }
+  )
   .version(version)
   .help(defaultHelpCb);
 
@@ -119,20 +111,7 @@ cli
     })
   );
 
-cli
-  .command("link [...modules]", "link modules")
-  .alias("trace")
-  .option(...mapOpt)
-  .option(...outputOpt)
-  .option(...envOpt)
-  .option(...resolutionOpt)
-  .option(...providerOpt)
-  .option(...cacheOpt)
-  .option(...rootOpt)
-  .option(...preloadOpt)
-  .option(...integrityOpt)
-  .option(...compactOpt)
-  .option(...stdoutOpt)
+outputOpts(generateOpts(cli.command("link [...modules]", "link modules").alias("trace")))
   .example(
     (name) => `Link a remote package in importmap.json
   $ ${name} link chalk@5.2.0
@@ -165,20 +144,9 @@ If no modules are given, all "imports" in the initial map are relinked.`
   )
   .action(wrapCommand(link));
 
-cli
+outputOpts(generateOpts(cli
   .command("install [...packages]", "install packages")
-  .alias("i")
-  .option(...mapOpt)
-  .option(...outputOpt)
-  .option(...envOpt)
-  .option(...resolutionOpt)
-  .option(...providerOpt)
-  .option(...cacheOpt)
-  .option(...rootOpt)
-  .option(...preloadOpt)
-  .option(...integrityOpt)
-  .option(...compactOpt)
-  .option(...stdoutOpt)
+  .alias("i")))
   .example(
     (name) => `Install a package
   $ ${name} install lit
@@ -208,31 +176,19 @@ cli
     `install [flags] [...packages]
 
 Installs packages into an import map, along with all of the dependencies that are necessary to import them.` +
-      `By default, the latest versions of the packages that are compatible with the local "package.json" are ` +
-      `installed, unless an explicit version is specified. The given packages must be valid package specifiers, ` +
-      `such as \`npm:react@18.0.0\` or \`denoland:oak\`. If a package specifier with no registry is given, such as ` +
-      `\`lit\`, the registry is assumed to be NPM. Packages can be installed under an alias by using specifiers such ` +
-      `as \`myname=npm:lit@2.1.0\`. An optional subpath can be provided, such as \`npm:lit@2.2.0/decorators.js\`, in ` +
-      `which case only the dependencies for that subpath are installed.
+    `By default, the latest versions of the packages that are compatible with the local "package.json" are ` +
+    `installed, unless an explicit version is specified. The given packages must be valid package specifiers, ` +
+    `such as \`npm:react@18.0.0\` or \`denoland:oak\`. If a package specifier with no registry is given, such as ` +
+    `\`lit\`, the registry is assumed to be NPM. Packages can be installed under an alias by using specifiers such ` +
+    `as \`myname=npm:lit@2.1.0\`. An optional subpath can be provided, such as \`npm:lit@2.2.0/decorators.js\`, in ` +
+    `which case only the dependencies for that subpath are installed.
 
 If no packages are provided, all "imports" in the initial map are reinstalled.`
   )
 
   .action(wrapCommand(install));
 
-cli
-  .command("uninstall [...packages]", "remove packages")
-  .option(...mapOpt)
-  .option(...outputOpt)
-  .option(...envOpt)
-  .option(...resolutionOpt)
-  .option(...providerOpt)
-  .option(...cacheOpt)
-  .option(...rootOpt)
-  .option(...preloadOpt)
-  .option(...integrityOpt)
-  .option(...compactOpt)
-  .option(...stdoutOpt)
+outputOpts(generateOpts(cli.command("uninstall [...packages]", "remove packages")))
   .example(
     (name) => `
 $ ${name} uninstall lit lodash
@@ -247,20 +203,7 @@ Uninstalls packages from an import map. The given packages must be valid package
   )
   .action(wrapCommand(uninstall));
 
-cli
-  .command("update [...packages]", "update packages")
-  .alias("upgrade")
-  .option(...mapOpt)
-  .option(...outputOpt)
-  .option(...envOpt)
-  .option(...resolutionOpt)
-  .option(...providerOpt)
-  .option(...cacheOpt)
-  .option(...rootOpt)
-  .option(...preloadOpt)
-  .option(...integrityOpt)
-  .option(...compactOpt)
-  .option(...stdoutOpt)
+outputOpts(generateOpts(cli.command("update [...packages]", "update packages").alias("upgrade")))
   .example(
     (name) => `
 $ ${name} update react-dom
@@ -285,10 +228,8 @@ Clears the global module fetch cache, for situations where the contents of a dep
   .alias("cc")
   .action(wrapCommand(clearCache));
 
-cli
-  .command("config <action> [key] [value]", "manage JSPM configuration")
+cli.command("config <action> [key] [value]", "manage JSPM configuration")
   .option("--local", "Use the local project configuration (default is user-level)", { default: false })
-  .option(...silentOpt)
   .example(
     (name) => `
 $ ${name} config set providers.npm.auth "your-auth-token"
@@ -339,10 +280,25 @@ Use the --local flag to modify the project-specific configuration (.jspmrc).`
 
 cli
   .command("build [entry]", "Build the module using importmap")
-  .option(...resolutionOpt)
-  .option(...mapOpt)
-  .option(...buildConfigOpt)
-  .option(...buildOutputOpt)
+  .option(
+    "-r, --resolution <resolutions>",
+    "Comma-separated dependency resolution overrides",
+    {}
+  )
+  .option(
+    "-m, --map <file>",
+    "File containing initial import map (defaults to importmap.json, or the input HTML if linking)",
+    {}
+  )
+  .option(
+    "--config <file>",
+    "Path to a rollup config file",
+    {}
+  ).option(
+    "--output <dir>",
+    "Path to the rollup output directory",
+    {}
+  )
   .action(wrapCommand(build));
 
 // Taken from 'cac', as they don't export it:

@@ -38,16 +38,17 @@ If no modules are given, all "imports" in the initial map are relinked.
 
 ### Options
 * `-m, --map` _&lt;file&gt;_                File containing initial import map (defaults to importmap.json, or the input HTML if linking) 
-* `-o, --output` _&lt;file&gt;_             File to inject the final import map into (default: --map / importmap.json) 
 * `-e, --env` &lt;[environments](#environments)&gt;        Comma-separated environment condition overrides 
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;  Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;       Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                  Cache mode for fetches (online, offline, no-cache) (default: online)
-* `--root` _&lt;url&gt;_                    URL to treat as server root, i.e. rebase import maps against 
-* `--preload` _[mode]_                Add module preloads to HTML output (default: static, dynamic) 
 * `--integrity`                     Add module integrity attributes to the import map (default: false)
+* `--preload` _[mode]_                Add module preloads to HTML output (default: static, dynamic) 
+* `--root` _&lt;url&gt;_                    URL to treat as server root, i.e. rebase import maps against 
 * `--compact`                       Output a compact import map (default: false)
 * `--stdout`                        Output the import map to stdout (default: false)
+* `-o, --output` _&lt;file&gt;_             File to inject the final import map into (default: --map / importmap.json) 
+* `--strip-env`                     Do not inline the environment into the importmap. (default: false)
 * `--silent`                        Silence all output (default: false)
 * `-h, --help`                      Display this message 
 
@@ -80,16 +81,17 @@ If no packages are provided, all "imports" in the initial map are reinstalled.
 
 ### Options
 * `-m, --map` _&lt;file&gt;_                File containing initial import map (defaults to importmap.json, or the input HTML if linking) 
-* `-o, --output` _&lt;file&gt;_             File to inject the final import map into (default: --map / importmap.json) 
 * `-e, --env` &lt;[environments](#environments)&gt;        Comma-separated environment condition overrides 
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;  Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;       Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                  Cache mode for fetches (online, offline, no-cache) (default: online)
-* `--root` _&lt;url&gt;_                    URL to treat as server root, i.e. rebase import maps against 
-* `--preload` _[mode]_                Add module preloads to HTML output (default: static, dynamic) 
 * `--integrity`                     Add module integrity attributes to the import map (default: false)
+* `--preload` _[mode]_                Add module preloads to HTML output (default: static, dynamic) 
+* `--root` _&lt;url&gt;_                    URL to treat as server root, i.e. rebase import maps against 
 * `--compact`                       Output a compact import map (default: false)
 * `--stdout`                        Output the import map to stdout (default: false)
+* `-o, --output` _&lt;file&gt;_             File to inject the final import map into (default: --map / importmap.json) 
+* `--strip-env`                     Do not inline the environment into the importmap. (default: false)
 * `--silent`                        Silence all output (default: false)
 * `-h, --help`                      Display this message 
 
@@ -130,16 +132,17 @@ Uninstalls packages from an import map. The given packages must be valid package
 
 ### Options
 * `-m, --map` _&lt;file&gt;_                File containing initial import map (defaults to importmap.json, or the input HTML if linking) 
-* `-o, --output` _&lt;file&gt;_             File to inject the final import map into (default: --map / importmap.json) 
 * `-e, --env` &lt;[environments](#environments)&gt;        Comma-separated environment condition overrides 
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;  Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;       Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                  Cache mode for fetches (online, offline, no-cache) (default: online)
-* `--root` _&lt;url&gt;_                    URL to treat as server root, i.e. rebase import maps against 
-* `--preload` _[mode]_                Add module preloads to HTML output (default: static, dynamic) 
 * `--integrity`                     Add module integrity attributes to the import map (default: false)
+* `--preload` _[mode]_                Add module preloads to HTML output (default: static, dynamic) 
+* `--root` _&lt;url&gt;_                    URL to treat as server root, i.e. rebase import maps against 
 * `--compact`                       Output a compact import map (default: false)
 * `--stdout`                        Output the import map to stdout (default: false)
+* `-o, --output` _&lt;file&gt;_             File to inject the final import map into (default: --map / importmap.json) 
+* `--strip-env`                     Do not inline the environment into the importmap. (default: false)
 * `--silent`                        Silence all output (default: false)
 * `-h, --help`                      Display this message 
 
@@ -162,16 +165,17 @@ Updates packages in an import map to the latest versions that are compatible wit
 
 ### Options
 * `-m, --map` _&lt;file&gt;_                File containing initial import map (defaults to importmap.json, or the input HTML if linking) 
-* `-o, --output` _&lt;file&gt;_             File to inject the final import map into (default: --map / importmap.json) 
 * `-e, --env` &lt;[environments](#environments)&gt;        Comma-separated environment condition overrides 
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;  Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;       Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                  Cache mode for fetches (online, offline, no-cache) (default: online)
-* `--root` _&lt;url&gt;_                    URL to treat as server root, i.e. rebase import maps against 
-* `--preload` _[mode]_                Add module preloads to HTML output (default: static, dynamic) 
 * `--integrity`                     Add module integrity attributes to the import map (default: false)
+* `--preload` _[mode]_                Add module preloads to HTML output (default: static, dynamic) 
+* `--root` _&lt;url&gt;_                    URL to treat as server root, i.e. rebase import maps against 
 * `--compact`                       Output a compact import map (default: false)
 * `--stdout`                        Output the import map to stdout (default: false)
+* `-o, --output` _&lt;file&gt;_             File to inject the final import map into (default: --map / importmap.json) 
+* `--strip-env`                     Do not inline the environment into the importmap. (default: false)
 * `--silent`                        Silence all output (default: false)
 * `-h, --help`                      Display this message 
 

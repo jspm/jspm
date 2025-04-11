@@ -3,6 +3,7 @@ import type { Generator } from "@jspm/generator";
 export interface Flags extends BuildFlags {
   resolution?: string | string[];
   env?: string | string[];
+  stripEnv?: boolean;
   map?: string;
   output?: string;
   root?: string;

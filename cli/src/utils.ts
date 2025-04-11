@@ -172,7 +172,8 @@ async function writeJsonOutput(
     log(`Extracting full map`);
     map = generator.getMap();
   }
-  map = { env, ...map };
+  if (!flags.stripEnv)
+    map = { env, ...map };
   log(`${JSON.stringify(map, null, 2)}`);
 
   // Don't write an output file without permission:

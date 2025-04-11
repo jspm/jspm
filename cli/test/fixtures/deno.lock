@@ -1,0 +1,15 @@
+{
+  "version": "4",
+  "remote": {
+    "https://ga.jspm.io/npm:chalk@5.4.1/source/index.js": "6e75cf752e71c9ea5969bbf78199424291bebed6c31831bbab220243c4d896bc",
+    "https://ga.jspm.io/npm:chalk@5.4.1/source/vendor/ansi-styles/index.js": "caf12c80aabcd5e81614fe146e653d2f7b0b14d8e840e05a37ebac4e8c39fd71",
+    "https://ga.jspm.io/npm:chalk@5.4.1/source/vendor/supports-color/index.js": "56049e46c4cbba7365470dcb526c8e06673b228f267473403a16c92d4f669aee"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:react@18.1.0"
+      ]
+    }
+  }
+}

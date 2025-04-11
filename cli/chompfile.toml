@@ -72,12 +72,12 @@ run = 'tsc --noEmit'
 [[task]]
 name = 'link:test'
 dep = 'build'
-run = 'node jspm.js link ./test/fixtures/test.js --env=deno,node'
+run = 'node jspm.js link ./test/fixtures/test.js --env=deno,node --strip-env'
 
 [[task]]
 name = 'deno:test'
 dep = 'link:test'
-run = 'deno --unstable run --importmap importmap.json -A ./test/fixtures/test.js'
+run = 'deno run --importmap importmap.json -A ./test/fixtures/test.js'
 
 [[task]]
 name = 'test'

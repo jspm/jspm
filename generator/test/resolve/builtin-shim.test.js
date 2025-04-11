@@ -15,7 +15,7 @@ if (typeof document === "undefined") {
 
   assert.deepStrictEqual(json, {
     imports: {
-      "process/": "../../../cjspkg/node_modules/process/index.js",
+      "process/": "./cjspkg/node_modules/process/index.js",
     },
   });
 }

@@ -35,7 +35,7 @@ import {
   setFetch,
 } from "./common/fetch.js";
 import { IImportMap, ImportMap } from "@jspm/import-map";
-import process from "process";
+import process from "node:process";
 import { SemverRange } from "sver";
 import { JspmError } from "./common/err.js";
 import { getIntegrity } from "./common/integrity.js";

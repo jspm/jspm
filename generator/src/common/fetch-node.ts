@@ -1,12 +1,12 @@
 // @ts-ignore
 import version from "../version.js";
 import { wrappedFetch, WrappedFetch } from "./fetch-common.js";
-import path from "path";
-import { homedir } from "os";
-import process from "process";
+import path from "node:path";
+import { homedir } from "node:os";
+import process from "node:process";
 import makeFetchHappen from "make-fetch-happen";
-import { readFileSync, rmdirSync } from "fs";
-import { Buffer } from "buffer";
+import { readFileSync, rmdirSync } from "node:fs";
+import { Buffer } from "node:buffer";
 
 let cacheDir: string;
 if (process.platform === "darwin")

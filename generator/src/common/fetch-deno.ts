@@ -1,4 +1,4 @@
-import { fileURLToPath } from "url";
+import { fileURLToPath } from "node:url";
 import { wrappedFetch, WrappedFetch } from "./fetch-common.js";
 
 export function clearCache() {}

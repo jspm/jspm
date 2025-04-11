@@ -1,4 +1,4 @@
-name: ImportMap
+name: Import Map
 
 on:
   push:

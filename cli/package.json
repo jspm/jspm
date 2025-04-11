@@ -15,21 +15,21 @@
     "build": "chomp build",
     "test": "chomp test"
   },
-  "dependencies": {
-    "@jspm/generator": "^2.5.1",
-    "cac": "^6.7.14",
-    "ora": "^8.2.0",
-    "picocolors": "^1.1.1",
-    "rollup": "^3.29.5"
-  },
   "devDependencies": {
     "@antfu/eslint-config": "^0.34.2",
     "@babel/core": "^7.24.7",
+    "@jspm/generator": "^2.5.1",
     "@types/node": "^18.15.11",
+    "cac": "^6.7.14",
     "esbuild": "^0.16.17",
     "eslint": "^8.38.0",
     "eslint-config-prettier": "^8.8.0",
+    "minimatch": "^10.0.1",
+    "open": "^10.1.2",
+    "ora": "^8.2.0",
+    "picocolors": "^1.1.1",
     "prettier": "^2.8.7",
+    "rollup": "^3.29.5",
     "tinyspy": "^1.1.1",
     "typescript": "^4.9.5"
   }

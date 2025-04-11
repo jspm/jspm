@@ -1,5 +1,5 @@
 import c from "picocolors";
-import type { Flags } from "./types.ts";
+import type { GenerateOutputFlags } from "./cli.ts";
 import {
   getEnv,
   getGenerator,
@@ -10,7 +10,10 @@ import {
 } from "./utils.ts";
 import { withType } from "./logger.ts";
 
-export default async function uninstall(packages: string[], flags: Flags) {
+export default async function uninstall(
+  packages: string[],
+  flags: GenerateOutputFlags
+) {
   const log = withType("install/install");
 
   log(`Uninstalling packages: ${packages.join(", ")}`);

@@ -20,6 +20,7 @@ For a full list of commands and supported options, run `jspm --help`. For help w
 By default, JSPM operates on `importmap.json` which is automatically created if it does not exist. This is considered the main import map on which link and install operations are being performed, and can be customized with the `--map` option.
 
 ## link
+jspm
 
 ### Usage
   
@@ -45,11 +46,14 @@ If no modules are given, all "imports" in the initial map are relinked.
 * `--integrity`                     Add module integrity attributes to the import map (default: false)
 * `--preload` _[mode]_                Add module preloads to HTML output (default: static, dynamic) 
 * `--root` _&lt;url&gt;_                    URL to treat as server root, i.e. rebase import maps against 
+* `--no-flatten-scopes`             Disable import map scope flattening into a single top-level scope per origin (default: true)
+* `--no-combine-subpaths`           Disable import map subpath combining under folder maps (ending in /) (default: true)
 * `--compact`                       Output a compact import map (default: false)
 * `--stdout`                        Output the import map to stdout (default: false)
 * `-o, --output` _&lt;file&gt;_             File to inject the final import map into (default: --map / importmap.json) 
 * `--strip-env`                     Do not inline the environment into the importmap. (default: false)
-* `--silent`                        Silence all output (default: false)
+* `-s, --silent`                    Silence all output (default: false)
+* `--show-version`                  Output the JSPM version (default: false)
 * `-h, --help`                      Display this message 
 
 ### Examples
@@ -69,6 +73,7 @@ Link an HTML file and update its import map including preload and integrity tags
 jspm link --map index.html --integrity --preload
 ```
 ## install
+jspm
 
 ### Usage
   
@@ -88,11 +93,14 @@ If no packages are provided, all "imports" in the initial map are reinstalled.
 * `--integrity`                     Add module integrity attributes to the import map (default: false)
 * `--preload` _[mode]_                Add module preloads to HTML output (default: static, dynamic) 
 * `--root` _&lt;url&gt;_                    URL to treat as server root, i.e. rebase import maps against 
+* `--no-flatten-scopes`             Disable import map scope flattening into a single top-level scope per origin (default: true)
+* `--no-combine-subpaths`           Disable import map subpath combining under folder maps (ending in /) (default: true)
 * `--compact`                       Output a compact import map (default: false)
 * `--stdout`                        Output the import map to stdout (default: false)
 * `-o, --output` _&lt;file&gt;_             File to inject the final import map into (default: --map / importmap.json) 
 * `--strip-env`                     Do not inline the environment into the importmap. (default: false)
-* `--silent`                        Silence all output (default: false)
+* `-s, --silent`                    Silence all output (default: false)
+* `--show-version`                  Output the JSPM version (default: false)
 * `-h, --help`                      Display this message 
 
 ### Examples
@@ -122,6 +130,7 @@ Install "alias" as an alias of the resolution react
 jspm install alias=react
 ```
 ## uninstall
+jspm
 
 ### Usage
   
@@ -139,11 +148,14 @@ Uninstalls packages from an import map. The given packages must be valid package
 * `--integrity`                     Add module integrity attributes to the import map (default: false)
 * `--preload` _[mode]_                Add module preloads to HTML output (default: static, dynamic) 
 * `--root` _&lt;url&gt;_                    URL to treat as server root, i.e. rebase import maps against 
+* `--no-flatten-scopes`             Disable import map scope flattening into a single top-level scope per origin (default: true)
+* `--no-combine-subpaths`           Disable import map subpath combining under folder maps (ending in /) (default: true)
 * `--compact`                       Output a compact import map (default: false)
 * `--stdout`                        Output the import map to stdout (default: false)
 * `-o, --output` _&lt;file&gt;_             File to inject the final import map into (default: --map / importmap.json) 
 * `--strip-env`                     Do not inline the environment into the importmap. (default: false)
-* `--silent`                        Silence all output (default: false)
+* `-s, --silent`                    Silence all output (default: false)
+* `--show-version`                  Output the JSPM version (default: false)
 * `-h, --help`                      Display this message 
 
 ### Examples
@@ -155,6 +167,7 @@ jspm uninstall lit lodash
 Uninstall "lit" and "lodash" from importmap.json.
 
 ## update
+jspm
 
 ### Usage
   
@@ -172,11 +185,14 @@ Updates packages in an import map to the latest versions that are compatible wit
 * `--integrity`                     Add module integrity attributes to the import map (default: false)
 * `--preload` _[mode]_                Add module preloads to HTML output (default: static, dynamic) 
 * `--root` _&lt;url&gt;_                    URL to treat as server root, i.e. rebase import maps against 
+* `--no-flatten-scopes`             Disable import map scope flattening into a single top-level scope per origin (default: true)
+* `--no-combine-subpaths`           Disable import map subpath combining under folder maps (ending in /) (default: true)
 * `--compact`                       Output a compact import map (default: false)
 * `--stdout`                        Output the import map to stdout (default: false)
 * `-o, --output` _&lt;file&gt;_             File to inject the final import map into (default: --map / importmap.json) 
 * `--strip-env`                     Do not inline the environment into the importmap. (default: false)
-* `--silent`                        Silence all output (default: false)
+* `-s, --silent`                    Silence all output (default: false)
+* `--show-version`                  Output the JSPM version (default: false)
 * `-h, --help`                      Display this message 
 
 ### Examples
@@ -188,6 +204,7 @@ jspm update react-dom
 Update the react-dom package.
 
 ## clear-cache
+jspm
 
 ### Usage
   
@@ -197,8 +214,9 @@ jspm clear-cache
 Clears the global module fetch cache, for situations where the contents of a dependency may have changed without a version bump. This can happen during local development, for instance.
 
 ### Options
-* `--silent`    Silence all output (default: false)
-* `-h, --help`  Display this message 
+* `-s, --silent`    Silence all output (default: false)
+* `--show-version`  Output the JSPM version (default: false)
+* `-h, --help`      Display this message 
 
 # Configuration
 

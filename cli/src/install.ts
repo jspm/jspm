@@ -1,6 +1,6 @@
 import c from "picocolors";
 import { withType } from "./logger.ts";
-import type { Flags } from "./types.ts";
+import type { GenerateOutputFlags } from "./cli.ts";
 import {
   JspmError,
   getEnv,
@@ -12,7 +12,10 @@ import {
   writeOutput,
 } from "./utils.ts";
 
-export default async function install(packages: string[], flags: Flags) {
+export default async function install(
+  packages: string[],
+  flags: GenerateOutputFlags
+) {
   const log = withType("install/install");
 
   log(`Installing packages: ${packages.join(", ")}`);
@@ -35,7 +38,7 @@ export default async function install(packages: string[], flags: Flags) {
   const env = await getEnv(flags);
   const input = await getInput(flags);
   const generator = await getGenerator(flags);
-  let pins = [];
+  let pins: string[] = [];
   if (input) {
     pins = await generator.addMappings(input);
   }

@@ -13,10 +13,15 @@ display = 'init-only'
 run = 'npm install'
 
 [[task]]
+name = 'generator'
+run = 'chomp -c ../generator'
+
+[[task]]
 name = 'build'
 deps = [
     'dist/cli.js',
     'docs.md',
+    'generator'
 ]
 
 [[task]]
@@ -85,6 +90,6 @@ dep = 'test:'
 
 [[task]]
 name = 'test:##'
-dep = 'test/##.test.ts'
+deps = ['test/##.test.ts', 'dist/cli.js', 'generator']
 serial = true
 run = 'node --experimental-strip-types --test $DEP'

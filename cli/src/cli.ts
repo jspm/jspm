@@ -25,76 +25,114 @@ import update from "./update.ts";
 import configCmd from "./config-cmd.ts";
 import { JspmError, availableProviders, wrapCommand } from "./utils.ts";
 import build from "./build/index.ts";
+import { deploy, eject } from "./deploy.ts";
 
-const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const { version } = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8")
+);
 
 export const cli = cac(c.yellow("jspm"));
 
 type OptionGroup = (input: Command) => Command;
 
-const generateOpts: OptionGroup = cac =>
-  cac.option(
-    "-m, --map <file>",
-    "File containing initial import map (defaults to importmap.json, or the input HTML if linking)",
-    {}
-  ).option(
-    "-e, --env <environments>",
-    "Comma-separated environment condition overrides",
-    {}
-  ).option(
-    "-r, --resolution <resolutions>",
-    "Comma-separated dependency resolution overrides",
-    {}
-  ).option(
-    "-p, --provider <provider>",
-    `Default module provider. Available providers: ${availableProviders.join(
-      ", "
-    )}`,
-    {}
-  ).option(
-    "--cache <mode>",
-    "Cache mode for fetches (online, offline, no-cache)",
-    { default: "online" }
-  ).option(
-    "--integrity",
-    "Add module integrity attributes to the import map",
-    { default: false }
-  ).option(
-    "--preload [mode]",
-    "Add module preloads to HTML output (default: static, dynamic)",
-    {}
-  );
+const generateOpts: OptionGroup = (cac) =>
+  cac
+    .option(
+      "-m, --map <file>",
+      "File containing initial import map (defaults to importmap.json, or the input HTML if linking)",
+      {}
+    )
+    .option(
+      "-e, --env <environments>",
+      "Comma-separated environment condition overrides",
+      {}
+    )
+    .option(
+      "-r, --resolution <resolutions>",
+      "Comma-separated dependency resolution overrides",
+      {}
+    )
+    .option(
+      "-p, --provider <provider>",
+      `Default module provider. Available providers: ${availableProviders.join(
+        ", "
+      )}`,
+      {}
+    )
+    .option(
+      "--cache <mode>",
+      "Cache mode for fetches (online, offline, no-cache)",
+      { default: "online" }
+    )
+    .option(
+      "--integrity",
+      "Add module integrity attributes to the import map",
+      { default: false }
+    )
+    .option(
+      "--preload [mode]",
+      "Add module preloads to HTML output (default: static, dynamic)",
+      {}
+    );
 
-const outputOpts: OptionGroup = cac =>
-  cac.option(
-    "--root <url>",
-    "URL to treat as server root, i.e. rebase import maps against",
-    {}
-  ).option(
-    "--compact",
-    "Output a compact import map",
-    { default: false }
-  ).option(
-    "--stdout",
-    "Output the import map to stdout",
-    { default: false }
-  ).option(
-    "-o, --output <file>",
-    "File to inject the final import map into (default: --map / importmap.json)",
-    {}
-  ).option(
-    "--strip-env",
-    "Do not inline the environment into the importmap.",
-    { default: false }
-  );
+export interface GenerateFlags extends BaseFlags {
+  map?: string;
+  env?: string | string[];
+  resolution?: string | string[];
+  provider?: string;
+  cache?: string;
+  preload?: boolean | string;
+  integrity?: boolean;
+}
+
+const outputOpts: OptionGroup = (cac) =>
+  cac
+    .option(
+      "--root <url>",
+      "URL to treat as server root, i.e. rebase import maps against",
+      {}
+    )
+    .option(
+      "--no-flatten-scopes",
+      "Disable import map scope flattening into a single top-level scope per origin",
+      { default: true }
+    )
+    .option(
+      "--no-combine-subpaths",
+      "Disable import map subpath combining under folder maps (ending in /)",
+      { default: true }
+    )
+    .option("--compact", "Output a compact import map", { default: false })
+    .option("--stdout", "Output the import map to stdout", { default: false })
+    .option(
+      "-o, --output <file>",
+      "File to inject the final import map into (default: --map / importmap.json)",
+      {}
+    )
+    .option(
+      "--strip-env",
+      "Do not inline the environment into the importmap.",
+      { default: false }
+    );
+
+export interface GenerateOutputFlags extends GenerateFlags {
+  root?: string;
+  compact?: boolean;
+  stdout?: boolean;
+  output?: string;
+  stripEnv?: boolean;
+  flattenScopes?: boolean;
+  combineSubpaths?: boolean;
+}
+
+export interface BaseFlags {
+  silent?: boolean;
+  showVersion?: boolean;
+}
 
 cli
-  .option(
-    "--silent",
-    "Silence all output",
-    { default: false }
-  )
-  .version(version)
+  .option("-s, --silent", "Silence all output", { default: false })
+  .option("--show-version", "Output the JSPM version", { default: false })
   .help(defaultHelpCb);
 
 // Fallback command:
@@ -111,7 +149,9 @@ cli
     })
   );
 
-outputOpts(generateOpts(cli.command("link [...modules]", "link modules").alias("trace")))
+outputOpts(
+  generateOpts(cli.command("link [...modules]", "link modules").alias("trace"))
+)
   .example(
     (name) => `Link a remote package in importmap.json
   $ ${name} link chalk@5.2.0
@@ -144,9 +184,11 @@ If no modules are given, all "imports" in the initial map are relinked.`
   )
   .action(wrapCommand(link));
 
-outputOpts(generateOpts(cli
-  .command("install [...packages]", "install packages")
-  .alias("i")))
+outputOpts(
+  generateOpts(
+    cli.command("install [...packages]", "install packages").alias("i")
+  )
+)
   .example(
     (name) => `Install a package
   $ ${name} install lit
@@ -176,19 +218,21 @@ outputOpts(generateOpts(cli
     `install [flags] [...packages]
 
 Installs packages into an import map, along with all of the dependencies that are necessary to import them.` +
-    `By default, the latest versions of the packages that are compatible with the local "package.json" are ` +
-    `installed, unless an explicit version is specified. The given packages must be valid package specifiers, ` +
-    `such as \`npm:react@18.0.0\` or \`denoland:oak\`. If a package specifier with no registry is given, such as ` +
-    `\`lit\`, the registry is assumed to be NPM. Packages can be installed under an alias by using specifiers such ` +
-    `as \`myname=npm:lit@2.1.0\`. An optional subpath can be provided, such as \`npm:lit@2.2.0/decorators.js\`, in ` +
-    `which case only the dependencies for that subpath are installed.
+      `By default, the latest versions of the packages that are compatible with the local "package.json" are ` +
+      `installed, unless an explicit version is specified. The given packages must be valid package specifiers, ` +
+      `such as \`npm:react@18.0.0\` or \`denoland:oak\`. If a package specifier with no registry is given, such as ` +
+      `\`lit\`, the registry is assumed to be NPM. Packages can be installed under an alias by using specifiers such ` +
+      `as \`myname=npm:lit@2.1.0\`. An optional subpath can be provided, such as \`npm:lit@2.2.0/decorators.js\`, in ` +
+      `which case only the dependencies for that subpath are installed.
 
 If no packages are provided, all "imports" in the initial map are reinstalled.`
   )
 
   .action(wrapCommand(install));
 
-outputOpts(generateOpts(cli.command("uninstall [...packages]", "remove packages")))
+outputOpts(
+  generateOpts(cli.command("uninstall [...packages]", "remove packages"))
+)
   .example(
     (name) => `
 $ ${name} uninstall lit lodash
@@ -203,7 +247,11 @@ Uninstalls packages from an import map. The given packages must be valid package
   )
   .action(wrapCommand(uninstall));
 
-outputOpts(generateOpts(cli.command("update [...packages]", "update packages").alias("upgrade")))
+outputOpts(
+  generateOpts(
+    cli.command("update [...packages]", "update packages").alias("upgrade")
+  )
+)
   .example(
     (name) => `
 $ ${name} update react-dom
@@ -228,25 +276,35 @@ Clears the global module fetch cache, for situations where the contents of a dep
   .alias("cc")
   .action(wrapCommand(clearCache));
 
-cli.command("config <action> [key] [value]", "manage JSPM configuration")
-  .option("--local", "Use the local project configuration (default is user-level)", { default: false })
+cli
+  .command("config <action> [key] [value]", "manage JSPM configuration")
+  .option(
+    "--local",
+    "Use the local project configuration (default is user-level)",
+    { default: false }
+  )
+  .option(
+    "-p, --provider <provider>",
+    "Provider to configure (for provider-specific configuration)",
+    {}
+  )
   .example(
     (name) => `
-$ ${name} config set providers.npm.auth "your-auth-token"
+$ ${name} config set -p npm auth "your-auth-token"
 
 Set an authentication token for the npm provider in the user configuration.
 `
   )
   .example(
     (name) => `
-$ ${name} config set providers.npm.baseUrl "https://registry.npmjs.org/" --local
+$ ${name} config set --provider jspm.io baseUrl "https://jspm.io/" --local
 
-Set the npm registry URL in the local project configuration.
+Set the base URL for a provider with dots in its name in the local project configuration.
 `
   )
   .example(
     (name) => `
-$ ${name} config get providers.npm
+$ ${name} config get -p npm
 
 Get the npm provider configuration.
 `
@@ -270,13 +328,23 @@ Actions:
   delete|rm <key>       Delete a configuration value
   list|ls               List all configuration values
   
-Configuration keys use dot notation (e.g., providers.npm.auth).
+For provider-specific configuration, use the -p/--provider flag:
+  jspm config set -p npm auth token123
+  jspm config set -p jspm.io baseUrl https://jspm.io/
+
+The provider flag handles providers with dots in their names automatically.
+Other configuration keys use dot notation (e.g., defaultProvider, cacheDir).
 Values are parsed as JSON if possible, otherwise used as strings.
 
 By default, the command affects the user configuration (~/.jspm/config).
 Use the --local flag to modify the project-specific configuration (.jspmrc).`
   )
   .action(wrapCommand(configCmd));
+
+export interface ConfigFlags extends BaseFlags {
+  local?: boolean;
+  provider?: string;
+}
 
 cli
   .command("build [entry]", "Build the module using importmap")
@@ -290,16 +358,115 @@ cli
     "File containing initial import map (defaults to importmap.json, or the input HTML if linking)",
     {}
   )
-  .option(
-    "--config <file>",
-    "Path to a rollup config file",
-    {}
-  ).option(
-    "--output <dir>",
-    "Path to the rollup output directory",
-    {}
-  )
+  .option("--config <file>", "Path to a RollupJS config file", {})
+  .option("-o, --out <dir>", "Path to the RollupJS output directory", {})
   .action(wrapCommand(build));
+
+export interface BuildFlags extends BaseFlags {
+  entry?: string;
+  config?: string;
+  out?: string;
+}
+
+generateOpts(
+  cli
+    .command("deploy [directory]", "Deploy a package to the JSPM CDN")
+    .option(
+      "--no-usage",
+      "Disable printing the usage code snippet for the deployment",
+      { default: true }
+    )
+    .option("-w, --watch", "Watch for changes and redeploy (experimental)", {
+      default: false,
+    })
+    .option(
+      "-v, --name <name>",
+      "Deploy with a custom name instead of the version from package.json",
+      {}
+    )
+    .option(
+      "-v, --version <version>",
+      "Deploy with a custom version instead of the version from package.json. Note that semver versions are immutable, while non semver tag versions support mutable deployments (deploy --watch)",
+      {}
+    )
+)
+  .example(
+    (name) => `
+$ ${name} deploy
+
+Deploy the current directory as a package to the JSPM CDN.
+`
+  )
+  .example(
+    (name) => `
+$ ${name} deploy dist
+
+Deploy the ./dist directory as a package to the JSPM CDN.
+`
+  )
+  .example(
+    (name) => `
+$ ${name} deploy dist --version dev-feat-2 --watch
+
+Start a watched deployment to a custom mutable version tag (dev-feat-2) instead of the version from package.json.
+`
+  )
+  .usage(
+    `deploy [flags] [directory]
+
+Deploys a package to the JSPM CDN. The package must have a valid package.json with name and version fields.
+A jspm.json file can be included with "ignore" and "include" arrays to specify which files should be included 
+in the deployment.
+
+By default, the current directory is deployed. Use --dir to specify a different directory.
+The --version flag can be used to deploy with a custom version instead of the version from package.json.
+Semver versions are always immutable deployments that cannot be redeployed.
+Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].`
+  )
+  .action(wrapCommand(deploy));
+
+outputOpts(
+  generateOpts(
+    cli
+      .command(
+        "eject <package>",
+        "Eject an app deployment package into a local folder"
+      )
+      .option("-d, --dir <directory>", "Directory to eject into", {})
+  )
+    .example(
+      (name) => `
+$ ${name} eject app:foo@bar --dir foo
+
+Download the application package foo@bar into the folder foo, merging its import map into importmap.json.
+`
+    )
+    .example(
+      (name) => `
+$ ${name} eject app:foo@bar --dir foo -o test.html
+
+Download the application package foo@bar into the folder foo, merging its import map into the provided HTML file per the typical import map generation output injection options.
+`
+    )
+    .usage(
+      `eject [flags]
+
+Ejects a deployed package into a local directory, stitching its deployment import map into the current import map.`
+    )
+    .action(wrapCommand(eject))
+);
+
+export interface EjectFlags extends GenerateFlags {
+  dir?: string;
+}
+
+export interface DeployFlags extends GenerateFlags {
+  dir?: string;
+  watch?: boolean;
+  name?: string;
+  version?: string;
+  usage?: boolean;
+}
 
 // Taken from 'cac', as they don't export it:
 interface HelpSection {
@@ -309,6 +476,11 @@ interface HelpSection {
 
 // Wraps the CAC default help callback for more control over the output:
 function defaultHelpCb(helpSections: HelpSection[]) {
+  if (process.argv.includes("--version")) {
+    process.stdout.write(version);
+    return [];
+  }
+
   for (const section of Object.values(helpSections)) {
     if (section.title === "Commands") {
       // The first command entry is the fallback command, which we _don't_

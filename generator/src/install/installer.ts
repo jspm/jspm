@@ -1,5 +1,4 @@
 import { Semver } from "sver";
-import { throwInternalError } from "../common/err.js";
 import { Log } from "../common/log.js";
 import { registryProviders } from "../providers/index.js";
 import { Resolver } from "../trace/resolver.js";
@@ -255,7 +254,11 @@ export class Installer {
           "installer/installTarget",
           `${pkgName} ${pkgScope} -> ${JSON.stringify(pkg)} (existing match)`
         );
-        const installUrl = await this.resolver.pkgToUrl(pkg, provider);
+        const installUrl = await this.resolver.pm.pkgToUrl(
+          pkg,
+          provider.provider,
+          provider.layer
+        );
         this.newInstalls = setResolution(
           this.installs,
           pkgName,
@@ -268,12 +271,17 @@ export class Installer {
       }
     }
 
-    const latestPkg = await this.resolver.resolveLatestTarget(
+    const latestPkg = await this.resolver.pm.resolveLatestTarget(
       pkgTarget,
       provider,
-      parentUrl
+      parentUrl,
+      this.resolver
     );
-    const pkgUrl = await this.resolver.pkgToUrl(latestPkg, provider);
+    const pkgUrl = await this.resolver.pm.pkgToUrl(
+      latestPkg,
+      provider.provider,
+      provider.layer
+    );
     const installed = getConstraintFor(
       latestPkg.name,
       latestPkg.registry,
@@ -299,7 +307,11 @@ export class Installer {
             latestPkg
           )} (existing match not latest)`
         );
-        const installUrl = await this.resolver.pkgToUrl(pkg, provider);
+        const installUrl = await this.resolver.pm.pkgToUrl(
+          pkg,
+          provider.provider,
+          provider.layer
+        );
         this.newInstalls = setResolution(
           this.installs,
           pkgName,
@@ -544,7 +556,7 @@ export class Installer {
   ): Promise<ExactPackage | null> {
     let bestMatch: ExactPackage | null = null;
     for (const pkgUrl of this.pkgUrls) {
-      const pkg = await this.resolver.parseUrlPkg(pkgUrl);
+      const pkg = await this.resolver.pm.parseUrlPkg(pkgUrl);
       if (pkg && (await this.inRange(pkg.pkg, matchPkg))) {
         if (bestMatch)
           bestMatch =
@@ -567,7 +579,7 @@ export class Installer {
 
     const pkgExact =
       typeof pkg === "string"
-        ? (await this.resolver.parseUrlPkg(pkg))?.pkg
+        ? (await this.resolver.pm.parseUrlPkg(pkg))?.pkg
         : pkg;
     if (!pkgExact) return false;
 

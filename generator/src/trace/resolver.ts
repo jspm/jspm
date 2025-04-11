@@ -1,24 +1,16 @@
-import {
-  ExactPackage,
-  PackageConfig,
-  PackageTarget,
-  ExportsTarget,
-  ExactModule,
-} from "../install/package.js";
+import { PackageConfig, ExportsTarget } from "../install/package.js";
 import { JspmError } from "../common/err.js";
-import { Log } from "../common/log.js";
 // @ts-ignore
 import { fetch } from "../common/fetch.js";
-import { importedFrom } from "../common/url.js";
+import { importedFrom, isFetchProtocol } from "../common/url.js";
 // @ts-ignore
 import { parse } from "es-module-lexer/js";
 import { Install } from "../generator.js";
+import { getMapMatch, allDotKeys } from "../common/package.js";
 import {
-  getProvider,
-  defaultProviders,
-  Provider,
   builtinSchemes,
   mappableSchemes,
+  ProviderManager,
 } from "../providers/index.js";
 import {
   Analysis,
@@ -27,7 +19,7 @@ import {
   createEsmAnalysis,
   createTsAnalysis,
 } from "./analysis.js";
-import { Installer, PackageProvider } from "../install/installer.js";
+import { Installer } from "../install/installer.js";
 import { SemverRange } from "sver";
 import { getIntegrity } from "../common/integrity.js";
 
@@ -88,13 +80,12 @@ export interface TraceEntry {
 }
 
 export class Resolver {
-  log: Log;
   pcfgPromises: Record<string, Promise<void>> = Object.create(null);
   analysisPromises: Record<string, Promise<void>> = Object.create(null);
   pcfgs: Record<string, PackageConfig | null> = Object.create(null);
   fetchOpts: any;
   preserveSymlinks;
-  providers = defaultProviders;
+  pm: ProviderManager;
   // null implies "not found"
   traceEntries: Record<string, TraceEntry | null> = Object.create(null);
   // any trace error is retained in this promise
@@ -104,113 +95,45 @@ export class Resolver {
   traceCjs: boolean;
   traceTs: boolean;
   traceSystem: boolean;
-  context: Record<string, any>;
   installer: Installer;
   constructor({
     env,
-    log,
     fetchOpts,
+    providerManager,
     preserveSymlinks = false,
     traceCjs = true,
     traceTs = true,
     traceSystem = true,
   }: {
     env: string[];
-    log: Log;
     fetchOpts?: any;
     preserveSymlinks?: boolean;
     traceCjs?: boolean;
     traceTs?: boolean;
     traceSystem: boolean;
+    providerManager: ProviderManager;
   }) {
     if (env.includes("require"))
       throw new Error("Cannot manually pass require condition");
     if (!env.includes("import")) env.push("import");
     this.env = env;
     this.cjsEnv = this.env.map((e) => (e === "import" ? "require" : e));
-    this.log = log;
     this.fetchOpts = fetchOpts;
     this.preserveSymlinks = preserveSymlinks;
     this.traceCjs = traceCjs;
     this.traceTs = traceTs;
     this.traceSystem = traceSystem;
-    this.context = {};
-  }
-
-  addCustomProvider(name: string, provider: Provider) {
-    if (!provider.pkgToUrl)
-      throw new Error(
-        'Custom provider "' + name + '" must define a "pkgToUrl" method.'
-      );
-    if (!provider.parseUrlPkg)
-      throw new Error(
-        'Custom provider "' + name + '" must define a "parseUrlPkg" method.'
-      );
-    if (!provider.resolveLatestTarget)
-      throw new Error(
-        'Custom provider "' +
-          name +
-          '" must define a "resolveLatestTarget" method.'
-      );
-    this.providers = Object.assign({}, this.providers, { [name]: provider });
-  }
-
-  providerNameForUrl(url: string): string | null {
-    for (const name of Object.keys(this.providers).reverse()) {
-      const provider = this.providers[name];
-      if (
-        (provider.ownsUrl && provider.ownsUrl.call(this, url)) ||
-        provider.parseUrlPkg.call(this, url)
-      ) {
-        return name;
-      }
-    }
-  }
-
-  providerForUrl(url: string): Provider | null {
-    const name = this.providerNameForUrl(url);
-    return name ? this.providers[name] : null;
-  }
-
-  async parseUrlPkg(url: string): Promise<ExactModule | null> {
-    for (const provider of Object.keys(this.providers).reverse()) {
-      const providerInstance = this.providers[provider];
-      const result = providerInstance.parseUrlPkg.call(this, url);
-      if (result)
-        return {
-          pkg: "pkg" in result ? result.pkg : result,
-          source: {
-            provider,
-            layer: "layer" in result ? result.layer : "default",
-          },
-          subpath: "subpath" in result ? result.subpath : null,
-        };
-    }
-    return null;
-  }
-
-  async pkgToUrl(
-    pkg: ExactPackage,
-    { provider, layer }: PackageProvider
-  ): Promise<`${string}/`> {
-    return getProvider(provider, this.providers).pkgToUrl.call(
-      this,
-      pkg,
-      layer
-    );
+    this.pm = providerManager;
   }
 
   resolveBuiltin(specifier: string): string | Install | undefined {
-    for (const provider of Object.values(this.providers).reverse()) {
-      if (!provider.resolveBuiltin) continue;
-      const builtin = provider.resolveBuiltin.call(this, specifier, this.env);
-      if (builtin) return builtin;
-    }
+    return this.pm.resolveBuiltin(specifier, this.env);
   }
 
   async getPackageBase(url: string): Promise<`${string}/`> {
-    const pkg = await this.parseUrlPkg(url);
-    if (pkg) return this.pkgToUrl(pkg.pkg, pkg.source);
+    const pkg = await this.pm.parseUrlPkg(url);
+    if (pkg)
+      return this.pm.pkgToUrl(pkg.pkg, pkg.source.provider, pkg.source.layer);
 
     let testUrl: URL;
     try {
@@ -238,13 +161,8 @@ export class Resolver {
   // backtracking to find package bases.
 
   async getPackageConfig(pkgUrl: string): Promise<PackageConfig | null> {
-    if (
-      !pkgUrl.startsWith("file:") &&
-      !pkgUrl.startsWith("http:") &&
-      !pkgUrl.startsWith("https:") &&
-      !pkgUrl.startsWith("node:")
-    )
-      return null;
+    const protocol = pkgUrl.slice(0, pkgUrl.indexOf(":") + 1);
+    if (!isFetchProtocol(protocol)) return null;
     if (!pkgUrl.endsWith("/"))
       throw new Error(
         `Internal Error: Package URL must end in "/". Got ${pkgUrl}`
@@ -253,10 +171,9 @@ export class Resolver {
     if (cached) return cached;
     if (!this.pcfgPromises[pkgUrl])
       this.pcfgPromises[pkgUrl] = (async () => {
-        const provider = this.providerForUrl(pkgUrl);
-        if (provider) {
-          const pcfg = await provider.getPackageConfig?.call(this, pkgUrl);
-          if (pcfg !== undefined) {
+        const pcfg = await this.pm.getPackageConfig(pkgUrl);
+        if (typeof pcfg === "object") {
+          if (pcfg !== null) {
             this.pcfgs[pkgUrl] = pcfg;
             return;
           }
@@ -272,6 +189,7 @@ export class Resolver {
         }
         switch (res.status) {
           case 200:
+          case 204:
           case 304:
             break;
           case 400:
@@ -333,53 +251,6 @@ export class Resolver {
     }
     // 404 still caches as null, although this is not currently used
     return !!this.traceEntries[resolvedUrl];
-  }
-
-  async resolveLatestTarget(
-    target: PackageTarget,
-    { provider, layer }: PackageProvider,
-    parentUrl: string
-  ): Promise<ExactPackage> {
-    // find the range to resolve latest
-    let range: any;
-    for (const possibleRange of target.ranges.sort(
-      target.ranges[0].constructor.compare
-    )) {
-      if (!range) {
-        range = possibleRange;
-      } else if (possibleRange.gt(range) && !range.contains(possibleRange)) {
-        range = possibleRange;
-      }
-    }
-
-    const latestTarget = {
-      registry: target.registry,
-      name: target.name,
-      range,
-      unstable: target.unstable,
-    };
-
-    const resolveLatestTarget = getProvider(
-      provider,
-      this.providers
-    ).resolveLatestTarget;
-    const pkg = await resolveLatestTarget.call(
-      this,
-      latestTarget,
-      layer,
-      parentUrl
-    );
-    if (pkg) return pkg;
-
-    if (provider === "nodemodules") {
-      throw new JspmError(
-        `Cannot find package ${target.name} in node_modules from parent ${parentUrl}. Try installing "${target.name}" with npm first adding it to package.json "dependencies" or running "npm install --save ${target.name}".`
-      );
-    } else {
-      throw new JspmError(
-        `Unable to resolve package ${latestTarget.registry}:${latestTarget.name} in range "${latestTarget.range}" from parent ${parentUrl}.`
-      );
-    }
   }
 
   async wasCommonJS(url: string): Promise<boolean> {
@@ -731,13 +602,14 @@ export class Resolver {
       unstable: true,
     };
     const provider = this.installer.getProvider(stdlibTarget);
-    const pkg = await this.resolveLatestTarget(
+    const pkg = await this.pm.resolveLatestTarget(
       stdlibTarget,
       provider,
-      parentUrl
+      parentUrl,
+      this
     );
     return this.resolveExport(
-      await this.pkgToUrl(pkg, provider),
+      await this.pm.pkgToUrl(pkg, provider.provider, provider.layer),
       "./nodelibs/@empty",
       cjsEnv,
       false,
@@ -1092,54 +964,25 @@ async function legacyMainResolve(
   );
 }
 
-function getMapMatch<T = any>(
-  specifier: string,
-  map: Record<string, T>
-): string | undefined {
-  if (specifier in map) return specifier;
-  let bestMatch;
-  for (const match of Object.keys(map)) {
-    const wildcardIndex = match.indexOf("*");
-    if (!match.endsWith("/") && wildcardIndex === -1) continue;
-    if (match.endsWith("/")) {
-      if (specifier.startsWith(match)) {
-        if (!bestMatch || match.length > bestMatch.length) bestMatch = match;
-      }
-    } else {
-      const prefix = match.slice(0, wildcardIndex);
-      const suffix = match.slice(wildcardIndex + 1);
-      if (
-        specifier.startsWith(prefix) &&
-        specifier.endsWith(suffix) &&
-        specifier.length > prefix.length + suffix.length
-      ) {
-        if (
-          !bestMatch ||
-          !bestMatch.startsWith(prefix) ||
-          !bestMatch.endsWith(suffix)
-        )
-          bestMatch = match;
-      }
-    }
-  }
-  return bestMatch;
-}
-
-function allDotKeys(exports: Record<string, any>) {
-  for (let p in exports) {
-    if (p[0] !== ".") return false;
-  }
-  return true;
-}
-
 // TODO: Refactor legacy intermediate Analysis type into TraceEntry directly
 async function getAnalysis(
   resolver: Resolver,
   resolvedUrl: string
 ): Promise<Analysis | null> {
   const parentIsRequire = false;
-  const source = await fetch.arrayBuffer(resolvedUrl, resolver.fetchOpts);
-  if (!source) return null;
+  const res = await fetch(resolvedUrl, resolver.fetchOpts);
+  let source;
+  switch (res.status) {
+    case 200:
+    case 304:
+      source = await res.arrayBuffer();
+      break;
+    // not found = null
+    case 404:
+      return null;
+    default:
+      throw new Error(`Invalid status code ${res.status}`);
+  }
   // TODO: headers over extensions for non-file URLs
   try {
     if (resolvedUrl.endsWith(".wasm")) {

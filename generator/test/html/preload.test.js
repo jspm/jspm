@@ -8,14 +8,17 @@ const generator = new Generator({
   env: ["production", "browser"],
 });
 
-const esmsPkg = await generator.traceMap.resolver.resolveLatestTarget(
+const esmsPkg = await generator.traceMap.resolver.pm.resolveLatestTarget(
   { name: "es-module-shims", registry: "npm", ranges: [new SemverRange("*")] },
-  generator.traceMap.installer.defaultProvider
+  generator.traceMap.installer.defaultProvider,
+  undefined,
+  generator.traceMap.resolver
 );
 const esmsUrl =
-  (await generator.traceMap.resolver.pkgToUrl(
+  (await generator.traceMap.resolver.pm.pkgToUrl(
     esmsPkg,
-    generator.traceMap.installer.defaultProvider
+    generator.traceMap.installer.defaultProvider.provider,
+    generator.traceMap.installer.defaultProvider.layer
   )) + "dist/es-module-shims.js";
 const esmsIntegrity = await getIntegrity(await (await fetch(esmsUrl)).text());
 

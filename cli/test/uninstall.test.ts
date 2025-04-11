@@ -8,5 +8,5 @@ test("basic uninstall", async () => {
     stdout: true,
     map: "test/fixtures/importmap.json",
   });
-  assert.ok(typeof map.imports?.react);
+  assert.ok(typeof map!.imports?.react);
 });

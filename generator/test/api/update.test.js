@@ -73,12 +73,13 @@ import assert from "assert";
 }
 
 {
-  const generator = new Generator({ defaultProvider: 'jsdelivr' });
+  const generator = new Generator({ defaultProvider: "jsdelivr" });
   await generator.addMappings({
-    "imports": {
-      "lodash": "https://cdn.jsdelivr.net/npm/lodash@4.17.20/lodash.js",
-      "lodash/filter.js": "https://cdn.jsdelivr.net/npm/lodash@4.17.20/filter.js"
-    }  
+    imports: {
+      lodash: "https://cdn.jsdelivr.net/npm/lodash@4.17.20/lodash.js",
+      "lodash/filter.js":
+        "https://cdn.jsdelivr.net/npm/lodash@4.17.20/filter.js",
+    },
   });
 
   await generator.update();
@@ -90,7 +91,7 @@ import assert from "assert";
     `https://cdn.jsdelivr.net/npm/lodash@${expectedVersion}/lodash.js`
   );
   assert.strictEqual(
-    json.imports['lodash/filter.js'],
+    json.imports["lodash/filter.js"],
     `https://cdn.jsdelivr.net/npm/lodash@${expectedVersion}/filter.js`
   );
 }

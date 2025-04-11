@@ -1,13 +1,13 @@
-import {
+import type {
   ExactPackage,
   LatestPackageTarget,
   PackageConfig,
 } from "../install/package.js";
-import { Resolver } from "../trace/resolver.js";
 import { SemverRange } from "sver";
 // @ts-ignore
 import { fetch } from "../common/fetch.js";
-import { Install } from "../generator.js";
+import type { Install } from "../generator.js";
+import type { ProviderContext } from "./index.js";
 
 const cdnUrl = "https://deno.land/x/";
 const stdlibUrl = "https://deno.land/std";
@@ -59,7 +59,7 @@ export async function pkgToUrl(pkg: ExactPackage): Promise<`${string}/`> {
 }
 
 export async function getPackageConfig(
-  this: Resolver,
+  this: ProviderContext,
   pkgUrl: string
 ): Promise<PackageConfig | null | undefined> {
   if (pkgUrl.startsWith("https://deno.land/std@")) {
@@ -207,7 +207,7 @@ export function parseUrlPkg(
 }
 
 export async function resolveLatestTarget(
-  this: Resolver,
+  this: ProviderContext,
   target: LatestPackageTarget,
   _layer: string,
   parentUrl: string

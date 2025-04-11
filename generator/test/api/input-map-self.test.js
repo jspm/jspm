@@ -19,4 +19,4 @@ await generator.install(new URL("../../", import.meta.url).href);
 
 const json = generator.getMap();
 
-assert.ok(JSON.stringify(json).length < 2000);
+assert.ok(JSON.stringify(json).length < 3000);

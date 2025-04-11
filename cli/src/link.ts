@@ -3,7 +3,7 @@ import { extname } from "node:path";
 import { pathToFileURL } from "url";
 import c from "picocolors";
 import { type Generator } from "@jspm/generator";
-import type { Flags } from "./types.ts";
+import type { GenerateOutputFlags } from "./cli.ts";
 import {
   getEnv,
   getGenerator,
@@ -17,13 +17,17 @@ import {
 } from "./utils.ts";
 import { withType } from "./logger.ts";
 
-export default async function link(modules: string[], flags: Flags) {
+export default async function link(
+  modules: string[],
+  flags: GenerateOutputFlags
+) {
   const log = withType("link/link");
 
   log(`Linking modules: ${modules.join(", ")}`);
   log(`Flags: ${JSON.stringify(flags)}`);
 
-  const fallbackMap = !modules[0] || isJsExtension(extname(modules[0])) ? undefined : modules[0];
+  const fallbackMap =
+    !modules[0] || isJsExtension(extname(modules[0])) ? undefined : modules[0];
 
   const env = await getEnv(flags);
   const inputMapPath = getInputPath(flags, fallbackMap);

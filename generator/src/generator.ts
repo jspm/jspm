@@ -19,7 +19,12 @@
  * @module generator.ts
  */
 
-import { baseUrl as _baseUrl, relativeUrl, resolveUrl } from "./common/url.js";
+import {
+  baseUrl as _baseUrl,
+  isURL,
+  relativeUrl,
+  resolveUrl,
+} from "./common/url.js";
 import {
   ExactModule,
   ExactPackage,
@@ -33,9 +38,11 @@ import {
   clearCache as clearFetchCache,
   fetch as _fetch,
   setFetch,
+  setRetryCount,
+  setVirtualSourceData,
+  SourceData,
 } from "./common/fetch.js";
 import { IImportMap, ImportMap } from "@jspm/import-map";
-import process from "node:process";
 import { SemverRange } from "sver";
 import { JspmError } from "./common/err.js";
 import { getIntegrity } from "./common/integrity.js";
@@ -45,14 +52,17 @@ import { analyzeHtml } from "./html/analyze.js";
 import { InstallTarget, type InstallMode } from "./install/installer.js";
 import { LockResolutions } from "./install/lock.js";
 import {
-  configureProviders,
+  DeployOutput,
   getDefaultProviderStrings,
+  ProviderManager,
   type Provider,
 } from "./providers/index.js";
 import * as nodemodules from "./providers/nodemodules.js";
 import { Resolver } from "./trace/resolver.js";
 import { getMaybeWrapperUrl } from "./common/wrapper.js";
-import { setRetryCount } from "./common/fetch-common.js";
+import { expandExportsResolutions } from "./common/package.js";
+import { isNode } from "./common/env.js";
+import { minimatch } from "minimatch";
 
 export {
   // utility export
@@ -61,8 +71,7 @@ export {
   setFetch,
 };
 
-// Type exports for users:
-export { Provider };
+export type { Provider };
 
 /**
  * @interface GeneratorOptions.
@@ -224,6 +233,8 @@ export interface GeneratorOptions {
    * A map of custom scoped providers.
    *
    * The provider map allows setting custom providers for specific package names, package scopes or registries.
+   *
+   * @example
    * For example, an organization with private packages with names like `npmpackage` and `@orgscope/...` can define the custom providers to reference these from a custom source:
    *
    * ```js
@@ -360,6 +371,111 @@ export interface GeneratorOptions {
   providerConfig?: {
     [providerName: string]: any;
   };
+
+  /**
+   * @default true
+   *
+   * Whether to flatten import map scopes into domain-groupings.
+   * This is a lossy process, removing scoped dependencies.
+   * By default this is done to create a smaller import map output
+   * size. Set to false to retain dependency scoping information.
+   *
+   */
+  flattenScopes?: boolean;
+
+  /**
+   * @default true
+   *
+   * Whether to combine subpaths in the final import map.
+   * By default, when possible, the generator will at output time
+   * combine similar subpaths in an imports map like:
+   *
+   * @example
+   * ```json
+   * {
+   *   "imports": {
+   *     "a/b.js": "./pkg/b.js",
+   *     "a/c.js": "./pkg/c.js"
+   *   }
+   * }
+   * ```
+   *
+   * Into a single folder mapping:
+   *
+   * ```json
+   * {
+   *   "imports": {
+   *     "a/": "./pkg/"
+   *   }
+   * }
+   * ```
+   *
+   * Resulting in a smaller import map size. This process is done
+   * carefully to never break any existing mappings, but is a lossy
+   * import map compression as well.
+   *
+   * Set this option to false to disable this default behaviour and
+   * retain individual mappings.
+   */
+  combineSubpaths?: boolean;
+}
+
+/**
+ * Options for deploying a package
+ */
+export interface Deployment {
+  /**
+   * Deployment package is a URL containing files to deploy. The package.json file at the base of this path
+   * will be respected for the fields "name", "version", "files", and "ignore", as with npm conventions.
+   *
+   * Virtual deployments may also be made by providing source data directly as a file path to source buffer record.
+   */
+  package: string | SourceData;
+
+  /**
+   * Optional import map to include for the deployment, deployed as a separate artifact from the package file contents.
+   * Providers that do not support separate import map deployments may throw if unsupported.
+   *
+   * Deployments are defined as modules along with their import map, where this import map is generated
+   * at deployment time.
+   *
+   * @default true
+   *
+   * Deploys the current generator instance's import map, alongside a link operation of the package
+   * (see the {@link Deployment.install} option for more info). Any URLs in the import map pointing to the
+   * package being deployed will automatically be updated to reflect the deployed URLs.
+   *
+   * The benefit of defining the import map separately is that this provides a strong definition of the deployment
+   * execution model. In addition, even for immutable package deployments, their import maps may under special
+   * circumstances be treated as mutable when emergency dependency updates are required. For example, in the
+   * JSPM app registry, caching rules for import maps have a three day cache expiry to allow for such security fixes.
+   */
+  importMap?: IImportMap | boolean;
+
+  /**
+   * Whether to first install the package before deploying, thereby populating the import map for the package.
+   *
+   * By default, when `importMap: true` is set, and an explicit import map is not otherwise passed, install will be applied.
+   *
+   * Setting this to false, with importMap set to true will use the generator import map without the additional package
+   * link operation.
+   */
+  install?: boolean;
+
+  /**
+   * Provider to deploy to
+   */
+  provider?: string;
+
+  /**
+   * Override the version from the deployment package.json
+   */
+  version?: string;
+
+  /**
+   * Override the name from the deployment package.json
+   */
+  name?: string;
 }
 
 export interface ModuleAnalysis {
@@ -380,13 +496,13 @@ export interface Install {
   target: string | InstallTarget;
   alias?: string;
   subpath?: "." | `./${string}`;
-  subpaths?: ("." | `./${string}`)[];
+  subpaths?: ("." | `./${string}`)[] | true;
 }
 
 /**
  * Supports clearing the global fetch cache in Node.js.
  *
- * Example:
+ * @example
  *
  * ```js
  * import { clearCache } from '@jspm/generator';
@@ -395,6 +511,21 @@ export interface Install {
  */
 export function clearCache() {
   clearFetchCache();
+}
+
+function createFetchOptions(
+  cache: "offline" | boolean = true,
+  fetchOptions = {}
+) {
+  let fetchOpts: Record<string, any> = {
+    retry: 1,
+    timeout: 10000,
+    ...fetchOptions,
+    headers: { "Accept-Encoding": "gzip, br" },
+  };
+  if (cache === "offline") fetchOpts.cache = "force-cache";
+  else if (!cache) fetchOpts.cache = "no-store";
+  return fetchOptions;
 }
 
 /**
@@ -409,11 +540,13 @@ export class Generator {
   logStream: LogStream;
   log: Log;
   integrity: boolean;
+  flattenScopes: boolean;
+  combineSubpaths: boolean;
 
   /**
    * Constructs a new Generator instance.
    *
-   * For example:
+   * @example
    *
    * ```js
    * const generator = new Generator({
@@ -456,30 +589,10 @@ export class Generator {
     fetchRetries,
     providerConfig = {},
     preserveSymlinks,
+    flattenScopes = true,
+    combineSubpaths = true,
   }: GeneratorOptions = {}) {
-    // Initialise the debug logger:
-    const { log, logStream } = createLogger();
-    this.log = log;
-    this.logStream = logStream;
-    if (process?.env?.JSPM_GENERATOR_LOG) {
-      (async () => {
-        for await (const { type, message } of this.logStream()) {
-          console.log(`\x1b[1m${type}:\x1b[0m ${message}`);
-        }
-      })();
-    }
-    if (typeof preserveSymlinks !== "boolean")
-      preserveSymlinks = typeof process?.versions?.node === "string";
-
-    // Initialise the resource fetcher:
-    let fetchOpts: Record<string, any> = {
-      retry: 1,
-      timeout: 10000,
-      ...fetchOptions,
-      headers: { "Accept-Encoding": "gzip, br" },
-    };
-    if (cache === "offline") fetchOpts.cache = "force-cache";
-    else if (!cache) fetchOpts.cache = "no-store";
+    if (typeof preserveSymlinks !== "boolean") preserveSymlinks = isNode;
 
     // Default logic for the mapUrl, baseUrl and rootUrl:
     if (mapUrl && !baseUrl) {
@@ -518,21 +631,10 @@ export class Generator {
 
     this.integrity = integrity;
 
-    // Initialise the resolver:
-    const resolver = new Resolver({
-      env,
-      log,
-      fetchOpts,
-      preserveSymlinks,
-      traceCjs: commonJS,
-      traceTs: typeScript,
-      traceSystem: system,
-    });
-    if (customProviders) {
-      for (const provider of Object.keys(customProviders)) {
-        resolver.addCustomProvider(provider, customProviders[provider]);
-      }
-    }
+    const fetchOpts = createFetchOptions(cache, fetchOptions);
+    const { log, logStream } = createLogger();
+    this.logStream = logStream;
+    this.log = log;
 
     // The node_modules provider is special, because it needs to be rooted to
     // perform resolutions against the local node_modules directory:
@@ -540,15 +642,25 @@ export class Generator {
       this.baseUrl.href,
       defaultProvider === "nodemodules"
     );
-    resolver.addCustomProvider("nodemodules", nmProvider);
+    const pm = new ProviderManager(log, fetchOpts, providerConfig, {
+      ...customProviders,
+      nodemodules: nmProvider,
+    });
 
     // We make an attempt to auto-detect the default provider from the input
     // map, by picking the provider with the most owned URLs:
-    defaultProvider = detectDefaultProvider(
-      defaultProvider,
-      inputMap,
-      resolver
-    );
+    defaultProvider = detectDefaultProvider(defaultProvider, inputMap, pm);
+
+    // Initialise the resolver:
+    const resolver = new Resolver({
+      env,
+      providerManager: pm,
+      fetchOpts,
+      preserveSymlinks,
+      traceCjs: commonJS,
+      traceTs: typeScript,
+      traceSystem: system,
+    });
 
     // Initialise the tracer:
     this.traceMap = new TraceMap(
@@ -571,11 +683,11 @@ export class Generator {
     this.map = new ImportMap({ mapUrl: this.mapUrl, rootUrl: this.rootUrl });
     if (!integrity) this.map.integrity = {};
     if (inputMap) this.addMappings(inputMap);
+    this.flattenScopes = flattenScopes;
+    this.combineSubpaths = combineSubpaths;
 
     // Set the fetch retry count
     if (typeof fetchRetries === "number") setRetryCount(fetchRetries);
-
-    configureProviders(providerConfig, resolver.providers);
   }
 
   /**
@@ -629,6 +741,25 @@ export class Generator {
    *
    * @param specifier Module or list of modules to link
    * @param parentUrl Optional parent URL
+   *
+   * Link specifiers are module specifiers - they can be bare specifiers resolved through
+   * package resolution, relative URLs, or full URLs, for example:
+   *
+   * @example
+   * ```js
+   * await generator.link(['react', './local.js']);
+   * ```
+   *
+   * In the above, an import map will be constructed based on the resolution of react,
+   * and tracing all its dependencies in turn, as well as for the local module, and
+   * any dependencies it has in turn as well, installing all dependencies into the import
+   * map as needed.
+   *
+   * In general, using `generator.link(entryPoints)` is recommended over `generator.install()`,
+   * since it represents a real module graph linkage as would be required in a browser.
+   *
+   * By using link, we guarantee that the import map constructed is only for what is truly
+   * needed and loaded. Dynamic imports that are statically analyzable are traced by link.
    */
   async link(
     specifier: string | string[],
@@ -637,7 +768,6 @@ export class Generator {
     if (typeof specifier === "string") specifier = [specifier];
     let error = false;
     await this.traceMap.processInputMap;
-    specifier = specifier.map((specifier) => specifier.replace(/\\/g, "/"));
     try {
       await Promise.all(
         specifier.map((specifier) =>
@@ -777,7 +907,7 @@ export class Generator {
     if (esModuleShims) {
       let esmsPkg: ExactPackage;
       try {
-        esmsPkg = await this.traceMap.resolver.resolveLatestTarget(
+        esmsPkg = await this.traceMap.resolver.pm.resolveLatestTarget(
           {
             name: "es-module-shims",
             registry: "npm",
@@ -785,7 +915,8 @@ export class Generator {
             unstable: false,
           },
           this.traceMap.installer.defaultProvider,
-          this.baseUrl.href
+          this.baseUrl.href,
+          this.traceMap.resolver
         );
       } catch (err) {
         // This usually happens because the user is trying to use their
@@ -801,9 +932,10 @@ export class Generator {
       }
 
       let esmsUrl =
-        (await this.traceMap.resolver.pkgToUrl(
+        (await this.traceMap.resolver.pm.pkgToUrl(
           esmsPkg,
-          this.traceMap.installer.defaultProvider
+          this.traceMap.installer.defaultProvider.provider,
+          this.traceMap.installer.defaultProvider.layer
         )) + "dist/es-module-shims.js";
 
       // detect esmsUrl as a wrapper URL
@@ -917,9 +1049,12 @@ export class Generator {
    * // Install a specific subpath of a package
    * await generator.install({ target: 'lit@2', subpath: './html.js' });
    *
-   * // Install an export from a locally located package folder into the map
+   * // Install an export from a locally located package folder into the map with multiple subpaths.
    * // The package.json is used to determine the exports and dependencies.
-   * await generator.install({ alias: 'mypkg', target: './packages/local-pkg', subpath: './feature' });
+   * await generator.install({ alias: 'mypkg', target: './packages/local-pkg', subpaths: ['./feature1', './feature2'] });
+   *
+   * // Install all exports of the package, based on enumerating all the package export subpaths.
+   * await generator.install({ alias: 'mypkg', target: './packages/local-pkg', subpaths: true });
    * ```
    */
   async install(
@@ -969,65 +1104,89 @@ export class Generator {
       );
     }
 
-    // Split the case of multiple install subpaths into multiple installs
-    // TODO: flatten all subpath installs here
-    if (
-      !Array.isArray(install) &&
-      typeof install !== "string" &&
-      install.subpaths !== undefined
-    ) {
-      install.subpaths.every((subpath) => {
-        if (
-          typeof subpath !== "string" ||
-          (subpath !== "." && !subpath.startsWith("./"))
-        )
-          throw new Error(
-            `Install subpath "${subpath}" must be equal to "." or start with "./".`
-          );
-      });
-      return this._install(
-        install.subpaths.map((subpath) => ({
-          target: (install as Install).target,
-          alias: (install as Install).alias,
-          subpath,
-        }))
-      );
-    }
-
     if (!Array.isArray(install)) install = [install];
 
-    // Handle case of multiple install targets with at most one subpath:
     await this.traceMap.processInputMap; // don't race input processing
 
-    const imports = await Promise.all(
-      install.map(async (install) => {
-        // Resolve input information to a target package:
-        let alias, target, subpath;
-        if (typeof install === "string" || typeof install.target === "string") {
-          ({ alias, target, subpath } = await installToTarget.call(
-            this,
-            install,
-            this.traceMap.installer.defaultRegistry
-          ));
-        } else {
-          ({ alias, target, subpath } = install);
-          validatePkgName(alias);
-        }
+    const imports = (
+      await Promise.all(
+        install.map(async (install) => {
+          // Resolve input information to a target package:
+          let alias,
+            target: InstallTarget,
+            subpath,
+            subpaths: string[] | true | undefined;
+          if (
+            typeof install === "string" ||
+            typeof install.target === "string"
+          ) {
+            ({ alias, target, subpath } = (await installToTarget.call(
+              this,
+              install,
+              this.traceMap.installer.defaultRegistry
+            )) as any);
+            if ((install as Install)?.subpaths)
+              subpaths = (install as Install).subpaths;
+          } else {
+            ({ alias, target, subpath, subpaths } = install);
+            validatePkgName(alias);
+          }
 
-        this.log(
-          "generator/install",
-          `Adding primary constraint for ${alias}: ${JSON.stringify(target)}`
-        );
+          this.log(
+            "generator/install",
+            `Adding primary constraint for ${alias}: ${JSON.stringify(target)}`
+          );
 
-        // By default, an install takes the latest compatible version for primary
-        // dependencies, and existing in-range versions for secondaries:
-        mode ??= "latest-primaries";
+          // By default, an install takes the latest compatible version for primary
+          // dependencies, and existing in-range versions for secondaries:
+          mode ??= "latest-primaries";
 
-        await this.traceMap.add(alias, target, mode);
+          const installed = await this.traceMap.add(alias, target, mode);
 
-        return alias + (subpath ? subpath.slice(1) : "");
-      })
-    );
+          // expand all package subpaths
+          if (subpaths === true) {
+            const pcfg = await this.traceMap.resolver.getPackageConfig(
+              installed.installUrl
+            );
+            // main only
+            if (
+              !pcfg.exports ||
+              !Object.keys(pcfg.exports).every((expt) => expt[0] === ".")
+            ) {
+              return alias;
+            }
+            // If the provider supports it, get a file listing for the package to assist with glob expansions
+            const fileList = await this.traceMap.resolver.pm.getFileList(
+              installed.installUrl
+            );
+            // Expand exports into entry point list
+            const resolutionMap = new Map<string, string>();
+            await expandExportsResolutions(
+              pcfg.exports,
+              this.traceMap.resolver.env,
+              fileList,
+              resolutionMap
+            );
+            return [...resolutionMap].map(
+              ([subpath, _entry]) => alias + subpath.slice(1)
+            );
+          } else if (subpaths) {
+            subpaths.every((subpath) => {
+              if (
+                typeof subpath !== "string" ||
+                (subpath !== "." && !subpath.startsWith("./"))
+              )
+                throw new Error(
+                  `Install subpath "${subpath}" must be equal to "." or start with "./".`
+                );
+            });
+            return subpaths.map((subpath) => alias + subpath.slice(1));
+          } else {
+            return alias + (subpath ? subpath.slice(1) : "");
+          }
+        })
+      )
+    ).flatMap((i) => i);
 
     await Promise.all(
       imports.map(async (impt) => {
@@ -1115,7 +1274,7 @@ export class Generator {
       }
       // otherwise synthetize a range from the current package version
       else {
-        const pkg = await this.traceMap.resolver.parseUrlPkg(installUrl);
+        const pkg = await this.traceMap.resolver.pm.parseUrlPkg(installUrl);
         if (!pkg)
           throw new Error(
             `Unable to determine a package version lookup for ${name}. Make sure it is supported as a provider package.`
@@ -1171,6 +1330,344 @@ export class Generator {
     return { staticDeps, dynamicDeps };
   }
 
+  /**
+   * Populate virtual source files into the generator for further linking or install operations, effectively
+   * intercepting network and file system requests to those URLs.
+   *
+   * @param baseUrl base URL under which all file data is located @example `"file:///path/to/package/"` or
+   * `"https://site.com/pkg@1.2.3/)"`.
+   * @param fileData Key value pairs of file data strings or buffers virtualized under the provided
+   * URL base path,
+   * @example
+   * ```
+   * {
+   *   'package.json': '',
+   *   'dir/file.bin': new Uint8Array([1,2,3])
+   * }
+   * ```
+   */
+  setVirtualSourceData(baseUrl: string, fileData: SourceData) {
+    setVirtualSourceData(baseUrl, fileData);
+  }
+
+  /**
+   * Deploy a package to a JSPM deployment server
+   *
+   * This function creates a tarball from the provided files and
+   * uploads it to the configured deployment server.
+   *
+   * @param options Deployment options
+   * @returns Promise that resolves with the package URL, map URL, and
+   *          an optional copy-paste code snippet demonstrating deployment usage.
+   *
+   * @example
+   * ```js
+   * import { Generator } from '@jspm/generator';
+   *
+   * const generator = new Generator({
+   *   inputMap: { ...custom import map... }
+   * });
+   * const result = await generator.deploy({
+   *   package: './pkg',
+   *   provider: 'jspm.io',
+   *   importMap: true,
+   *   link: true,
+   * });
+   *
+   * // URL to the deployed package and deployed import map
+   * console.log(result.packageUrl, result.mapUrl);
+   * // HTML code snippet demonstrating how to run the deployment in a browser
+   * console.log(result.codeSnippet);
+   * ```
+   * JSPM will fully link all dependencies when link: true is provided, and
+   * populate them into the import map of the generator instance provided
+   * to the deployment.
+   *
+   * Alternatively, instead of a local package path, package can also be provided
+   * as a record of virtual sources.
+   *
+   */
+  async deploy({
+    package: pkg,
+    importMap = true,
+    install = importMap === true,
+    version,
+    name,
+    provider = "jspm.io",
+  }: Deployment): Promise<DeployOutput> {
+    if (typeof pkg === "object") {
+      const virtualUrl = `https://virtual/${name ?? "deploy"}@${
+        version ?? Math.round(Math.random() * 10_000)
+      }`;
+      this.setVirtualSourceData(virtualUrl, pkg);
+      pkg = virtualUrl;
+    }
+    if (typeof pkg !== "string" || !isURL(pkg) || pkg.match(/^\w\:/)) {
+      throw new JspmError(`Package must be a URL string, received "${pkg}"`);
+    }
+
+    if (!pkg.endsWith("/")) pkg += "/";
+
+    // Get the file list from the package and read all the file data
+    const fileList = await this.traceMap.resolver.pm.getFileList(pkg);
+    const fileData: SourceData = {};
+    await Promise.all(
+      [...fileList].map(async (file) => {
+        const res = await fetch(pkg + file, this.traceMap.resolver.fetchOpts);
+        if (!res.ok) {
+          console.log(res);
+          throw new JspmError(
+            `Unable to read file ${file} in ${pkg} - got ${
+              res.statusText || res.status
+            }`
+          );
+        }
+        fileData[file] = await res.arrayBuffer();
+      })
+    );
+
+    // Ensure package.json exists and has correct name and version
+    const pkgJson = fileData["package.json"] || "{}";
+    // Parse package.json if it's a string
+    let pjson;
+    try {
+      if (typeof pkgJson === "string") {
+        pjson = JSON.parse(pkgJson);
+      } else {
+        // Convert ArrayBuffer to string and parse
+        const decoder = new TextDecoder();
+        pjson = JSON.parse(decoder.decode(pkgJson));
+      }
+    } catch (err) {
+      throw new JspmError("Invalid package.json: " + err.message);
+    }
+
+    if (pjson.jspm) {
+      const { jspm } = pjson;
+      delete pjson.jspm;
+      Object.assign(pjson, jspm);
+    }
+
+    const ignore: string[] = Array.isArray(pjson.ignore) ? pjson.ignore : [];
+    const files: string[] = Array.isArray(pjson.files) ? pjson.files : [];
+
+    const filteredFileList = [];
+    for (const file of fileList) {
+      for (const ignorePattern of ignore) {
+        if (minimatch(file, ignorePattern)) {
+          continue;
+        }
+      }
+      const parts = file.split("/");
+      if (parts.includes("node_modules") || parts.includes(".git")) continue;
+      if (files.length) {
+        for (const includePattern of files) {
+          if (minimatch(file, includePattern)) {
+            filteredFileList.push(file);
+          }
+        }
+      } else {
+        filteredFileList.push(file);
+      }
+    }
+
+    for (const file of Object.keys(fileData)) {
+      if (!filteredFileList.includes(file)) delete fileData[file];
+    }
+
+    if (filteredFileList.length === 0 && !importMap)
+      throw new JspmError(
+        "At least one file or importMap is required for deployment"
+      );
+
+    if (!name) {
+      name = pjson.name;
+      if (!name)
+        throw new JspmError(
+          `Package name is required for deployment, either in the package.json or as a deploy option.`
+        );
+      if (!name.match(/^[a-zA-Z0-9_\-]+$/))
+        throw new JspmError(`Invalid package name for deployment.`);
+    }
+    if (!version) {
+      version = pjson.version;
+      if (!version)
+        throw new JspmError(
+          `Package version is required for deployment, either in the package.json or as a deploy option.`
+        );
+    }
+
+    const { packageUrl } = this.traceMap.resolver.pm.getDeploymentUrl(
+      provider,
+      name,
+      version
+    );
+
+    if (install) {
+      await this.install({ alias: name, target: pkg, subpaths: true });
+      // we then substitute the package URL with the final deployment URL
+      this.importMap.replace(pkg, packageUrl);
+    }
+
+    const map =
+      importMap === true
+        ? this.map.clone()
+        : importMap
+        ? new ImportMap({ map: importMap })
+        : undefined;
+    if (map) {
+      if (this.flattenScopes) map.flatten();
+      map.sort();
+      if (this.combineSubpaths) map.combineSubpaths();
+    }
+
+    // If importMap option is set to true, pass a clone of the generator's map
+    return await this.traceMap.resolver.pm.deploy(
+      name,
+      version,
+      provider,
+      this.traceMap.pins.sort((a, b) => {
+        const aIsDeployAlias =
+          a === name || (a.startsWith(name) && a[name.length] === "/");
+        const bIsDeployAlias =
+          b === name || (b.startsWith(name) && b[name.length] === "/");
+        if (aIsDeployAlias && !bIsDeployAlias) return -1;
+        else if (bIsDeployAlias && !aIsDeployAlias) return 1;
+        return a > b ? 1 : -1;
+      }),
+      fileData,
+      map
+    );
+  }
+
+  /**
+   * Eject a deployed package by downloading it to the provided local folder,
+   * and stitching its import map into the generator import map.
+   */
+  async eject(
+    {
+      name,
+      version,
+      provider = "jspm.io",
+    }: { name: string; version: string; provider?: string },
+    outDir: string
+  ) {
+    if (!isNode) {
+      throw new JspmError(
+        `Eject functionality is currently only available on a filesystem`
+      );
+    }
+    const { packageUrl, mapUrl } = this.traceMap.resolver.pm.getDeploymentUrl(
+      provider,
+      name,
+      version
+    );
+
+    let deploymentMap: null | IImportMap = null;
+    try {
+      const res = await fetch(mapUrl);
+      if (res.status !== 404) {
+        if (!res.ok && res.status !== 304) {
+          throw res.statusText || res.status;
+        }
+        deploymentMap = await res.json();
+      }
+    } catch (e) {
+      throw new JspmError(`Unable to load import map ${mapUrl}: ${e}`);
+    }
+
+    if (deploymentMap) {
+      await this.mergeMap(deploymentMap, mapUrl);
+    }
+
+    const packageFiles = await this.traceMap.resolver.pm.downloadDeployment(
+      provider,
+      name,
+      version
+    );
+
+    const [
+      { writeFileSync, mkdirSync },
+      { resolve, dirname },
+      { fileURLToPath, pathToFileURL },
+    ] = await Promise.all([
+      import(eval('"node:fs"')),
+      import(eval('"node:path"')),
+      import(eval('"node:url"')),
+    ]);
+    outDir = resolve(fileURLToPath(this.baseUrl), outDir);
+    for (const [path, source] of Object.entries(packageFiles)) {
+      const resolved = resolve(outDir, path);
+      mkdirSync(dirname(resolved), { recursive: true });
+      writeFileSync(resolved, source);
+    }
+
+    this.map.replace(packageUrl, pathToFileURL(outDir).href + "/");
+    this.map.rebase(this.mapUrl, this.rootUrl);
+  }
+
+  /**
+   * Merges an import map into this instance's import map.
+   *
+   * Performs a full retrace of the map to be merged, building out its version constraints separately,
+   * and expanding scopes previously flattened by the scope-flattening "flattenScopes" option that occurs
+   * by default for extracted import maps.
+   */
+  async mergeMap(map: IImportMap, mapUrl?: string) {
+    const mergeGenerator = this.clone();
+    mergeGenerator.flattenScopes = false;
+    mergeGenerator.addMappings(map, mapUrl);
+    await mergeGenerator.reinstall();
+    await this.addMappings(
+      mergeGenerator.getMap(mergeGenerator.mapUrl, mergeGenerator.rootUrl)
+    );
+    await this.reinstall();
+  }
+
+  /**
+   * Create a clone of this generator instance with the same configuration.
+   *
+   * Does not clone the internal import map or install state.
+   */
+  clone(): Generator {
+    const cloned = new Generator({
+      baseUrl: this.baseUrl,
+      mapUrl: this.mapUrl,
+      rootUrl: this.rootUrl,
+      env: this.traceMap.resolver.env,
+      defaultProvider:
+        this.traceMap.installer.defaultProvider.provider +
+        "#" +
+        this.traceMap.installer.defaultProvider.layer,
+      defaultRegistry: this.traceMap.installer.defaultRegistry,
+      resolutions: this.traceMap.installer.resolutions,
+      fetchOptions: this.traceMap.resolver.fetchOpts,
+      commonJS: this.traceMap.resolver.traceCjs,
+      typeScript: this.traceMap.resolver.traceTs,
+      system: this.traceMap.resolver.traceSystem,
+      integrity: this.integrity,
+      preserveSymlinks: this.traceMap.resolver.preserveSymlinks,
+      flattenScopes: this.flattenScopes,
+      combineSubpaths: this.combineSubpaths,
+    });
+    cloned.traceMap.resolver.pm.providers = {
+      ...this.traceMap.resolver.pm.providers,
+    };
+    return cloned;
+  }
+
+  /**
+   * Extracts a smaller import map from a larger import map
+   *
+   * This is for the use case where one large import map is being used to manage
+   * dependencies across multiple entry points in say a multi-page application,
+   * and one pruned import map is desired just for a set of top-level imports which
+   * is smaller than the full set of top-level imports
+   *
+   * These top-level imports can be provided as a list of "pins" to extract, and a
+   * fully pruned map with only the necessary scoped mappings will be traced out
+   * of the larger map while respecting its resolutions.
+   */
   async extractMap(
     pins: string | string[],
     mapUrl?: URL | string,
@@ -1187,9 +1684,9 @@ export class Generator {
       integrity
     );
     map.rebase(mapUrl, rootUrl);
-    map.flatten();
+    if (this.flattenScopes) map.flatten();
     map.sort();
-    map.combineSubpaths();
+    if (this.combineSubpaths) map.combineSubpaths();
     return { map: map.toJSON(), staticDeps, dynamicDeps };
   }
 
@@ -1231,12 +1728,24 @@ export class Generator {
     };
   }
 
+  /**
+   * Obtain the final generated import map, with flattening and subpaths combined
+   * (unless otherwise disabled via the Generator flattenScopes and combineSubpaths options).
+   *
+   * A mapUrl can be provided typically as a file URL corresponding to the location of the import map on the file
+   * system. Relative paths to other files on the filesystem will then be tracked as map-relative and
+   * output as relative paths, assuming the map retains its relative relation to local modules regardless
+   * of the deployment URLs.
+   *
+   * When a root URL is provided pointing to a local file URL, `/` prefixed URLs will be used for all
+   * modules contained within this file URL base as root URL relative instead of map relative URLs like the above.
+   */
   getMap(mapUrl?: string | URL, rootUrl?: string | URL | null) {
     const map = this.map.clone();
     map.rebase(mapUrl, rootUrl);
-    map.flatten();
+    if (this.flattenScopes) map.flatten();
     map.sort();
-    map.combineSubpaths();
+    if (this.combineSubpaths) map.combineSubpaths();
     return map.toJSON();
   }
 }
@@ -1287,10 +1796,11 @@ export async function lookup(
 
   const { pkgTarget, installSubpath } = target;
   if (pkgTarget instanceof URL) throw new Error("URL lookups not supported");
-  const resolved = await generator.traceMap.resolver.resolveLatestTarget(
+  const resolved = await generator.traceMap.resolver.pm.resolveLatestTarget(
     pkgTarget,
     generator.traceMap.installer.getProvider(pkgTarget),
-    generator.baseUrl.href
+    generator.baseUrl.href,
+    generator.traceMap.resolver
   );
   return {
     install: {
@@ -1314,7 +1824,7 @@ export async function lookup(
  * @param lookupOptions Optional provider and cache defaults for lookup
  * @returns Package JSON configuration
  *
- * Example:
+ * @example
  * ```js
  * import { getPackageConfig } from '@jspm/generator';
  *
@@ -1335,9 +1845,10 @@ export async function getPackageConfig(
 ): Promise<PackageConfig | null> {
   const generator = new Generator({ cache: !cache, defaultProvider: provider });
   if (typeof pkg === "object" && "name" in pkg)
-    pkg = await generator.traceMap.resolver.pkgToUrl(
+    pkg = await generator.traceMap.resolver.pm.pkgToUrl(
       pkg,
-      generator.traceMap.installer.defaultProvider
+      generator.traceMap.installer.defaultProvider.provider,
+      generator.traceMap.installer.defaultProvider.layer
     );
   else if (typeof pkg === "string") pkg = new URL(pkg).href;
   else pkg = pkg.href;
@@ -1406,7 +1917,7 @@ export async function parseUrlPkg(
   { provider, cache }: LookupOptions = {}
 ): Promise<ExactModule | null> {
   const generator = new Generator({ cache: !cache, defaultProvider: provider });
-  return generator.traceMap.resolver.parseUrlPkg(
+  return generator.traceMap.resolver.pm.parseUrlPkg(
     typeof url === "string" ? url : url.href
   );
 }
@@ -1463,12 +1974,12 @@ async function installToTarget(
 function detectDefaultProvider(
   defaultProvider: string | null,
   inputMap: IImportMap | null,
-  resolver: Resolver
+  pm: ProviderManager
 ) {
   // We only use top-level install information to detect the provider:
   const counts: Record<string, number> = {};
   for (const url of Object.values(inputMap?.imports || {})) {
-    const name = resolver.providerNameForUrl(url);
+    const name = pm.providerNameForUrl(url);
     if (name) {
       counts[name] = (counts[name] || 0) + 1;
     }

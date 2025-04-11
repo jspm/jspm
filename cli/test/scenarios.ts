@@ -28,27 +28,25 @@ export async function run(scenario: Scenario) {
 
   const originalCwd = process.cwd();
   const dir = await createTmpPkg(scenario);
-  
+
   // Set working directory, considering the cwd option if provided
-  const workingDir = scenario.cwd 
-    ? path.join(dir, scenario.cwd) 
-    : dir;
-  
+  const workingDir = scenario.cwd ? path.join(dir, scenario.cwd) : dir;
+
   // Ensure the working directory exists
   if (scenario.cwd) {
     await fs.mkdir(workingDir, { recursive: true });
   }
-  
+
   process.chdir(workingDir);
 
   // Create isolated environment for tests
   const originalUserConfig = process.env.JSPM_USER_CONFIG_DIR;
-  
+
   // Create isolated user config directory for tests
-  const isolatedConfigDir = path.join(dir, '.jspm-user-config');
+  const isolatedConfigDir = path.join(dir, ".jspm-user-config");
   await fs.mkdir(isolatedConfigDir, { recursive: true });
   process.env.JSPM_USER_CONFIG_DIR = isolatedConfigDir;
-  
+
   // Create a fresh project config for tests by creating an isolated .jspmrc
   // This ensures each test has its own isolated local config
   // and won't be affected by or affect other tests
@@ -65,7 +63,9 @@ export async function run(scenario: Scenario) {
     for (const cmd of scenario.commands) {
       const args = ["node", ...cmd.split(" "), "--silent"];
       cli.parse(args, { run: false });
-      await cli.runMatchedCommand();
+      if (!(await cli.runMatchedCommand())) {
+        throw new Error("Command failed");
+      }
     }
 
     await scenario.validationFn(await mapDirectory(dir));
@@ -86,7 +86,7 @@ export async function run(scenario: Scenario) {
 }
 
 export async function mapDirectory(dir: string): Promise<Files> {
-  dir = path.resolve(fileURLToPath(import.meta.url), '..', dir);
+  dir = path.resolve(fileURLToPath(import.meta.url), "..", dir);
   const files = new Map<string, string>();
   for (const file of await fs.readdir(dir)) {
     const filePath = path.join(dir, file);
@@ -105,11 +105,13 @@ export async function mapDirectory(dir: string): Promise<Files> {
 
 export async function mapFile(files: string | string[]): Promise<Files> {
   if (typeof files === "string") return mapFile([files]);
-  files = files.map(file => path.resolve(fileURLToPath(import.meta.url), '..', file));
+  files = files.map((file) =>
+    path.resolve(fileURLToPath(import.meta.url), "..", file)
+  );
   const res = new Map<string, string>();
   for (const file of files) {
     const data = await fs.readFile(file, "utf-8");
-    res.set(path.basename(file), data);
+    res.set(path.basename(file).replace(/\\/g, "/"), data);
   }
   return res;
 }

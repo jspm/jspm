@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
+import { fileURLToPath } from "node:url";
 import { cli } from "../src/cli.ts";
 
 const defaultPackageJson = {
@@ -85,7 +86,7 @@ export async function run(scenario: Scenario) {
 }
 
 export async function mapDirectory(dir: string): Promise<Files> {
-  dir = path.resolve(import.meta.dirname, dir);
+  dir = path.resolve(fileURLToPath(import.meta.url), '..', dir);
   const files = new Map<string, string>();
   for (const file of await fs.readdir(dir)) {
     const filePath = path.join(dir, file);
@@ -104,7 +105,7 @@ export async function mapDirectory(dir: string): Promise<Files> {
 
 export async function mapFile(files: string | string[]): Promise<Files> {
   if (typeof files === "string") return mapFile([files]);
-  files = files.map(file => path.resolve(import.meta.dirname, file));
+  files = files.map(file => path.resolve(fileURLToPath(import.meta.url), '..', file));
   const res = new Map<string, string>();
   for (const file of files) {
     const data = await fs.readFile(file, "utf-8");

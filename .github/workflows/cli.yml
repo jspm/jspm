@@ -46,6 +46,6 @@ jobs:
       - uses: denoland/setup-deno@v1
         with:
           deno-version: ${{ matrix.deno }}
-      - run: deno test --allow-env --allow-net --allow-read test/deno_test.ts
+      - run: cd cli && deno test --allow-env --allow-net --allow-read test/deno_test.ts
       - run: npm install
       - run: chomp -c cli deno:test

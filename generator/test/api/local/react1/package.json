@@ -1,0 +1,8 @@
+{
+  "exports": "./react1.js",
+  "type": "module",
+  "dependencies": {
+    "react": "16 || 17",
+    "localdep": "../react2"
+  }
+}

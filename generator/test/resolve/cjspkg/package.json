@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "process": "^0.11.10"
+  },
+  "browser": {
+    "./browser-dep-exclude.js": false
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "pkg",
+  "type": "module",
+  "exports": "./index.js",
+  "dependencies": {
+    "dep": "file:../dep",
+    "tar": "file:../tar.tgz"
+  }
+}

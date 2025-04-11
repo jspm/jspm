@@ -1,0 +1,11 @@
+{
+  "type": "module",
+  "exports": {
+    "./json": "./file.json",
+    "./css": "./file.css",
+    "./wasm": "./file.wasm"
+  },
+  "imports": {
+    "#asdf": "./file.js"
+  }
+}

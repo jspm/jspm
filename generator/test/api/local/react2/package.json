@@ -1,0 +1,7 @@
+{
+  "exports": "./react2.js",
+  "type": "module",
+  "dependencies": {
+    "react": "16"
+  }
+}

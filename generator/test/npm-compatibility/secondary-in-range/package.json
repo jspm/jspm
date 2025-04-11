@@ -1,0 +1,6 @@
+{
+  "name": "test",
+  "dependencies": {
+    "wayfarer": "6.6.2"
+  }
+}

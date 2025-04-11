@@ -1,0 +1,8 @@
+{
+  "name": "x",
+  "exports": "./x.js",
+  "type": "module",
+  "dependencies": {
+    "es-module-lexer": "^1"
+  }
+}

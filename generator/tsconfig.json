@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "typeRoots": ["node_modules/@types"],
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "module": "esnext",
+    "target": "es2022",
+    "sourceMap": true,
+    "outDir": "lib",
+    "declaration": true,
+    "declarationDir": "lib",
+    "removeComments": false,
+    "strictBindCallApply": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/script-lexer.js",
+    "src/api.js"
+  ],
+  "exclude": [
+    "src/cli.ts",
+    "src/**/*.test.ts"
+  ]
+}

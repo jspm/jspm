@@ -1,0 +1,29 @@
+{
+  "name": "localpkg",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./custom": "./a.js",
+    "./withdep": "./b.js",
+    "./withdep2": "./c.js",
+    "./remotedep": "./d.js",
+    "./cjs": "./e.cjs",
+    "./jquery": "./jquery.js",
+    "./json": "./json.ts",
+    "./conditional": {
+      "development": "./a.js",
+      "production": "./b.js"
+    }
+  },
+  "imports": {
+    "#cjsdep": "./f.cjs"
+  },
+  "dependencies": {
+    "dep": "file:../dep",
+    "dep2": "../dep",
+    "react": "https://ga.jspm.io/npm:react@16.14.0"
+  },
+  "devDependencies": {
+    "jquery": "2"
+  }
+}

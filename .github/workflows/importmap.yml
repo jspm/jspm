@@ -1,0 +1,28 @@
+name: ImportMap
+
+on:
+  push:
+    branches: main
+  pull_request:
+    branches: main
+
+jobs:
+  test-node:
+    name: Node.js Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20.x, 22.x]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js ${{ matrix.node }}
+      uses: actions/setup-node@v2
+      with:
+        node: ${{ matrix.node }}
+    - name: Setup Chomp
+      uses: guybedford/chomp-action@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - run: npm install
+    - run: chomp -c import-map test
+  

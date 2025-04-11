@@ -1,0 +1,17 @@
+{
+  "env": [
+    "browser",
+    "development",
+    "module"
+  ],
+  "imports": {
+    "wayfarer": "https://ga.jspm.io/npm:wayfarer@6.6.2/index.js"
+  },
+  "scopes": {
+    "https://ga.jspm.io/": {
+      "assert": "https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/browser/assert.js",
+      "xtend": "https://ga.jspm.io/npm:xtend@4.0.2/immutable.js",
+      "xtend/mutable": "https://ga.jspm.io/npm:xtend@4.0.2/mutable.js"
+    }
+  }
+}

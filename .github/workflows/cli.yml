@@ -1,0 +1,51 @@
+name: JSPM CLI
+
+on:
+  push:
+    branches: main
+  pull_request:
+    branches: main
+
+jobs:
+  test:
+    name: Node.js Tests
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        node: [22.x, 23.x]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Setup Chomp
+        uses: guybedford/chomp-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npm install
+      - run: chomp -c cli lint
+      - run: chomp -c cli test
+  deno-test:
+    name: Deno Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        deno: ['1']
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Setup Chomp
+        uses: guybedford/chomp-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ matrix.deno }}
+      - run: deno test --allow-env --allow-net --allow-read test/deno_test.ts
+      - run: npm install
+      - run: chomp -c cli deno:test

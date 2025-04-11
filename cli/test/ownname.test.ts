@@ -5,7 +5,7 @@ import { mapDirectory, run } from "./scenarios.ts";
 let filesOwnName: Map<string, string>;
 
 test("setup", async () => {
-  filesOwnName = await mapDirectory("test/fixtures/scenario_ownname");
+  filesOwnName = await mapDirectory("fixtures/scenario_ownname");
 });
 
 test("Installing own-name package should upgrade transitive dependencies", async () => {

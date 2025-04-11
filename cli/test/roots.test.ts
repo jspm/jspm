@@ -5,7 +5,7 @@ import { mapDirectory, run } from "./scenarios.ts";
 let filesRoot: Map<string, string>;
 
 test("setup", async () => {
-  filesRoot = await mapDirectory("test/fixtures/scenario_roots");
+  filesRoot = await mapDirectory("fixtures/scenario_roots");
 });
 
 test("rootURL = /, mapURL = /importmap.json", async () => {

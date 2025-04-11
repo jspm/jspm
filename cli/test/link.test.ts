@@ -10,12 +10,12 @@ let inlineHtml: Map<string, string>;
 let indexScript: Map<string, string>;
 
 test("setup", async () => {
-  scripts = await mapFile(["test/fixtures/a.js", "test/fixtures/b.js"]);
-  importMap = await mapFile("test/fixtures/importmap.json");
-  htmlFile = await mapFile("test/fixtures/index.html");
-  inlineModules = await mapFile("test/fixtures/inlinemodules.html");
-  inlineHtml = await mapFile("test/fixtures/inlinehtml.js");
-  indexScript = await mapFile("test/fixtures/index.js");
+  scripts = await mapFile(["fixtures/a.js", "fixtures/b.js"]);
+  importMap = await mapFile("fixtures/importmap.json");
+  htmlFile = await mapFile("fixtures/index.html");
+  inlineModules = await mapFile("fixtures/inlinemodules.html");
+  inlineHtml = await mapFile("fixtures/inlinehtml.js");
+  indexScript = await mapFile("fixtures/index.js");
 });
 
 test("Basic link from a package without an existing import map", async () => {

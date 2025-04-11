@@ -5,15 +5,15 @@ import { mapFile, run } from "./scenarios.ts";
 let importMap: Map<string, string>;
 
 test("setup", async () => {
-  importMap = await mapFile("test/fixtures/importmap.json");
+  importMap = await mapFile("fixtures/importmap.json");
 });
 
 test("linking inline modules in HTML", async () => {
   await run({
     files: await mapFile([
-      "test/fixtures/inlinemodules.html",
-      "test/fixtures/a.js",
-      "test/fixtures/b.js",
+      "fixtures/inlinemodules.html",
+      "fixtures/a.js",
+      "fixtures/b.js",
     ]),
     commands: ["jspm link inlinemodules.html -o inlinemodules.html"],
     validationFn: async (files) => {

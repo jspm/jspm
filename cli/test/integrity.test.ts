@@ -9,7 +9,7 @@ import {
 let importMap: Map<string, string>;
 
 test("setup", async () => {
-  importMap = await mapFile("test/fixtures/importmap.json");
+  importMap = await mapFile("fixtures/importmap.json");
 });
 
 test("Inline importmap should be linked with integrity attribute", async () => {
@@ -36,7 +36,7 @@ test("Generated importmap should have integrity attribute", async () => {
 
 test("Scenario should detect provider and add integrity attribute", async () => {
   await run({
-    files: await mapFile("test/fixtures/unpkg.importmap.json"),
+    files: await mapFile("fixtures/unpkg.importmap.json"),
     commands: [
       "jspm link -m unpkg.importmap.json -o importmap.json --integrity",
     ],
@@ -49,7 +49,7 @@ test("Scenario should detect provider and add integrity attribute", async () => 
 
 test("Scenario using nodemodules provider should add integrity attribute", async () => {
   await run({
-    files: await mapDirectory("test/fixtures/scenario_provider_swap"),
+    files: await mapDirectory("fixtures/scenario_provider_swap"),
     commands: ["jspm install --provider nodemodules --integrity"],
     validationFn: async (files) => {
       const map = JSON.parse(files.get("importmap.json"));

@@ -6,8 +6,8 @@ let importMap: Map<string, string>;
 let packageJson: Map<string, string>;
 
 test("setup", async () => {
-  importMap = await mapFile("test/fixtures/importmap.json");
-  packageJson = await mapFile("test/fixtures/package.json");
+  importMap = await mapFile("fixtures/importmap.json");
+  packageJson = await mapFile("fixtures/package.json");
 });
 
 test("Basic upgrade to latest react version", async () => {

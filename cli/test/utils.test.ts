@@ -13,7 +13,7 @@ test("wrapCommand should handle 404 without throwing stack message", async () =>
   await wrapCommand(install)(["package-does-not-exist"], {
     env: "development",
     stdout: true,
-    map: "test/fixtures/importmap.json",
+    map: "fixtures/importmap.json",
     silent: true,
   });
   assert.ok(process.exitCode === 1);

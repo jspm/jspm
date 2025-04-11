@@ -10,7 +10,7 @@ import {
 test("Swapping providers with a reinstall", async () => {
   // Scenario that checks we can swap providers with a reinstall:
   await run({
-    files: await mapDirectory("test/fixtures/scenario_provider_swap"),
+    files: await mapDirectory("fixtures/scenario_provider_swap"),
     commands: [`jspm install --provider nodemodules`],
     validationFn: async (files) => {
       const map = files.get("importmap.json");
@@ -23,7 +23,7 @@ test("Swapping providers with a reinstall", async () => {
 test("Provider auto-detection from initial map", async () => {
   // Scenario that checks the provider is auto-detected from the initial map:
   await run({
-    files: await mapFile("test/fixtures/unpkg.importmap.json"),
+    files: await mapFile("fixtures/unpkg.importmap.json"),
     commands: [`jspm link -m unpkg.importmap.json -o importmap.json`],
     validationFn: async (files) => {
       const map = files.get("importmap.json");
@@ -64,7 +64,7 @@ for (const provider of availableProviders) {
       name = "lit";
     }
 
-    const files = await mapDirectory("test/fixtures/scenario_providers");
+    const files = await mapDirectory("fixtures/scenario_providers");
     await run({
       files,
       commands: [`jspm install ${spec} -p ${provider} -e production`],

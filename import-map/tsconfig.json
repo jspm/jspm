@@ -1,21 +1,17 @@
 {
   "compilerOptions": {
-    "allowImportingTsExtensions": true,
-    "emitDeclarationOnly": true,
     "typeRoots": ["node_modules/@types"],
     "allowSyntheticDefaultImports": true,
     "moduleResolution": "node",
     "module": "esnext",
-    "target": "esnext",
+    "target": "es2019",
     "sourceMap": true,
     "outDir": "lib",
     "declaration": true,
-    "removeComments": false,
-    "resolveJsonModule": true,
-    "skipLibCheck": true
+    "declarationDir": "lib",
+    "removeComments": false
   },
   "include": [
-    "src/**/*.ts",
-    "test/**/*.ts"
+    "src/*.ts"
   ]
 }

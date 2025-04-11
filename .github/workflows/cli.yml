@@ -28,6 +28,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm install
       - run: chomp -c cli lint
+      - run: npm run -ws build
       - run: chomp -c cli test
   deno-test:
     name: Deno Tests
@@ -48,4 +49,5 @@ jobs:
           deno-version: ${{ matrix.deno }}
       - run: cd cli && deno test --allow-env --allow-net --allow-read test/deno_test.ts
       - run: npm install
+      - run: npm run -ws build
       - run: chomp -c cli deno:test

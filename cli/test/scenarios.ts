@@ -1,7 +1,8 @@
-import fs from "fs/promises";
-import path from "path";
-import os from "os";
+import fs from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
 import { cli } from "../src/cli.ts";
+import { fileURLToPath } from "node:url";
 
 const defaultPackageJson = {
   name: "test",
@@ -53,8 +54,8 @@ export async function run(scenario: Scenario) {
   // and won't be affected by or affect other tests
   if (scenario.files && scenario.files.has(".jspmrc")) {
     // Get the content of the original .jspmrc from fixtures
-    const originalContent = scenario.files.get(".jspmrc");
-    
+    const originalContent = scenario.files.get(".jspmrc")!;
+
     // Create a copy in the temp directory
     const configPath = path.join(dir, ".jspmrc");
     await fs.writeFile(configPath, originalContent);
@@ -85,6 +86,7 @@ export async function run(scenario: Scenario) {
 }
 
 export async function mapDirectory(dir: string): Promise<Files> {
+  dir = fileURLToPath(new URL(dir, import.meta.url));
   const files = new Map<string, string>();
   for (const file of await fs.readdir(dir)) {
     const filePath = path.join(dir, file);

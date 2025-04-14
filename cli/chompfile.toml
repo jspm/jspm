@@ -36,6 +36,8 @@ deps = [
     'docs/config.md',
     'dist/cli.js',
 ]
+[task.env]
+NODE_PATH = '../node_modules'
 run = '''
   node docs/generate.js > docs.md
   node docs/finalize.js
@@ -87,4 +89,6 @@ dep = 'test:'
 name = 'test:##'
 dep = 'test/##.test.ts'
 serial = true
+[task.env]
+NODE_PATH = '../node_modules'
 run = 'node --experimental-strip-types --test $DEP'

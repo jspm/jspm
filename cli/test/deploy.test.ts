@@ -17,8 +17,6 @@
 import { test } from "node:test";
 import assert from "assert";
 import { mapDirectory, run } from "./scenarios.ts";
-import path from "node:path";
-import fs from "node:fs/promises";
 
 function randomVersion() {
   const major = Math.round(Math.random() * 1000);
@@ -95,7 +93,7 @@ test("deploy with include config", async () => {
   await run({
     files,
     commands: ["jspm deploy --no-usage"],
-    validationFn: async (updatedFiles) => {
+    validationFn: async (_updatedFiles) => {
       // Verify the command completed successfully
       assert(true, "Deploy command with config completed successfully");
     },
@@ -121,7 +119,7 @@ test("deploy with specific version", async () => {
   await run({
     files,
     commands: ["jspm deploy --no-usage"],
-    validationFn: async (updatedFiles) => {
+    validationFn: async (_updatedFiles) => {
       // Successfully deployed version 1.0.1
       assert(true, `Successfully deployed version ${testVersion}`);
     },
@@ -148,7 +146,7 @@ test("deploy with custom tag", async () => {
   await run({
     files,
     commands: [`jspm deploy --version ${customTag} --no-usage`],
-    validationFn: async (updatedFiles) => {
+    validationFn: async (_updatedFiles) => {
       // Successfully deployed with custom tag
       assert(true, `Successfully deployed with tag ${customTag}`);
     },
@@ -216,7 +214,7 @@ test("deploy and eject", async () => {
   await run({
     files,
     commands: [`jspm deploy --version ${version} --no-usage`],
-    validationFn: async (updatedFiles) => {
+    validationFn: async (_updatedFiles) => {
       // Store the package name for ejection
       deployedPackage = `app:${packageName}@${version}`;
       assert(true, `Successfully deployed ${deployedPackage}`);
@@ -282,7 +280,10 @@ test("deploy watch mode basic test", async () => {
     });
 
     // Let it run for a second before stopping the test
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve, reject) => {
+      watchProcess.catch(reject);
+      setTimeout(resolve, 10_000);
+    });
     process.stdin.emit("data", "q");
 
     // This test is more to verify the watch mode can be started

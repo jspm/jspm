@@ -16,8 +16,13 @@
 
 import fs from "node:fs/promises";
 import path, { join } from "node:path";
-import { minimatch } from "minimatch";
 import { pathToFileURL } from "node:url";
+import { execSync, spawn } from "node:child_process";
+import { platform, tmpdir } from "node:os";
+import { existsSync, unlinkSync, writeFileSync } from "node:fs";
+import { minimatch } from "minimatch";
+import c from "picocolors";
+import open from "open";
 import {
   JspmError,
   exists,
@@ -28,14 +33,9 @@ import {
   stopSpinner,
   writeOutput,
 } from "./utils.ts";
-import c from "picocolors";
 import type { DeployFlags, EjectFlags } from "./cli.ts";
 import { withType } from "./logger.ts";
 import { loadConfig } from "./config.ts";
-import open from "open";
-import { execSync, spawn } from "node:child_process";
-import { platform, tmpdir } from "node:os";
-import { existsSync, unlinkSync, writeFileSync } from "node:fs";
 
 async function readJsonFile(filePath: string, defaultValue: any = {}) {
   try {
@@ -177,7 +177,7 @@ async function deployOnce(
   );
 
   const generator = await getGenerator(flags, {
-    mapUrl: pathToFileURL(directory + "/"),
+    mapUrl: pathToFileURL(`${directory}/`),
   });
 
   try {
@@ -204,12 +204,12 @@ async function deployOnce(
             .split("\n")
             .map((l) => {
               if (l.startsWith("<!--") && l.endsWith("-->"))
-                return "  " + c.greenBright(l);
-              if (l.startsWith("//")) return "  " + c.green(l);
+                return `  ${c.greenBright(l)}`;
+              if (l.startsWith("//")) return `  ${c.green(l)}`;
               l = l
                 .replace(/("[^"]*")/g, (s) => c.blue(s))
                 .replace(/\>?\<\/?script\>?/g, (s) => c.red(s));
-              return "  " + l;
+              return `  ${l}`;
             })
             .join("\n")
         )}`
@@ -233,7 +233,7 @@ async function startWatchMode(
   prepareScript: string
 ) {
   let lastDeployTime = 0;
-  let fileMTimes = new Map<string, number>();
+  const fileMTimes = new Map<string, number>();
 
   let packageUrl, mapUrl, codeSnippet;
   let forcedRedeploy = false;
@@ -256,7 +256,7 @@ async function startWatchMode(
     clearInterval(intervalId);
     stopSpinner();
     if (waiting && !lastRunWasError) {
-      console.log("\x1b[1A\x1b[2K".repeat(9) + "\x1b[1A\x1b[2K\x1b[1A");
+      console.log(`${"\x1b[1A\x1b[2K".repeat(9)}\x1b[1A\x1b[2K\x1b[1A`);
     }
     console.log(`\n${c.blue("Info:")} Watch mode stopped`);
     process.exit(0);
@@ -284,8 +284,6 @@ async function startWatchMode(
     }
   });
 
-  return;
-
   async function watchLoop(firstRun) {
     try {
       // Skip if last deployment was less than 2 seconds ago (debounce)
@@ -293,7 +291,7 @@ async function startWatchMode(
         return;
       }
 
-      let changes: string[] = [];
+      const changes: string[] = [];
       const currentFileList = await getFilesRecursively(
         directory,
         ignore,
@@ -328,14 +326,14 @@ async function startWatchMode(
         if (!firstRun) {
           if (lastRunWasError) stopSpinner();
           else
-            console.log("\x1b[1A\x1b[2K".repeat(8) + "\x1b[1A\x1b[2K\x1b[1A");
+            console.log(`${"\x1b[1A\x1b[2K".repeat(8)}\x1b[1A\x1b[2K\x1b[1A`);
           console.log(
             `${c.blue("Info:")} ${
               forcedRedeploy
                 ? "Requesting redeploy"
                 : changes.length > 1
                 ? "Multiple changes detected"
-                : path.relative(directory, changes[0]) + " changed"
+                : `${path.relative(directory, changes[0])} changed`
             }, redeploying...`
           );
         }
@@ -439,7 +437,7 @@ function copyToClipboard(text) {
           input: text,
           stdio: ["pipe", "ignore", "ignore"],
         });
-      case "win32":
+      case "win32": {
         const tempFile = path.join(tmpdir(), `clipboard-${Date.now()}.txt`);
         try {
           writeFileSync(tempFile, text, "utf8");
@@ -452,6 +450,7 @@ function copyToClipboard(text) {
         } finally {
           unlinkSync(tempFile);
         }
+      }
       case "linux":
         try {
           execSync(`echo "${text}" | xclip -selection clipboard`, {
@@ -460,7 +459,6 @@ function copyToClipboard(text) {
         } catch {
           execSync(`echo "${text}" | xsel --clipboard`, { stdio: "ignore" });
         }
-        return;
     }
   } catch {}
 }

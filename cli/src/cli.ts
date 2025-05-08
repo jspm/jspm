@@ -23,6 +23,7 @@ import link from "./link.ts";
 import uninstall from "./uninstall.ts";
 import update from "./update.ts";
 import configCmd from "./config-cmd.ts";
+import auth from "./auth.ts";
 import { JspmError, availableProviders, wrapCommand } from "./utils.ts";
 import build from "./build/index.ts";
 import { deploy, eject } from "./deploy.ts";
@@ -467,6 +468,35 @@ export interface DeployFlags extends GenerateFlags {
   version?: string;
   usage?: boolean;
 }
+
+export interface AuthFlags extends BaseFlags {
+  provider?: string;
+  username?: string;
+  open?: boolean;
+}
+
+// Auth command
+cli
+  .command("auth", "Authenticate with a provider")
+  .option("-p, --provider <provider>", "Provider to authenticate with (required)", {})
+  .option("-u, --username <username>", "Username for authentication (if required)", {})
+  .option("--no-open", "Disable automatically opening the authorization URL", { default: true })
+  .example(
+    (name) => `
+$ ${name} auth --provider jspm.io
+
+Authenticate with the JSPM CDN provider.
+`
+  )
+  .usage(
+    `auth -p/--provider <provider> [flags]
+
+Authenticates with a provider to enable private deployments or other authenticated operations.
+You must specify which provider to authenticate with using the -p/--provider flag.
+
+Once authenticated, the token is stored and used for future operations with the provider.`
+  )
+  .action(wrapCommand(auth));
 
 // Taken from 'cac', as they don't export it:
 interface HelpSection {

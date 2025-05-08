@@ -1541,6 +1541,28 @@ export class Generator {
   }
 
   /**
+   * Authenticate with a provider to obtain an authentication token.
+   * 
+   * @param options Authentication options including provider, username, and verify callback
+   * @returns Promise resolving to the authentication token
+   */
+  async auth(options: {
+    provider?: string,
+    username?: string,
+    verify?: (url: string, instructions: string) => void
+  } = {}): Promise<{ token: string }> {
+    const providerName = options.provider || 'jspm.io';
+    
+    return this.traceMap.resolver.pm.auth(
+      providerName,
+      {
+        username: options.username,
+        verify: options.verify
+      }
+    );
+  }
+
+  /**
    * Eject a deployed package by downloading it to the provided local folder,
    * and stitching its import map into the generator import map.
    */

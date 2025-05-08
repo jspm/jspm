@@ -16,7 +16,7 @@ import type { Resolver } from "../trace/resolver.js";
 
 let cdnUrl = "https://ga.jspm.io/";
 const systemCdnUrl = "https://ga.system.jspm.io/";
-const apiUrl = "https://api.jspm.io/";
+let apiUrl = "https://api.jspm.io/";
 
 // the URL we PUT the deployment to
 let deployUrl = "https://dev.qitkao.com/";
@@ -24,8 +24,11 @@ let deployUrl = "https://dev.qitkao.com/";
 // the URL the deployment can be seen
 let publicDeployUrl = "https://jspm.io/";
 
+let authToken;
+
 const BUILD_POLL_TIME = 60 * 1000;
 const BUILD_POLL_INTERVAL = 5 * 1000;
+const AUTH_POLL_INTERVAL = 5 * 1000; // 5 seconds between auth polls
 
 interface JspmCache {
   lookupCache: Map<string, Promise<ExactPackage>>;
@@ -45,6 +48,10 @@ interface JspmCache {
 
 export const supportedLayers = ["default", "system"];
 
+function withTrailer(url: string) {
+  return url.endsWith('/') ? url : url + '/';
+}
+
 export async function pkgToUrl(
   pkg: ExactPackage,
   layer: string
@@ -53,16 +60,15 @@ export async function pkgToUrl(
 }
 
 export function configure(config: any) {
+  if (config.authToken) authToken = config.authToken;
   if (config.cdnUrl)
-    cdnUrl = config.cdnUrl.endsWith("/") ? config.cdnUrl : config.cdnUrl + "/";
+    cdnUrl = withTrailer(config.cdnUrl);
   if (config.deployUrl)
-    deployUrl = config.deployUrl.endsWith("/")
-      ? config.deployUrl
-      : config.deployUrl + "/";
+    deployUrl = withTrailer(config.deployUrl);
   if (config.publicDeployUrl)
-    publicDeployUrl = config.publicDeployUrl.endsWith("/")
-      ? config.publicDeployUrl
-      : config.publicDeployUrl + "/";
+    publicDeployUrl = withTrailer(config.publicDeployUrl);
+  if (config.apiUrl)
+    apiUrl = withTrailer(config.apiUrl);
 }
 
 const exactPkgRegEx =
@@ -597,6 +603,94 @@ async function latestEsms(this: ProviderContext, forUrl: string) {
 }
 
 /**
+ * Authenticate with JSPM API using device code flow
+ *
+ * @param options Authentication options
+ * @returns Promise resolving to an authentication token
+ */
+export async function auth(
+  this: ProviderContext,
+  options: {
+    username?: string;
+    verify: (url: string, instructions: string) => void;
+  }
+): Promise<{ token: string }> {
+  // Start the device code flow
+  const deviceCodeResponse = await globalThis.fetch(`${apiUrl}v1/oauth/device`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_id: "jspm-cli",
+      scope: "deployments",
+    }),
+  });
+
+  if (!deviceCodeResponse.ok) {
+    throw new JspmError(
+      `Failed to start authentication flow: ${deviceCodeResponse.status} ${deviceCodeResponse.statusText}`
+    );
+  }
+
+  const deviceCodeData = await deviceCodeResponse.json();
+  const {
+    device_code: deviceCode,
+    user_code: userCode,
+    verification_uri_complete: verificationUri,
+    interval = 5,
+  } = deviceCodeData;
+
+  // Prepare instructions for the user
+  const instructions = `Login or signup, using the code: ${userCode}`;
+
+  // If a verification callback is provided, use it
+  options.verify(verificationUri, instructions);
+
+  while (true) {
+    // Wait for the polling interval
+    await new Promise((resolve) => setTimeout(resolve, AUTH_POLL_INTERVAL));
+
+    try {
+      // Poll the token endpoint
+      const tokenResponse = await globalThis.fetch(`${apiUrl}v1/oauth/device/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+          device_code: deviceCode,
+          client_id: "jspm-cli",
+        }),
+      });
+
+      const tokenData = await tokenResponse.json();
+
+      // Check for errors
+      if (tokenResponse.status !== 200) {
+        // If authorization is pending, continue polling
+        if (tokenData.error === "authorization_pending") {
+          continue;
+        }
+
+        // If another error occurred, stop polling
+        throw new JspmError(
+          tokenData.error_description || "Authentication failed"
+        );
+      }
+
+      // Success! Store and return the token
+      authToken = tokenData.access_token;
+      return { token: authToken };
+    } catch (error) {
+      // Handle network errors, continue polling
+      if (error.name === "FetchError") {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+}
+
+/**
  * Creates a JWT token for package deployment
  *
  * @param packageName Name of the package
@@ -607,32 +701,38 @@ async function createDeployToken(
   packageName: string,
   packageVersion: string
 ): Promise<string> {
-  // In a real implementation, this would call an authentication service
-  // For testing purposes, we'll use a placeholder
-  // const authEndpoint = `${apiUrl}token/deploy`;
+  if (!authToken) {
+    throw new JspmError(`Not auth token has been generated for jspm.io. Either set providers['jspm.io'].authToken, or first run "jspm auth -p jspm.io"`);
+  }
+  try {
+    const response = await globalThis.fetch(`${apiUrl}v1/package/token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        package_name: packageName,
+        package_version: packageVersion,
+      }),
+    });
 
-  // try {
-  //   const response = await fetch(authEndpoint, {
-  //     method: 'POST',
-  //     headers: {
-  //       'Content-Type': 'application/json'
-  //     },
-  //     body: JSON.stringify({
-  //       package_name: packageName,
-  //       package_version: packageVersion
-  //     })
-  //   });
+    if (!response.ok) {
+      let errJson;
+      try {
+        errJson = await response.json();
+      } catch {
+        throw new Error(`Failed to get deployment token: ${response.status}`);
+      }
+      throw new Error(`Failed to get deployment token: ${JSON.stringify(errJson, null, 2)}`);
+    }
 
-  //   if (!response.ok) {
-  //     throw new Error(`Failed to get deployment token: ${response.status}`);
-  //   }
-
-  //   const data = await response.json();
-  //   return data.token;
-  // } catch (error) {
-  //   throw new JspmError(`Failed to obtain deployment token: ${error.message}`);
-  // }
-  return "932aa65d3eb3fcc905d6c8a3a6f28ea1912c3c53e3df1f88e14f28fb35b9cc68";
+    const data = await response.json();
+    return data.token;
+  } catch (error) {
+    // Fall back to the placeholder token if there's an error
+    throw new JspmError(`Failed to obtain a deployment token: ${error.message}`);
+  }
 }
 
 /**

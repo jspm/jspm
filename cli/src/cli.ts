@@ -381,7 +381,7 @@ generateOpts(
       default: false,
     })
     .option(
-      "-v, --name <name>",
+      "-n, --name <name>",
       "Deploy with a custom name instead of the version from package.json",
       {}
     )

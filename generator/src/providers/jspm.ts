@@ -722,16 +722,18 @@ async function createDeployToken(
       try {
         errJson = await response.json();
       } catch {
-        throw new Error(`Failed to get deployment token: ${response.status}`);
+        throw new Error(response.status.toString());
       }
-      throw new Error(`Failed to get deployment token: ${JSON.stringify(errJson, null, 2)}`);
+      throw new Error(errJson.error ? errJson.error : JSON.stringify(errJson, null, 2));
     }
 
     const data = await response.json();
     return data.token;
   } catch (error) {
     // Fall back to the placeholder token if there's an error
-    throw new JspmError(`Failed to obtain a deployment token: ${error.message}`);
+    if (error.message.includes('Invalid or expired token'))
+      throw new JspmError(`Invalid or expired token, run "jspm auth --provider jspm.io" to regenerate an authentication token.`);
+    throw new JspmError(error.message);
   }
 }
 

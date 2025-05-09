@@ -16,7 +16,7 @@
 
 import c from "picocolors";
 import open from "open";
-import { getGenerator, JspmError } from "./utils.ts";
+import { JspmError, getGenerator } from "./utils.ts";
 import { loadConfig, saveConfig } from "./config.ts";
 import type { BaseFlags } from "./cli.ts";
 
@@ -93,5 +93,5 @@ export default async function auth(flags: AuthFlags): Promise<void> {
   }
   
   // Return to make typechecking happy, but the command doesn't need to return anything
-  return;
+  
 }

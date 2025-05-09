@@ -1376,8 +1376,8 @@ export class Generator {
    *
    * // URL to the deployed package and deployed import map
    * console.log(result.packageUrl, result.mapUrl);
-   * // HTML code snippet demonstrating how to run the deployment in a browser
-   * console.log(result.codeSnippet);
+   * // HTML code snippets demonstrating how to run the deployment in a browser
+   * console.log(result.codeSnippets);
    * ```
    * JSPM will fully link all dependencies when link: true is provided, and
    * populate them into the import map of the generator instance provided

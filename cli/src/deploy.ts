@@ -183,7 +183,8 @@ async function deployOnce(
   try {
     const { packageUrl, mapUrl, codeSnippet } = await generator.deploy({
       package: pathToFileURL(directory).href,
-      version: flags.version,
+      name,
+      version,
       provider: deployProvider,
       importMap: true,
       install: true,

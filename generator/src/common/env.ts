@@ -1,3 +1,5 @@
+export const isNode = typeof globalThis.process?.versions?.node === "string";
+
 export const isWindows = globalThis.process?.platform === "win32";
 
 export const PATH = isWindows

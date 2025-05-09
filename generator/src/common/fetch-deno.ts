@@ -1,12 +1,9 @@
 import { fileURLToPath } from "node:url";
-import { wrappedFetch, WrappedFetch } from "./fetch-common.js";
 
 export function clearCache() {}
 
-export const fetch: WrappedFetch = wrappedFetch(async function (
-  url: URL,
-  ...args: any[]
-) {
+let _readdir;
+export const fetch = async function (url: URL, ...args: any[]) {
   const urlString = url.toString();
   if (
     urlString.startsWith("file:") ||
@@ -40,12 +37,15 @@ export const fetch: WrappedFetch = wrappedFetch(async function (
     } catch (e) {
       if (e.code === "EISDIR")
         return {
-          status: 200,
+          status: 204,
           async text() {
             return "";
           },
           async json() {
-            throw new Error("Not JSON");
+            if (!_readdir) {
+              ({ readdir: _readdir } = await import("node:fs/promises"));
+            }
+            return await _readdir(fileURLToPath(urlString));
           },
           arrayBuffer() {
             return new ArrayBuffer(0);
@@ -58,4 +58,4 @@ export const fetch: WrappedFetch = wrappedFetch(async function (
   } else {
     return globalThis.fetch(urlString, ...args);
   }
-});
+};

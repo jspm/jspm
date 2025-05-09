@@ -96,7 +96,7 @@ export interface LatestPackageTarget {
   unstable: boolean;
 }
 
-const supportedProtocols = ["https", "http", "data", "file"];
+const supportedProtocols = ["https", "http", "data", "file", "pkg"];
 export async function parseUrlOrBuiltinTarget(
   resolver: Resolver,
   targetStr: string,

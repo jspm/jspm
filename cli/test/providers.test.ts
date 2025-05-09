@@ -1,11 +1,7 @@
 import { test } from "node:test";
 import assert from "assert";
 import { availableProviders } from "../src/utils.ts";
-import {
-  mapDirectory,
-  mapFile,
-  run
-} from "./scenarios.ts";
+import { mapDirectory, mapFile, run } from "./scenarios.ts";
 
 test("Swapping providers with a reinstall", async () => {
   // Scenario that checks we can swap providers with a reinstall:

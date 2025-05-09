@@ -1,7 +1,6 @@
 import { LatestPackageTarget } from "../install/package.js";
 import { ExactPackage } from "../install/package.js";
-import { Resolver } from "../trace/resolver.js";
-import { Provider } from "./index.js";
+import { Provider, ProviderContext } from "./index.js";
 // @ts-ignore
 import { fetch } from "../common/fetch.js";
 import { JspmError } from "../common/err.js";
@@ -21,7 +20,7 @@ export function createProvider(
     getPackageConfig,
   };
 
-  function ownsUrl(this: Resolver, url: string) {
+  function ownsUrl(this: ProviderContext, url: string) {
     // The nodemodules provider owns the base URL when it is the default
     // provider so that it can link against a user's local installs, letting
     // us support "file:" dependencies:
@@ -29,7 +28,7 @@ export function createProvider(
   }
 
   async function pkgToUrl(
-    this: Resolver,
+    this: ProviderContext,
     pkg: ExactPackage
   ): Promise<`${string}/`> {
     // The node_modules registry uses the base64-encoded URL of the package as
@@ -50,7 +49,7 @@ export function createProvider(
     return `${decodeBase64(target.version)}` as `${string}/`;
   }
 
-  function parseUrlPkg(this: Resolver, url: string) {
+  function parseUrlPkg(this: ProviderContext, url: string) {
     // We can only resolve packages in node_modules folders:
     const nodeModulesIndex = url.lastIndexOf("/node_modules/");
     if (nodeModulesIndex === -1) return null;
@@ -77,7 +76,7 @@ export function createProvider(
   }
 
   async function resolveLatestTarget(
-    this: Resolver,
+    this: ProviderContext,
     target: LatestPackageTarget,
     _layer: string,
     parentUrl: string
@@ -86,7 +85,7 @@ export function createProvider(
   }
 
   async function getPackageConfig(
-    this: Resolver,
+    this: ProviderContext,
     pkgUrl: string
   ): Promise<PackageConfig | null> {
     if (!ownsUrl.call(this, pkgUrl)) return null;
@@ -95,13 +94,17 @@ export function createProvider(
     const res = await fetch(pkgJsonUrl.href, this.fetchOpts);
     switch (res.status) {
       case 200:
+      case 204:
       case 304:
         break;
       default:
         return null;
     }
 
-    async function remap(this: Resolver, deps: Record<string, string> | null) {
+    async function remap(
+      this: ProviderContext,
+      deps: Record<string, string> | null
+    ) {
       if (!deps) return;
       for (const [name, dep] of Object.entries(deps)) {
         if (!isLocal(dep)) continue;
@@ -130,7 +133,7 @@ export function createProvider(
  */
 let realpath, pathToFileURL;
 async function nodeResolve(
-  this: Resolver,
+  this: ProviderContext,
   name: string,
   parentUrl: string
 ): Promise<ExactPackage | null> {
@@ -161,11 +164,12 @@ async function nodeResolve(
   };
 }
 
-async function dirExists(this: Resolver, url: URL, parentUrl?: string) {
+async function dirExists(this: ProviderContext, url: URL, parentUrl?: string) {
   const res = await fetch(url, this.fetchOpts);
   switch (res.status) {
     case 304:
     case 200:
+    case 204:
       return true;
     case 404:
       return false;

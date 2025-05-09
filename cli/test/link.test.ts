@@ -23,7 +23,7 @@ test("Basic link from a package without an existing import map", async () => {
     files: scripts,
     commands: ["jspm link ./a.js"],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json"));
+      const map = JSON.parse(files.get("importmap.json")!);
       assert(map.imports["react-dom"]); // transitive dependency
     },
   });
@@ -34,7 +34,7 @@ test("Dependency constraints are picked up from input map", async () => {
     files: new Map([...scripts, ...importMap]),
     commands: ["jspm link ./a.js"],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json"));
+      const map = JSON.parse(files.get("importmap.json")!);
       assert(map.imports["react-dom"]); // transitive dependency
       assert.strictEqual(
         map.imports["react-dom"],
@@ -93,10 +93,9 @@ test("Link with output to HTML file should include versions from importmap", asy
 
 test("Linking 'index.js' when no local file exists should link against npm package", async () => {
   await run({
-    files: null,
     commands: ["jspm link index.js"],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json"));
+      const map = JSON.parse(files.get("importmap.json")!);
       assert(map.imports["index.js"]);
     },
   });
@@ -107,7 +106,7 @@ test("Linking 'index.js' when local file exists should link against local file",
     files: indexScript,
     commands: ["jspm link index.js"],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json"));
+      const map = JSON.parse(files.get("importmap.json")!);
       assert(!map.imports["index.js"]);
       assert(map.imports.react); // transitive dependency
     },
@@ -119,7 +118,7 @@ test("Linking '%index.js' should link against npm package even when local file e
     files: indexScript,
     commands: ["jspm link %index.js"],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json"));
+      const map = JSON.parse(files.get("importmap.json")!);
       assert(map.imports["index.js"]);
       assert(!map.imports.react);
     },
@@ -131,7 +130,7 @@ test("Linking HTML file directly should link all inline modules", async () => {
     files: new Map([...scripts, ...inlineModules, ...importMap]),
     commands: ["jspm link inlinemodules.html"],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json"));
+      const map = JSON.parse(files.get("importmap.json")!);
       assert(map.imports["react-dom"]); // transitive dependency
       assert.strictEqual(
         map.imports["react-dom"],
@@ -146,7 +145,7 @@ test("CLI shouldn't be confused by JS file with inline HTML string", async () =>
     files: new Map([...scripts, ...inlineModules, ...inlineHtml]),
     commands: ["jspm link inlinehtml.js"],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json"));
+      const map = JSON.parse(files.get("importmap.json")!);
 
       // Should _not_ have linked the module in the inline HTML string:
       assert(!map.imports?.["react-dom"]);
@@ -156,13 +155,21 @@ test("CLI shouldn't be confused by JS file with inline HTML string", async () =>
 
 test("Support HTML as import map when no importmap.json exists", async () => {
   await run({
-    files: new Map([...htmlFile, ['app.js', 'import "react"']]),
+    files: new Map([...htmlFile, ["app.js", 'import "react"']]),
     commands: ["jspm link index.html -o index.html --integrity"],
     validationFn: async (files: Map<string, string>) => {
-      const source = files.get('index.html');
+      const source = files.get("index.html")!;
       assert(source.includes('"integrity"'));
-      assert(source.includes('"./app.js": "sha384-f+bWmpnsmFol2CAkqy/ALGgZsi/mIaBIIhbvFLVuQzt0LNz96zLSDcz1fnF2K22q"'));
-      assert(source.includes('"https://ga.jspm.io/npm:react@18.2.0/dev.index.js": "sha384-eSJrEMXot96AKVLYz8C1nY3CpLMuBMHIAiYhs7vfM09SQo+5X+1w6t3Ldpnw+VWU"'))
+      assert(
+        source.includes(
+          '"./app.js": "sha384-f+bWmpnsmFol2CAkqy/ALGgZsi/mIaBIIhbvFLVuQzt0LNz96zLSDcz1fnF2K22q"'
+        )
+      );
+      assert(
+        source.includes(
+          '"https://ga.jspm.io/npm:react@18.2.0/dev.index.js": "sha384-eSJrEMXot96AKVLYz8C1nY3CpLMuBMHIAiYhs7vfM09SQo+5X+1w6t3Ldpnw+VWU"'
+        )
+      );
     },
   });
 });

@@ -1,28 +1,5 @@
 import type { Generator } from "@jspm/generator";
 
-export interface Flags extends BuildFlags {
-  resolution?: string | string[];
-  env?: string | string[];
-  stripEnv?: boolean;
-  map?: string;
-  output?: string;
-  root?: string;
-  provider?: string;
-  stdout?: boolean;
-  preload?: boolean | string;
-  integrity?: boolean;
-  compact?: boolean;
-  silent?: boolean;
-  cache?: string;
-}
-
-export interface BuildFlags {
-  entry?: string;
-  outdir?: string;
-  config: string;
-  buildOutput?: string;
-}
-
 export type IImportMap = ReturnType<Generator["getMap"]>;
 
 // JSPM adds a non-standard "env" field to import maps, which is used to

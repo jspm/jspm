@@ -8,7 +8,7 @@ const generator = new Generator({
   defaultProvider: "esm.sh",
 });
 
-const esmsPkg = await generator.traceMap.resolver.resolveLatestTarget(
+const esmsPkg = await generator.traceMap.resolver.pm.resolveLatestTarget(
   { name: "es-module-shims", registry: "npm", ranges: [new SemverRange("*")] },
   generator.traceMap.installer.defaultProvider
 );

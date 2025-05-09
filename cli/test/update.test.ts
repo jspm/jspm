@@ -15,7 +15,7 @@ test("Basic upgrade to latest react version", async () => {
     files: importMap,
     commands: ["jspm update react"],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json"));
+      const map = JSON.parse(files.get("importmap.json")!);
       assert(map.imports.react);
       assert.notStrictEqual(
         map.imports.react,
@@ -30,7 +30,7 @@ test("Basic upgrade without parameters should upgrade all", async () => {
     files: importMap,
     commands: ["jspm update"],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json"));
+      const map = JSON.parse(files.get("importmap.json")!);
       assert(map.imports.react);
       assert.notStrictEqual(
         map.imports.react,
@@ -45,7 +45,7 @@ test("Upgrade should use version from package.json", async () => {
     files: new Map([...importMap, ...packageJson]),
     commands: ["jspm update react -e development"],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json"));
+      const map = JSON.parse(files.get("importmap.json")!);
       assert(map.imports.react);
       assert.strictEqual(
         map.imports.react,

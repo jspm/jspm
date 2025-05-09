@@ -18,7 +18,7 @@ test("linking inline modules in HTML", async () => {
     commands: ["jspm link inlinemodules.html -o inlinemodules.html"],
     validationFn: async (files) => {
       // The inline import of 'react-dom' should be linked:
-      const html = files.get("inlinemodules.html");
+      const html = files.get("inlinemodules.html")!;
       assert(html.includes("react-dom"));
     },
   });
@@ -31,11 +31,11 @@ test("linking specific package to HTML", async () => {
     validationFn: async (files: Map<string, string>) => {
       // The index.html should contain the react version from the import map,
       // but none of the other pins, and no preloads or integrity attributes:
-      assert(files.get("index.html").includes("npm:react@17.0.1"));
-      assert(!files.get("index.html").includes("npm:lodash@4.17.21"));
-      assert(!files.get("index.html").includes("npm:react-dom@17.0.1"));
-      assert(!files.get("index.html").includes("preload"));
-      assert(!files.get("index.html").includes("integrity"));
+      assert(files.get("index.html")!.includes("npm:react@17.0.1"));
+      assert(!files.get("index.html")!.includes("npm:lodash@4.17.21"));
+      assert(!files.get("index.html")!.includes("npm:react-dom@17.0.1"));
+      assert(!files.get("index.html")!.includes("preload"));
+      assert(!files.get("index.html")!.includes("integrity"));
     },
   });
 });
@@ -47,11 +47,11 @@ test("linking all packages to HTML", async () => {
     validationFn: async (files: Map<string, string>) => {
       // The index.html should contain the import version of everything, but
       // no preloads or integrity attributes:
-      assert(files.get("index.html").includes("npm:react@17.0.1"));
-      assert(files.get("index.html").includes("npm:lodash@4.17.21"));
-      assert(files.get("index.html").includes("npm:react-dom@17.0.1"));
-      assert(!files.get("index.html").includes("preload"));
-      assert(!files.get("index.html").includes("integrity"));
+      assert(files.get("index.html")!.includes("npm:react@17.0.1"));
+      assert(files.get("index.html")!.includes("npm:lodash@4.17.21"));
+      assert(files.get("index.html")!.includes("npm:react-dom@17.0.1"));
+      assert(!files.get("index.html")!.includes("preload"));
+      assert(!files.get("index.html")!.includes("integrity"));
     },
   });
 });
@@ -63,11 +63,11 @@ test("linking with static preload", async () => {
     validationFn: async (files: Map<string, string>) => {
       // The index.html should contain the react version from the import map,
       // and integrities for it, but nothing else:
-      assert(files.get("index.html").includes("npm:react@17.0.1"));
-      assert(!files.get("index.html").includes("npm:lodash@4.17.21"));
-      assert(!files.get("index.html").includes("npm:react-dom@17.0.1"));
-      assert(files.get("index.html").includes("preload"));
-      assert(!files.get("index.html").includes("integrity"));
+      assert(files.get("index.html")!.includes("npm:react@17.0.1"));
+      assert(!files.get("index.html")!.includes("npm:lodash@4.17.21"));
+      assert(!files.get("index.html")!.includes("npm:react-dom@17.0.1"));
+      assert(files.get("index.html")!.includes("preload"));
+      assert(!files.get("index.html")!.includes("integrity"));
     },
   });
 });
@@ -81,11 +81,11 @@ test("installing with preload and integrity", async () => {
       // NOTE: this will break if we change the CDN build!
       const reactIntegrity =
         "sha384-y5ozcpbgsrkQFNWIQTtiGWstK6sGqPJu5Ptnvn8lAqJXDNI7ZdE9fMsYVgrq3PRG";
-      assert(files.get("index.html").includes("npm:react@17.0.1"));
-      assert(files.get("index.html").includes("npm:lodash@4.17.21"));
-      assert(files.get("index.html").includes("npm:react-dom@17.0.1"));
-      assert(files.get("index.html").includes("preload"));
-      assert(files.get("index.html").includes(reactIntegrity));
+      assert(files.get("index.html")!.includes("npm:react@17.0.1"));
+      assert(files.get("index.html")!.includes("npm:lodash@4.17.21"));
+      assert(files.get("index.html")!.includes("npm:react-dom@17.0.1"));
+      assert(files.get("index.html")!.includes("preload"));
+      assert(files.get("index.html")!.includes(reactIntegrity));
     },
   });
 });

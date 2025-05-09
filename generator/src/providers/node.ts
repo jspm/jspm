@@ -9,6 +9,7 @@ import {
   pkgToUrl as pkgToUrlJspm,
 } from "./jspm.js";
 import { Install } from "../generator.js";
+import { Resolver } from "../trace/resolver.js";
 
 export const nodeBuiltinSet = new Set<string>([
   "_http_agent",
@@ -133,7 +134,8 @@ export async function getPackageConfig(): Promise<PackageConfig> {
 export async function resolveLatestTarget(
   target: LatestPackageTarget,
   layer: string,
-  parentUrl: string
+  parentUrl: string,
+  resolver: Resolver
 ): Promise<ExactPackage | null> {
   if (target.registry !== "npm" || target.name !== "@jspm/core") return null;
   return resolveLatestTargetJspm.call(
@@ -145,7 +147,8 @@ export async function resolveLatestTarget(
       unstable: true,
     },
     layer,
-    parentUrl
+    parentUrl,
+    resolver
   );
 }
 

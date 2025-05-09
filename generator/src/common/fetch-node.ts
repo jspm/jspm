@@ -1,12 +1,12 @@
 // @ts-ignore
 import version from "../version.js";
-import { wrappedFetch, WrappedFetch } from "./fetch-common.js";
 import path from "node:path";
 import { homedir } from "node:os";
 import process from "node:process";
 import makeFetchHappen from "make-fetch-happen";
 import { readFileSync, rmdirSync } from "node:fs";
-import { Buffer } from "node:buffer";
+import { fileURLToPath } from "node:url";
+import type { WrappedResponse } from "./fetch.js";
 
 let cacheDir: string;
 if (process.platform === "darwin")
@@ -31,9 +31,15 @@ const _fetch = makeFetchHappen.defaults({
   headers: { "User-Agent": `jspm/generator@${version}` },
 });
 
-function sourceResponse(buffer: string | Buffer) {
+const emptyHeaders = new Headers();
+const jsonHeaders = new Headers([["content-type", "application/json"]]);
+
+function sourceResponse(url: string, buffer: string | Buffer): WrappedResponse {
   return {
+    url,
+    headers: url.endsWith(".json") ? jsonHeaders : emptyHeaders,
     status: 200,
+    ok: true,
     async text() {
       return buffer.toString();
     },
@@ -52,54 +58,60 @@ function sourceResponse(buffer: string | Buffer) {
   };
 }
 
-const dirResponse = {
-  status: 200,
+let _readdir;
+const dirResponse = (path) => ({
+  // we use a 204 status for directory responses on the filesystem
+  // which support listing. This is only a local internal convention,
+  // not intended for external URLs.
+  status: 204,
   async text() {
     return "";
   },
   async json() {
-    throw new Error("Not JSON");
+    // the JSON response for a directory is its listing array
+    if (!_readdir) {
+      ({ readdir: _readdir } = await import("node:fs/promises"));
+    }
+    return await _readdir(path);
   },
   arrayBuffer() {
     return new ArrayBuffer(0);
   },
-};
+});
 
-export const fetch: WrappedFetch = wrappedFetch(async function (
-  url: URL,
-  opts?: Record<string, any>
-) {
+export const fetch = async function (url: URL, opts?: Record<string, any>) {
   const urlString = url.toString();
   const protocol = urlString.slice(0, urlString.indexOf(":") + 1);
-  let source: string | Buffer;
   switch (protocol) {
     case "file:":
+      const path = fileURLToPath(urlString);
       if (urlString.endsWith("/")) {
         try {
-          readFileSync(new URL(urlString));
+          readFileSync(path);
           return { status: 404, statusText: "Directory does not exist" };
         } catch (e) {
-          if (e.code === "EISDIR") return dirResponse;
+          if (e.code === "EISDIR") return dirResponse(path);
           throw e;
         }
       }
       try {
-        return sourceResponse(readFileSync(new URL(urlString)));
+        return sourceResponse(urlString, readFileSync(path));
       } catch (e) {
-        if (e.code === "EISDIR") return dirResponse;
+        if (e.code === "EISDIR") return dirResponse(path);
         if (e.code === "ENOENT" || e.code === "ENOTDIR")
           return { status: 404, statusText: e.toString() };
         return { status: 500, statusText: e.toString() };
       }
     case "data:":
       return sourceResponse(
+        urlString,
         decodeURIComponent(urlString.slice(urlString.indexOf(",") + 1))
       );
     case "node:":
-      return sourceResponse("");
+      return sourceResponse(urlString, "");
     case "http:":
     case "https:":
       // @ts-ignore
       return _fetch(url, opts);
   }
-});
+};

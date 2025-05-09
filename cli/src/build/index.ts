@@ -4,10 +4,10 @@ import { pathToFileURL } from "node:url";
 import { type RollupOptions, rollup } from "rollup";
 
 import { JspmError, exists } from "../utils.ts";
-import type { Flags } from "../types.ts";
+import type { BuildFlags } from "../cli.ts";
 import { RollupImportmapPlugin } from "./rollup-importmap-plugin.ts";
 
-export default async function build(entry: string, options: Flags) {
+export default async function build(entry: string, options: BuildFlags) {
   if (!entry && !options.config) {
     throw new JspmError(`Please provide entry for the build`);
   }
@@ -25,7 +25,7 @@ export default async function build(entry: string, options: Flags) {
       throw new JspmError(`Entry file does not exist: ${entryPath}`);
     }
     buildConfig = {
-      input: entryPath,
+      input: pathToFileURL(entryPath).href,
       plugins: [RollupImportmapPlugin(options)],
     };
 

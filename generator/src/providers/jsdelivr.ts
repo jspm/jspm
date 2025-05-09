@@ -1,7 +1,7 @@
 import { JspmError } from "../common/err.js";
 import { importedFrom } from "../common/url.js";
 import { ExactPackage, LatestPackageTarget } from "../install/package.js";
-import { Resolver } from "../trace/resolver.js";
+import type { ProviderContext } from "./index.js";
 import { fetchVersions } from "./jspm.js";
 // @ts-ignore
 import { SemverRange } from "sver";
@@ -23,7 +23,7 @@ export function parseUrlPkg(url: string) {
 }
 
 export async function resolveLatestTarget(
-  this: Resolver,
+  this: ProviderContext,
   target: LatestPackageTarget,
   layer: string,
   parentUrl: string

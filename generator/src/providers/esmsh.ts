@@ -3,7 +3,6 @@ import {
   LatestPackageTarget,
   PackageConfig,
 } from "../install/package.js";
-import { Resolver } from "../trace/resolver.js";
 // @ts-ignore
 import { fetch } from "../common/fetch.js";
 import { JspmError } from "../common/err.js";
@@ -11,6 +10,7 @@ import { fetchVersions } from "./jspm.js";
 // @ts-ignore
 import { SemverRange } from "sver";
 import { importedFrom } from "../common/url.js";
+import type { ProviderContext } from "./index.js";
 
 const cdnUrl = "https://esm.sh/";
 
@@ -32,7 +32,7 @@ export function parseUrlPkg(url: string) {
 }
 
 export async function getPackageConfig(
-  this: Resolver,
+  this: ProviderContext,
   pkgUrl: string
 ): Promise<PackageConfig | null> {
   const res = await fetch(`${pkgUrl}package.json`, this.fetchOpts);
@@ -46,7 +46,7 @@ export async function getPackageConfig(
     case 404:
     case 406:
     case 500:
-      this.pcfgs[pkgUrl] = null;
+      this.context.pcfgs[pkgUrl] = null;
       return;
     default:
       throw new JspmError(
@@ -58,7 +58,7 @@ export async function getPackageConfig(
 }
 
 export async function resolveLatestTarget(
-  this: Resolver,
+  this: ProviderContext,
   target: LatestPackageTarget,
   layer: string,
   parentUrl: string

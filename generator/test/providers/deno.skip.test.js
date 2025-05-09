@@ -29,11 +29,8 @@ import assert from "assert";
   //     },
   //   },
   // });
-
   // await generator.install("denoland:oak/body.ts");
-
   // const json = generator.getMap();
-
   // assert.strictEqual(
   //   json.imports["oak/body.ts"],
   //   `https://deno.land/x/oak@v${oakVersion}/body.ts`
@@ -42,12 +39,9 @@ import assert from "assert";
   //   json.imports["testing/asserts"],
   //   "https://deno.land/std@0.151.0/testing/asserts.ts"
   // );
-
   // await generator.update();
-
   // {
   //   const json = generator.getMap();
-
   //   assert.strictEqual(
   //     json.imports["oak/body.ts"],
   //     `https://deno.land/x/oak@v${oakVersion}/body.ts`

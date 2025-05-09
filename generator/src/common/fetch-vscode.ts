@@ -1,10 +1,10 @@
-import { WrappedFetch, wrappedFetch } from "./fetch-common.js";
 import { fetch as _fetch } from "./fetch-native.js";
 export { clearCache } from "./fetch-native.js";
 
 function sourceResponse(buffer) {
   return {
     status: 200,
+    statusText: "dir",
     async text() {
       return buffer.toString();
     },
@@ -17,26 +17,27 @@ function sourceResponse(buffer) {
   };
 }
 
-const dirResponse = {
-  status: 200,
+let _readdir;
+const dirResponse = (path) => ({
+  status: 204,
   async text() {
     return "";
   },
   async json() {
-    throw new Error("Not JSON");
+    if (!_readdir) {
+      ({ readdir: _readdir } = await import("node:fs/promises"));
+    }
+    return await _readdir(path);
   },
   arrayBuffer() {
     return new ArrayBuffer(0);
   },
-};
+});
 
 // @ts-ignore
 const vscode = require("vscode");
 
-export const fetch: WrappedFetch = wrappedFetch(async function (
-  url: URL,
-  opts?: Record<string, any>
-) {
+export const fetch = async function (url: URL, opts?: Record<string, any>) {
   const urlString = url.toString();
   const protocol = urlString.slice(0, urlString.indexOf(":") + 1);
   switch (protocol) {
@@ -72,4 +73,4 @@ export const fetch: WrappedFetch = wrappedFetch(async function (
       // @ts-ignore
       return _fetch(url, opts);
   }
-});
+};

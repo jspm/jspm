@@ -10,7 +10,7 @@
 
 This monorepo includes the following tools:
 
-* [`cli`]: `jspm` CLI tool
+* [`cli`](./cli): `jspm` CLI tool
 * [`generator`](./generator): JSPM Generator import map generation library (`@jspm/generator`)
 * [`import-map`](./import-map): JSPM Import Map low-level manipulation library (`@jspm/import-map`)
 

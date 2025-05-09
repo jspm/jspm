@@ -666,7 +666,7 @@ async function translateLock(
   resolver: Resolver,
   parentUrl: `${string}/`
 ): Promise<InstalledResolution> {
-  const mdl = await resolver.parseUrlPkg(lock.installUrl);
+  const mdl = await resolver.pm.parseUrlPkg(lock.installUrl);
   if (!mdl) return lock; // no provider owns it, nothing to translate
 
   const parentPkgUrl = await resolver.getPackageBase(parentUrl);
@@ -680,7 +680,11 @@ async function translateLock(
   }
 
   return {
-    installUrl: await resolver.pkgToUrl(newMdl.pkg, provider),
+    installUrl: await resolver.pm.pkgToUrl(
+      newMdl.pkg,
+      provider.provider,
+      provider.layer
+    ),
     installSubpath: lock.installSubpath,
   };
 }
@@ -721,10 +725,11 @@ export async function translateProvider(
   const target = await packageTargetFromExact(pkg, resolver);
   let latestPkg: ExactPackage;
   try {
-    latestPkg = await resolver.resolveLatestTarget(
+    latestPkg = await resolver.pm.resolveLatestTarget(
       target,
       { provider, layer },
-      parentUrl
+      parentUrl,
+      resolver
     );
   } catch (err) {
     // TODO: we should throw here once parent scoping is implemented
@@ -750,9 +755,13 @@ async function resolveTargetPkg(
   provider: PackageProvider
 ) {
   let targetUrl = resolveUrl(moduleUrl, mapUrl, rootUrl);
-  let parsedTarget = await resolver.parseUrlPkg(targetUrl);
+  let parsedTarget = await resolver.pm.parseUrlPkg(targetUrl);
   let pkgUrl = parsedTarget
-    ? await resolver.pkgToUrl(parsedTarget.pkg, parsedTarget.source)
+    ? await resolver.pm.pkgToUrl(
+        parsedTarget.pkg,
+        parsedTarget.source.provider,
+        parsedTarget.source.layer
+      )
     : await resolver.getPackageBase(targetUrl);
   const subpath = ("." + targetUrl.slice(pkgUrl.length - 1)) as
     | "."

@@ -8,6 +8,11 @@ import assert from "assert";
 // Create a generator instance with a test deployment server
 const generator = new Generator({
   mapUrl: new URL("./local/latest/", import.meta.url),
+  providerConfig: {
+    "jspm.io": {
+      authToken: process.env.JSPM_AUTH_TOKEN,
+    },
+  },
 });
 
 // Install a package to populate the import map

@@ -700,7 +700,7 @@ async function createDeployToken(
 ): Promise<string> {
   if (!authToken) {
     throw new JspmError(
-      `Not auth token has been generated for jspm.io. Either set providers['jspm.io'].authToken, or first run "jspm provider auth jspm.io"`
+      `No auth token has been generated for jspm.io. Either set providers['jspm.io'].authToken, or first run "jspm provider auth jspm.io"`
     );
   }
   try {

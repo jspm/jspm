@@ -29,7 +29,7 @@ jobs:
       - run: npm install
       - run: chomp -c cli lint
       - run: npm run -ws build
-      - run: node cli/jspm.js config set providers['jspm.io'].authToken config ${{ secrets.JSPM_TOKEN }}
+      - run: node cli/jspm.js config set providers['jspm.io'].authToken ${{ secrets.JSPM_TOKEN }}
       - run: chomp -c cli test
   deno-test:
     name: Deno Tests

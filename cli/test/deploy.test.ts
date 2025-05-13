@@ -142,7 +142,7 @@ test("deploy with custom tag", async () => {
 
   files.set("index.js", "console.log('Tag test');");
 
-  const customTag = "beta-1";
+  const customTag = `beta-${Math.round(Math.random() * 1000)}`;
 
   await run({
     files,

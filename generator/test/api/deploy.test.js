@@ -28,7 +28,13 @@ function generateRandomVersion() {
   };
 
   // Test deployment
-  const generator = new Generator();
+  const generator = new Generator({
+    providerConfig: {
+      "jspm.io": {
+        authToken: process.env.JSPM_AUTH_TOKEN,
+      },
+    },
+  });
   const deployResult = await generator.deploy({
     package: packageFiles,
   });
@@ -73,7 +79,13 @@ function generateRandomVersion() {
 
   // Next we perform ejection to verify we can run the package locally again
   if (typeof globalThis.process?.versions?.node === "string") {
-    const generator = new Generator();
+    const generator = new Generator({
+      providerConfig: {
+        "jspm.io": {
+          authToken: process.env.JSPM_AUTH_TOKEN,
+        },
+      },
+    });
 
     const [
       { mkdirSync, readdirSync, readFileSync },
@@ -114,7 +126,13 @@ function generateRandomVersion() {
 
 // ---- Complex Package Test ----
 {
-  const generator = new Generator();
+  const generator = new Generator({
+    providerConfig: {
+      "jspm.io": {
+        authToken: process.env.JSPM_AUTH_TOKEN,
+      },
+    },
+  });
   // Test complex package deployment with multiple files and directories
   const complexPackageName = "test-complex-package";
   const complexPackageVersion = generateRandomVersion();
@@ -193,7 +211,13 @@ function generateRandomVersion() {
 
 // ---- Mutable Package Test ----
 {
-  const generator = new Generator();
+  const generator = new Generator({
+    providerConfig: {
+      "jspm.io": {
+        authToken: process.env.JSPM_AUTH_TOKEN,
+      },
+    },
+  });
 
   // Test package with mutable version tag
   const mutablePackageName = "test-mutable-package";

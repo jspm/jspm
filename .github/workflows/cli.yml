@@ -51,4 +51,5 @@ jobs:
       - run: npm install
       - run: npm run -ws build
       - run: deno test --no-check --allow-all cli/test/deno_test.ts
+      - run: node cli/jspm.js config set providers['jspm.io'].authToken ${{ secrets.JSPM_TOKEN }}
       - run: chomp -c cli deno:test

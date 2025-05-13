@@ -34,7 +34,7 @@ test("deploy with missing package.json name", async () => {
   try {
     await run({
       files,
-      commands: ["jspm deploy"],
+      commands: ["jspm deploy publish"],
       validationFn: async () => {
         assert.fail("Should have thrown an error");
       },
@@ -46,6 +46,7 @@ test("deploy with missing package.json name", async () => {
       error.toString().includes("failed"),
       "Command should fail with missing name"
     );
+    process.exitCode = 0;
   }
 });
 
@@ -58,7 +59,7 @@ test("deploy with missing package.json version", async () => {
   try {
     await run({
       files,
-      commands: ["jspm deploy"],
+      commands: ["jspm deploy publish"],
       validationFn: async () => {
         assert.fail("Should have thrown an error");
       },
@@ -92,7 +93,7 @@ test("deploy with include config", async () => {
 
   await run({
     files,
-    commands: ["jspm deploy --no-usage"],
+    commands: ["jspm deploy publish --no-usage"],
     validationFn: async (_updatedFiles) => {
       // Verify the command completed successfully
       assert(true, "Deploy command with config completed successfully");
@@ -118,7 +119,7 @@ test("deploy with specific version", async () => {
 
   await run({
     files,
-    commands: ["jspm deploy --no-usage"],
+    commands: ["jspm deploy publish --no-usage"],
     validationFn: async (_updatedFiles) => {
       // Successfully deployed version 1.0.1
       assert(true, `Successfully deployed version ${testVersion}`);
@@ -145,7 +146,7 @@ test("deploy with custom tag", async () => {
 
   await run({
     files,
-    commands: [`jspm deploy --version ${customTag} --no-usage`],
+    commands: [`jspm deploy publish --version ${customTag} --no-usage`],
     validationFn: async (_updatedFiles) => {
       // Successfully deployed with custom tag
       assert(true, `Successfully deployed with tag ${customTag}`);
@@ -169,7 +170,7 @@ test("deploy with invalid tag", async () => {
   try {
     await run({
       files,
-      commands: ["jspm deploy --version invalid@tag"],
+      commands: ["jspm deploy publish --version invalid@tag"],
       validationFn: async () => {
         assert.fail("Should have thrown an error for invalid tag");
       },
@@ -213,7 +214,7 @@ test("deploy and eject", async () => {
 
   await run({
     files,
-    commands: [`jspm deploy --version ${version} --no-usage`],
+    commands: [`jspm deploy publish --version ${version} --no-usage`],
     validationFn: async (_updatedFiles) => {
       // Store the package name for ejection
       deployedPackage = `app:${packageName}@${version}`;
@@ -226,7 +227,7 @@ test("deploy and eject", async () => {
 
   await run({
     files: new Map(), // Start with clean files
-    commands: [`jspm eject ${deployedPackage} --dir ${ejectDir}`],
+    commands: [`jspm deploy eject ${deployedPackage} --dir ${ejectDir}`],
     validationFn: async (updatedFiles) => {
       // Verify ejected files
       assert(
@@ -272,20 +273,16 @@ test("deploy watch mode basic test", async () => {
     // Instead we'll just verify it can start
     watchProcess = run({
       files,
-      commands: [`jspm deploy --version dev --watch`],
+      commands: [`jspm deploy publish --version dev --watch --no-usage`],
       validationFn: async () => {
         // Watch mode should start successfully
-        assert(true, "Watch mode started successfully");
+        await new Promise((resolve, reject) => {
+          watchProcess.catch(reject);
+          setTimeout(resolve, 5_000);
+        });
+        process.stdin.emit("data", "q");
       },
     });
-
-    // Let it run for a second before stopping the test
-    await new Promise((resolve, reject) => {
-      watchProcess.catch(reject);
-      setTimeout(resolve, 10_000);
-    });
-    process.stdin.emit("data", "q");
-
     // This test is more to verify the watch mode can be started
     // A more thorough test would actually modify files and verify redeployment
   } catch (error) {

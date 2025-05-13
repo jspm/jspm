@@ -57,16 +57,18 @@ async function findLocalConfig(
 /**
  * Loads configuration from user and local paths
  * with local overriding user
- * 
+ *
  * @param scope Which config to load: 'both' (default), 'user', or 'local'
  */
-export async function loadConfig(scope: 'both' | 'user' | 'local' = 'both'): Promise<JspmConfig> {
+export async function loadConfig(
+  scope: "both" | "user" | "local" = "both"
+): Promise<JspmConfig> {
   const log = withType("config/loadConfig");
 
   const configs: JspmConfig[] = [];
 
   // Load user config if requested
-  if (scope === 'both' || scope === 'user') {
+  if (scope === "both" || scope === "user") {
     const userConfigPath = getUserConfigPath();
     if (await exists(userConfigPath)) {
       try {
@@ -86,7 +88,7 @@ export async function loadConfig(scope: 'both' | 'user' | 'local' = 'both'): Pro
   }
 
   // Load local config if requested and it exists
-  if (scope === 'both' || scope === 'local') {
+  if (scope === "both" || scope === "local") {
     const localConfigPath = await findLocalConfig();
     if (localConfigPath) {
       try {
@@ -211,37 +213,36 @@ function mergeConfigs(
  * @param local Whether to set in local config
  */
 export async function setConfig(
-  key: string, 
-  value: any, 
+  key: string,
+  value: any,
   local = false
 ): Promise<void> {
   const log = withType("config/setConfig");
   log(`Setting ${key}=${value} in ${local ? "local" : "user"} config`);
-  
+
   // Handle provider config specially
   if (key.includes(".")) {
     const [provider, configKey] = key.split(".", 2);
-    
+
     // Create update object with nested structure
     const update: Partial<JspmConfig> = {
       providers: {
         [provider]: {
-          [configKey]: value
-        }
-      }
+          [configKey]: value,
+        },
+      },
     };
-    
+
     await updateConfig(update, local ? "local" : "user");
   } else {
     // Handle top-level configs
     const update: Partial<JspmConfig> = {
-      [key]: value
+      [key]: value,
     };
-    
+
     await updateConfig(update, local ? "local" : "user");
   }
 }
-
 
 /**
  * Gets a config value using dot notation
@@ -250,13 +251,13 @@ export async function setConfig(
  */
 export async function getConfig(key: string): Promise<any> {
   const config = await loadConfig();
-  
+
   // Handle provider config specially
   if (key.includes(".")) {
     const [provider, configKey] = key.split(".", 2);
     return config.providers?.[provider]?.[configKey];
   }
-  
+
   // Handle top-level configs
   return config[key];
 }

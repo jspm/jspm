@@ -3,6 +3,7 @@ import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { cli } from "../src/cli.ts";
+import { loadConfig } from "../src/config.ts";
 
 const defaultPackageJson = {
   name: "test",
@@ -26,6 +27,8 @@ export async function run(scenario: Scenario) {
     console.log(`running scenario "${scenario.commands[0]}"`);
   }
 
+  const userConfig = await loadConfig("user");
+
   const originalCwd = process.cwd();
   const dir = await createTmpPkg(scenario);
 
@@ -47,17 +50,17 @@ export async function run(scenario: Scenario) {
   await fs.mkdir(isolatedConfigDir, { recursive: true });
   process.env.JSPM_USER_CONFIG_DIR = isolatedConfigDir;
 
-  // Create a fresh project config for tests by creating an isolated .jspmrc
-  // This ensures each test has its own isolated local config
-  // and won't be affected by or affect other tests
-  if (scenario.files && scenario.files.has(".jspmrc")) {
-    // Get the content of the original .jspmrc from fixtures
-    const originalContent = scenario.files.get(".jspmrc")!;
+  // Get the content of the original .jspmrc from fixtures
+  const originalContent = scenario.files?.get(".jspmrc") ?? "{}";
 
-    // Create a copy in the temp directory
-    const configPath = path.join(dir, ".jspmrc");
-    await fs.writeFile(configPath, originalContent);
-  }
+  const config = JSON.stringify({
+    ...userConfig,
+    ...JSON.parse(originalContent),
+  });
+
+  // Create a copy in the temp directory
+  const configPath = path.join(dir, ".jspmrc");
+  await fs.writeFile(configPath, config);
 
   try {
     for (const cmd of scenario.commands) {

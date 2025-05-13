@@ -23,10 +23,10 @@ import link from "./link.ts";
 import uninstall from "./uninstall.ts";
 import update from "./update.ts";
 import configCmd from "./config-cmd.ts";
-import auth from "./auth.ts";
 import { JspmError, availableProviders, wrapCommand } from "./utils.ts";
 import build from "./build/index.ts";
-import { deploy, eject } from "./deploy.ts";
+import { eject, publish } from "./deploy.ts";
+import * as provider from "./provider.ts";
 
 const { version } = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8")
@@ -369,93 +369,116 @@ export interface BuildFlags extends BaseFlags {
   out?: string;
 }
 
-generateOpts(
-  cli
-    .command("deploy [directory]", "Deploy a package to the JSPM CDN")
-    .option(
-      "--no-usage",
-      "Disable printing the usage code snippet for the deployment",
-      { default: true }
-    )
-    .option("-w, --watch", "Watch for changes and redeploy (experimental)", {
-      default: false,
-    })
-    .option(
-      "-n, --name <name>",
-      "Deploy with a custom name instead of the version from package.json",
-      {}
-    )
-    .option(
-      "-v, --version <version>",
-      "Deploy with a custom version instead of the version from package.json. Note that semver versions are immutable, while non semver tag versions support mutable deployments (deploy --watch)",
-      {}
-    )
-)
-  .example(
-    (name) => `
-$ ${name} deploy
-
-Deploy the current directory as a package to the JSPM CDN.
-`
-  )
-  .example(
-    (name) => `
-$ ${name} deploy dist
-
-Deploy the ./dist directory as a package to the JSPM CDN.
-`
-  )
-  .example(
-    (name) => `
-$ ${name} deploy dist --version dev-feat-2 --watch
-
-Start a watched deployment to a custom mutable version tag (dev-feat-2) instead of the version from package.json.
-`
-  )
-  .usage(
-    `deploy [flags] [directory]
-
-Deploys a package to the JSPM CDN. The package must have a valid package.json with name and version fields.
-A jspm.json file can be included with "ignore" and "include" arrays to specify which files should be included 
-in the deployment.
-
-By default, the current directory is deployed. Use --dir to specify a different directory.
-The --version flag can be used to deploy with a custom version instead of the version from package.json.
-Semver versions are always immutable deployments that cannot be redeployed.
-Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].`
-  )
-  .action(wrapCommand(deploy));
-
+// Main deploy command - with options for both publish and eject
 outputOpts(
   generateOpts(
     cli
-      .command(
-        "eject <package>",
-        "Eject an app deployment package into a local folder"
+      .command("deploy <action> [target]", "Deploy operations for the JSPM CDN")
+      .option(
+        "--no-usage",
+        "Disable printing the usage code snippet for the deployment (for publish)",
+        { default: true }
       )
-      .option("-d, --dir <directory>", "Directory to eject into", {})
+      .option(
+        "-w, --watch",
+        "Watch for changes and redeploy (experimental, for publish)",
+        {
+          default: false,
+        }
+      )
+      .option(
+        "-n, --name <name>",
+        "Publish with a custom name instead of the name from package.json (for publish)",
+        {}
+      )
+      .option(
+        "-v, --version <version>",
+        "Publish with a custom version instead of the version from package.json (for publish)",
+        {}
+      )
+      .option(
+        "-d, --dir <directory>",
+        "Directory to eject into (for eject)",
+        {}
+      )
   )
     .example(
       (name) => `
-$ ${name} eject app:foo@bar --dir foo
+$ ${name} deploy publish
+
+Publish the current directory as a package to the JSPM CDN.
+`
+    )
+    .example(
+      (name) => `
+$ ${name} deploy publish dist
+
+Publish the ./dist directory as a package to the JSPM CDN.
+`
+    )
+    .example(
+      (name) => `
+$ ${name} deploy publish dist --version dev-feat-2 --watch
+
+Start a watched deployment to a custom mutable version tag (dev-feat-2) instead of the version from package.json.
+`
+    )
+    .example(
+      (name) => `
+$ ${name} deploy eject app:foo@bar --dir foo
 
 Download the application package foo@bar into the folder foo, merging its import map into importmap.json.
 `
     )
     .example(
       (name) => `
-$ ${name} eject app:foo@bar --dir foo -o test.html
+$ ${name} deploy eject app:foo@bar --dir foo -o test.html
 
-Download the application package foo@bar into the folder foo, merging its import map into the provided HTML file per the typical import map generation output injection options.
+Download the application package foo@bar into the folder foo, merging its import map into the provided HTML file.
 `
     )
     .usage(
-      `eject [flags]
+      `deploy <action> [target]
 
-Ejects a deployed package into a local directory, stitching its deployment import map into the current import map.`
+Manages deployments to the JSPM CDN.
+
+Actions:
+  publish [directory]    Publish a package to the JSPM CDN
+  eject <package>        Eject an app deployment package into a local folder
+
+For publish:
+  The package must have a valid package.json with name and version fields.
+  A jspm.json file can be included with "ignore" and "include" arrays to specify which files should be included.
+  By default, the current directory is published.
+  Semver versions are always immutable deployments that cannot be redeployed.
+  Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
+
+For eject:
+  Ejects a deployed package into a local directory, stitching its deployment import map into the current import map.
+  The --dir flag is required to specify the output directory.
+`
     )
-    .action(wrapCommand(eject))
+    .action(
+      wrapCommand((action, target, flags) => {
+        switch (action) {
+          case "publish": {
+            const directory = target;
+            return publish(directory, flags);
+          }
+          case "eject": {
+            const packageName = target;
+            return eject(packageName, flags);
+          }
+          default:
+            throw new JspmError(
+              `Unknown deploy action: ${action}\nValid actions are: publish, eject`
+            );
+        }
+      })
+    )
 );
+
+// The eject command has been moved to be a subcommand of deploy
 
 export interface EjectFlags extends GenerateFlags {
   dir?: string;
@@ -469,34 +492,82 @@ export interface DeployFlags extends GenerateFlags {
   usage?: boolean;
 }
 
-export interface AuthFlags extends BaseFlags {
+// Using the interfaces from provider.ts for consistency
+export interface ProviderFlags extends BaseFlags {
   provider?: string;
+}
+
+export interface ProviderAuthFlags extends BaseFlags {
   username?: string;
   open?: boolean;
 }
 
-// Auth command
+// Provider command with subcommands
 cli
-  .command("auth", "Authenticate with a provider")
-  .option("-p, --provider <provider>", "Provider to authenticate with (required)", {})
-  .option("-u, --username <username>", "Username for authentication (if required)", {})
-  .option("--no-open", "Disable automatically opening the authorization URL", { default: true })
+  .command("provider <action> [provider]", "Manage package providers")
+  .option(
+    "-u, --username <username>",
+    "Username for authentication (if required, for auth action)",
+    {}
+  )
+  .option(
+    "--no-open",
+    "Disable automatically opening the authorization URL (for auth action)",
+    {
+      default: true,
+    }
+  )
   .example(
     (name) => `
-$ ${name} auth --provider jspm.io
+$ ${name} provider auth jspm.io
 
 Authenticate with the JSPM CDN provider.
 `
   )
-  .usage(
-    `auth -p/--provider <provider> [flags]
+  .example(
+    (name) => `
+$ ${name} provider list
 
-Authenticates with a provider to enable private deployments or other authenticated operations.
-You must specify which provider to authenticate with using the -p/--provider flag.
-
-Once authenticated, the token is stored and used for future operations with the provider.`
+List all available providers and their authentication status.
+`
   )
-  .action(wrapCommand(auth));
+  .usage(
+    `provider <action> [options]
+
+Manages package providers for JSPM.
+
+Actions:
+  auth <provider>    Authenticate with a provider
+  list               List available providers and their authentication status
+`
+  )
+  .action(
+    wrapCommand(
+      async (
+        action: string,
+        providerName: string | undefined,
+        flags: ProviderAuthFlags & ProviderFlags
+      ) => {
+        switch (action) {
+          case "auth":
+            if (!providerName) {
+              throw new JspmError(
+                "You must specify a provider to authenticate with. Try 'jspm provider auth jspm.io'"
+              );
+            }
+            await provider.auth(providerName, flags);
+            break;
+          case "list":
+            await provider.list(flags);
+            break;
+          default:
+            throw new JspmError(
+              `Unknown provider action: ${action}\nValid actions are: auth, list`
+            );
+        }
+      }
+    )
+  );
 
 // Taken from 'cac', as they don't export it:
 interface HelpSection {

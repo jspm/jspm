@@ -49,7 +49,7 @@ interface JspmCache {
 export const supportedLayers = ["default", "system"];
 
 function withTrailer(url: string) {
-  return url.endsWith('/') ? url : url + '/';
+  return url.endsWith("/") ? url : url + "/";
 }
 
 export async function pkgToUrl(
@@ -61,14 +61,11 @@ export async function pkgToUrl(
 
 export function configure(config: any) {
   if (config.authToken) authToken = config.authToken;
-  if (config.cdnUrl)
-    cdnUrl = withTrailer(config.cdnUrl);
-  if (config.deployUrl)
-    deployUrl = withTrailer(config.deployUrl);
+  if (config.cdnUrl) cdnUrl = withTrailer(config.cdnUrl);
+  if (config.deployUrl) deployUrl = withTrailer(config.deployUrl);
   if (config.publicDeployUrl)
     publicDeployUrl = withTrailer(config.publicDeployUrl);
-  if (config.apiUrl)
-    apiUrl = withTrailer(config.apiUrl);
+  if (config.apiUrl) apiUrl = withTrailer(config.apiUrl);
 }
 
 const exactPkgRegEx =
@@ -549,36 +546,33 @@ export async function deploy(
   return {
     packageUrl: publicPackageUrl,
     mapUrl,
-    codeSnippet: `<!-- jspm.io import map deployment, es-module-shims polyfill & native entry point${
-      imports.length > 1 ? "s" : ""
-    } -->
+    codeSnippet: `<!-- jspm.io deployment import map injection (change to ".hot.js" for hot reloading) -->
 <script src="${mapUrl.slice(0, -2)}" crossorigin="anoymous"></script>
+<!-- Polyfill for older browsers -->
 <script async src="${await latestEsms.call(
       this,
       publicDeployUrl
     )}" crossorigin="anonymous"></script>
-<script type="module">
-${imports
-  .map(
-    (impt, idx) =>
-      `${
-        idx === 0
-          ? ""
-          : idx === 1
-          ? '// Other available import map "imports", import these entry points as needed:\n// '
-          : "// "
-      }import '${impt}';`
-  )
-  .join("\n")}
-</script>
-
-<!-- Optionally, add for hot reloading in development: -->
-<script>
-esmsInitOptions = { hotReload: true };
-new EventSource('${deployUrl}hot/app:${name}@${version}').onmessage = evt => {
-  JSON.parse(evt.data).files?.forEach(file => globalThis.importShim?.hotReload(\`${publicPackageUrl}\${file}\`));
-};
-</script>
+${
+  imports.length
+    ? `
+<!-- Import entrypoint${imports.length > 1 ? "s" : ""} -->
+<script type="module" crossorigin="anonymous">${
+        imports.length > 1 ? "\n" : ""
+      }${imports
+        .map(
+          (impt, idx) =>
+            `${
+              idx === 0
+                ? ""
+                : idx === 1
+                ? "// Further available import map entrypoints - import as needed:\n// "
+                : "// "
+            }import '${impt}'${imports.length > 1 ? ";" : ""}`
+        )
+        .join("\n")}${imports.length > 1 ? "\n" : ""}</script>`
+    : ""
+}
 `,
   };
 }
@@ -603,7 +597,7 @@ async function latestEsms(this: ProviderContext, forUrl: string) {
 }
 
 /**
- * Authenticate with JSPM API using device code flow
+ * Authenticate with JSPM API to obtain a token
  *
  * @param options Authentication options
  * @returns Promise resolving to an authentication token
@@ -615,8 +609,8 @@ export async function auth(
     verify: (url: string, instructions: string) => void;
   }
 ): Promise<{ token: string }> {
-  // Start the device code flow
-  const deviceCodeResponse = await globalThis.fetch(`${apiUrl}v1/oauth/device`, {
+  // Start token request
+  const deviceCodeResponse = await globalThis.fetch(`${apiUrl}v1/auth/cli`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -651,15 +645,18 @@ export async function auth(
 
     try {
       // Poll the token endpoint
-      const tokenResponse = await globalThis.fetch(`${apiUrl}v1/oauth/device/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-          device_code: deviceCode,
-          client_id: "jspm-cli",
-        }),
-      });
+      const tokenResponse = await globalThis.fetch(
+        `${apiUrl}v1/auth/cli/token`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+            device_code: deviceCode,
+            client_id: "jspm-cli",
+          }),
+        }
+      );
 
       const tokenData = await tokenResponse.json();
 
@@ -702,7 +699,9 @@ async function createDeployToken(
   packageVersion: string
 ): Promise<string> {
   if (!authToken) {
-    throw new JspmError(`Not auth token has been generated for jspm.io. Either set providers['jspm.io'].authToken, or first run "jspm auth -p jspm.io"`);
+    throw new JspmError(
+      `Not auth token has been generated for jspm.io. Either set providers['jspm.io'].authToken, or first run "jspm provider auth jspm.io"`
+    );
   }
   try {
     const response = await globalThis.fetch(`${apiUrl}v1/package/token`, {
@@ -724,15 +723,19 @@ async function createDeployToken(
       } catch {
         throw new Error(response.status.toString());
       }
-      throw new Error(errJson.error ? errJson.error : JSON.stringify(errJson, null, 2));
+      throw new Error(
+        errJson.error ? errJson.error : JSON.stringify(errJson, null, 2)
+      );
     }
 
     const data = await response.json();
     return data.token;
   } catch (error) {
     // Fall back to the placeholder token if there's an error
-    if (error.message.includes('Invalid or expired token'))
-      throw new JspmError(`Invalid or expired token, run "jspm auth --provider jspm.io" to regenerate an authentication token.`);
+    if (error.message.includes("Invalid or expired token"))
+      throw new JspmError(
+        `Invalid or expired token, run "jspm provider auth jspm.io" to regenerate an authentication token.`
+      );
     throw new JspmError(error.message);
   }
 }

@@ -91,16 +91,16 @@ export interface Provider {
   /**
    * Authenticate with the provider
    * This is an optional method that providers can implement to support authentication
-   * 
+   *
    * @param username Optional username for authentication
    * @param verify Optional callback to verify authentication with the user
    * @returns A promise resolving to an authentication token
    */
   auth?(
     this: ProviderContext,
-    options: { 
-      username?: string, 
-      verify?: (url: string, instructions: string) => void 
+    options: {
+      username?: string;
+      verify?: (url: string, instructions: string) => void;
     }
   ): Promise<{ token: string }>;
 
@@ -541,33 +541,30 @@ export class ProviderManager {
       imports
     );
   }
-  
+
   /**
    * Authenticate with a provider to obtain an authentication token
-   * 
+   *
    * @param providerName Name of the provider to authenticate with
    * @param options Authentication options
    * @returns Promise resolving to the authentication token
    */
   async auth(
     providerName: string,
-    options: { 
-      username?: string, 
-      verify?: (url: string, instructions: string) => void 
+    options: {
+      username?: string;
+      verify?: (url: string, instructions: string) => void;
     } = {}
   ): Promise<{ token: string }> {
     const provider = this.#getProvider(providerName);
-    
+
     if (!provider.auth) {
       throw new JspmError(
         `Provider "${providerName}" does not support authentication`
       );
     }
-    
-    return provider.auth.call(
-      this.#getProviderContext(providerName),
-      options
-    );
+
+    return provider.auth.call(this.#getProviderContext(providerName), options);
   }
 }
 

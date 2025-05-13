@@ -1459,7 +1459,12 @@ export class Generator {
         }
       }
       const parts = file.split("/");
-      if (parts.includes("node_modules") || parts.includes(".git")) continue;
+      if (
+        parts.includes("node_modules") ||
+        parts.some((part) => part.startsWith(".")) ||
+        parts.includes("package-lock.json")
+      )
+        continue;
       if (files.length) {
         for (const includePattern of files) {
           if (minimatch(file, includePattern)) {
@@ -1542,24 +1547,23 @@ export class Generator {
 
   /**
    * Authenticate with a provider to obtain an authentication token.
-   * 
+   *
    * @param options Authentication options including provider, username, and verify callback
    * @returns Promise resolving to the authentication token
    */
-  async auth(options: {
-    provider?: string,
-    username?: string,
-    verify?: (url: string, instructions: string) => void
-  } = {}): Promise<{ token: string }> {
-    const providerName = options.provider || 'jspm.io';
-    
-    return this.traceMap.resolver.pm.auth(
-      providerName,
-      {
-        username: options.username,
-        verify: options.verify
-      }
-    );
+  async auth(
+    options: {
+      provider?: string;
+      username?: string;
+      verify?: (url: string, instructions: string) => void;
+    } = {}
+  ): Promise<{ token: string }> {
+    const providerName = options.provider || "jspm.io";
+
+    return this.traceMap.resolver.pm.auth(providerName, {
+      username: options.username,
+      verify: options.verify,
+    });
   }
 
   /**

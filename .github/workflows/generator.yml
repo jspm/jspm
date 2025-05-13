@@ -50,6 +50,7 @@ jobs:
           firefox-version: ${{ matrix.firefox }}
       - run: npm install
       - run: npm run -ws build
+      - run: node cli/jspm.js config set providers['jspm.io'].authToken config ${{ secrets.JSPM_TOKEN }}
       - run: chomp -c generator test:browser
         env:
           CI_BROWSER: C:\Program Files\Firefox_${{ matrix.firefox }}\firefox.exe

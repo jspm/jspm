@@ -54,10 +54,9 @@ async function readJsonFile(filePath: string, defaultValue: any = {}) {
 export async function eject(pkg: string, flags: EjectFlags = {}) {
   if (!flags.dir) {
     throw new JspmError(
-      `A --dir ejection flag for the output directory must be provider`
+      `A --dir ejection flag for the output directory must be provided`
     );
   }
-  const directory = flags.dir || process.cwd();
 
   const log = withType("eject");
 
@@ -82,7 +81,7 @@ export async function eject(pkg: string, flags: EjectFlags = {}) {
   const version = pkg.slice(4 + name.length + 1);
 
   startSpinner(`Ejecting ${c.bold(pkg)}...`);
-  await generator.eject({ name, version, provider }, directory);
+  await generator.eject({ name, version, provider }, flags.dir);
   stopSpinner();
 
   startSpinner(`Merging deployment import map for ${c.bold(pkg)}...`);
@@ -92,12 +91,15 @@ export async function eject(pkg: string, flags: EjectFlags = {}) {
 
   console.log(
     `${c.green("Ok:")} Package ${c.green(pkg)} ejected into ${c.bold(
-      directory
+      flags.dir
     )}`
   );
 }
 
-export async function deploy(dir: string | undefined, flags: DeployFlags = {}) {
+export async function publish(
+  dir: string | undefined,
+  flags: DeployFlags = {}
+) {
   const directory = dir || process.cwd();
 
   const jspmConfigPath = path.join(directory, "jspm.json");
@@ -117,7 +119,7 @@ export async function deploy(dir: string | undefined, flags: DeployFlags = {}) {
 
   const prepareScript = packageJson.scripts?.prepare;
   const name = flags.name || packageJson.name;
-  const version = flags.version || packageJson.version;
+  const version = String(flags.version || packageJson.version);
   const semverVersion = version.match(/^\d+\.\d+\.\d+(\-[a-zA-Z0-9_\-\.]+)?$/);
 
   if (flags.watch) {
@@ -200,16 +202,16 @@ async function deployOnce(
 
     if (codeSnippet && logSnippet) {
       console.log(
-        `\n${c.magentaBright(c.bold("Usage:"))}\n\n${c.gray(
+        `\n${c.magentaBright(c.bold("HTML Usage:"))}\n\n${c.greenBright(
           codeSnippet
             .split("\n")
             .map((l) => {
               if (l.startsWith("<!--") && l.endsWith("-->"))
-                return `  ${c.greenBright(l)}`;
-              if (l.startsWith("//")) return `  ${c.green(l)}`;
+                return `  ${c.gray(l)}`;
+              if (l.startsWith("//")) return `  ${c.gray(l)}`;
               l = l
-                .replace(/("[^"]*")/g, (s) => c.blue(s))
-                .replace(/\>?\<\/?script\>?/g, (s) => c.red(s));
+                .replace(/("[^"]*")/g, (s) => c.red(s))
+                .replace(/\>?\<\/?script\>?/g, (s) => c.blue(s));
               return `  ${l}`;
             })
             .join("\n")
@@ -282,6 +284,19 @@ async function startWatchMode(
         break;
       case "c":
         if (codeSnippet) copyToClipboard(codeSnippet);
+        break;
+      case "o":
+        if (codeSnippet)
+          open(
+            `data:text/html;base64,${Buffer.from(
+              `<!doctype html>\n<body></body>\n${codeSnippet
+                .split("\n")
+                .filter((l) => !l.startsWith("<!--") || !l.endsWith("-->"))
+                .join("\n")
+                .replace(".js", ".hot.js")}`
+            ).toString("base64")}`,
+            { app: { name: "chrome" } }
+          );
     }
   });
 
@@ -353,7 +368,9 @@ async function startWatchMode(
           `${c.blue("Info:")} Watching for changes in ${c.cyan(directory)}...`
         );
         console.log(`${c.magenta(c.bold("\nKeyboard shortcuts:"))}
-
+ → ${c.bold(c.bgBlueBright(c.whiteBright(" o ")))} ${c.dim(
+          "Open preview URL in the browser"
+        )}
  → ${c.bold(c.bgBlueBright(c.whiteBright(" c ")))} ${c.dim(
           "Copy HTML usage script code snippet to clipboard"
         )}
@@ -400,7 +417,11 @@ async function getFilesRecursively(
       const fullPath = path.join(dir, entry.name);
       const relativePath = path.relative(directory, fullPath);
 
-      if (entry.name === "node_modules" || entry.name === ".git") {
+      if (
+        entry.name === "node_modules" ||
+        entry.name.startsWith(".") ||
+        entry.name === "package-lock.json"
+      ) {
         continue;
       }
 

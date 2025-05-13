@@ -1,0 +1,44 @@
+version = 0.1
+
+[[task]]
+name = 'npm:install'
+targets = ['node_modules', 'package-lock.json']
+deps = [
+  'package.json',
+  'generator/package.json',
+  'import-map/package.json',
+  'cli/package.json',
+]
+validation = 'ok-only'
+display = 'init-only'
+run = 'npm install --workspaces'
+
+[[task]]
+name = 'build:import-map'
+run = 'chomp -c import-map build'
+
+[[task]]
+name = 'build:generator'
+run = 'chomp -c generator build'
+
+[[task]]
+name = 'build:cli'
+run = 'chomp -c cli build'
+
+[[task]]
+name = 'build'
+serial = true
+deps = ['npm:install', 'build:import-map', 'build:generator', 'build:cli']
+
+[[task]]
+name = 'cli:install'
+deps = ['build']
+run = 'npm install -g cli'
+
+[[task]]
+name = 'prettier'
+run = '''
+chomp -c generator prettier
+chomp -c cli prettier
+chomp -c cli lint:fix
+'''

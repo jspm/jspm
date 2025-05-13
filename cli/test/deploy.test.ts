@@ -189,7 +189,7 @@ test("deploy with invalid tag", async () => {
 test("deploy and eject", async () => {
   const files = new Map();
   const packageName = "jspm-deploy-eject-test";
-  const version = "test-1";
+  const version = `test-${Math.round(Math.random() * 1000)}`;
 
   // Create a package for deployment
   files.set(

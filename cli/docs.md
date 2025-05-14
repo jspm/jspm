@@ -20,7 +20,6 @@ For a full list of commands and supported options, run `jspm --help`. For help w
 By default, JSPM operates on `importmap.json` which is automatically created if it does not exist. This is considered the main import map on which link and install operations are being performed, and can be customized with the `--map` option.
 
 ## link
-jspm
 
 ### Usage
   
@@ -73,7 +72,6 @@ Link an HTML file and update its import map including preload and integrity tags
 jspm link --map index.html --integrity --preload
 ```
 ## install
-jspm
 
 ### Usage
   
@@ -130,7 +128,6 @@ Install "alias" as an alias of the resolution react
 jspm install alias=react
 ```
 ## uninstall
-jspm
 
 ### Usage
   
@@ -167,7 +164,6 @@ jspm uninstall lit lodash
 Uninstall "lit" and "lodash" from importmap.json.
 
 ## update
-jspm
 
 ### Usage
   
@@ -204,7 +200,6 @@ jspm update react-dom
 Update the react-dom package.
 
 ## clear-cache
-jspm
 
 ### Usage
   
@@ -217,6 +212,271 @@ Clears the global module fetch cache, for situations where the contents of a dep
 * `-s, --silent`    Silence all output (default: false)
 * `--show-version`  Output the JSPM version (default: false)
 * `-h, --help`      Display this message 
+## config
+
+### Usage
+  
+```
+jspm config _&lt;action&gt;_ [key] [value]
+```
+Manages JSPM configuration files. Configurations are loaded from the user directory (~/.and local directory (.jspmrc), with local configuration taking precedence over user configuration.
+
+### Actions
+  get _&lt;key&gt;_             Get a configuration value
+  set _&lt;key&gt;_ _&lt;value&gt;_     Set a configuration value
+  delete|rm _&lt;key&gt;_       Delete a configuration value
+  list|ls               List all configuration values
+  
+For provider-specific configuration, use the -p/--provider flag:
+  jspm config set -p npm auth token123
+  jspm config set -p jspm.io baseUrl https://jspm.io/
+
+The provider flag handles providers with dots in their names automatically.
+Other configuration keys use dot notation (e.g., defaultProvider, cacheDir).
+Values are parsed as JSON if possible, otherwise used as strings.
+
+By default, the command affects the user configuration (~/.Use the --local flag to modify the project-specific configuration (.jspmrc).
+
+### Options
+* `--local`                    Use the local project configuration (default is user-level) (default: false)
+* `-p, --provider` &lt;[providers](#providers)&gt;  Provider to configure (for provider-specific configuration) 
+* `-s, --silent`               Silence all output (default: false)
+* `--show-version`             Output the JSPM version (default: false)
+* `-h, --help`                 Display this message 
+
+### Examples
+
+
+```
+jspm config set -p npm auth "your-auth-token"
+```
+Set an authentication token for the npm provider in the user configuration.
+
+
+
+```
+jspm config set --provider jspm.io baseUrl "https://jspm.io/" --local
+```
+Set the base URL for a provider with dots in its name in the local project configuration.
+
+
+
+```
+jspm config get -p npm
+```
+Get the npm provider configuration.
+
+
+
+```
+jspm config list
+```
+List all configuration values.
+
+## build
+
+### Usage
+  
+```
+jspm build [entry]
+```
+### Options
+* `-r, --resolution` &lt;[resolutions](#resolutions)&gt;  Comma-separated dependency resolution overrides 
+* `-m, --map` _&lt;file&gt;_                File containing initial import map (defaults to importmap.json, or the input HTML if linking) 
+* `--config` _&lt;file&gt;_                 Path to a RollupJS config file 
+* `-o, --out` _&lt;dir&gt;_                 Path to the RollupJS output directory 
+* `-s, --silent`                    Silence all output (default: false)
+* `--show-version`                  Output the JSPM version (default: false)
+* `-h, --help`                      Display this message 
+## deploy
+
+### Usage
+  
+```
+jspm deploy _&lt;action&gt;_ [target]
+```
+Manages deployments to the JSPM CDN.
+
+### Actions
+  publish [directory]    Publish a package to the JSPM CDN
+  eject _&lt;package&gt;_        Eject an app deployment package into a local folder
+
+For publish:
+  The package must have a valid package.json with name and version fields.
+  A jspm.json file can be included with "ignore" and "include" arrays to specify which files should be included.
+  By default, the current directory is published.
+  Semver versions are always immutable deployments that cannot be redeployed.
+  Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
+
+For eject:
+  Ejects a deployed package into a local directory, stitching its deployment import map into the current import map.
+  The --dir flag is required to specify the output directory.
+
+
+### Options
+* `--no-usage`                      Disable printing the usage code snippet for the deployment (for publish) (default: true)
+* `-w, --watch`                     Watch for changes and redeploy (experimental, for publish) (default: false)
+* `-n, --name` _&lt;name&gt;_               Publish with a custom name instead of the name from package.json (for publish) 
+* `-d, --dir` _&lt;directory&gt;_           Directory to eject into (for eject) 
+* `-m, --map` _&lt;file&gt;_                File containing initial import map (defaults to importmap.json, or the input HTML if linking) 
+* `-e, --env` &lt;[environments](#environments)&gt;        Comma-separated environment condition overrides 
+* `-r, --resolution` &lt;[resolutions](#resolutions)&gt;  Comma-separated dependency resolution overrides 
+* `-p, --provider` &lt;[providers](#providers)&gt;       Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
+* `--cache` _&lt;mode&gt;_                  Cache mode for fetches (online, offline, no-cache) (default: online)
+* `--integrity`                     Add module integrity attributes to the import map (default: false)
+* `--preload` _[mode]_                Add module preloads to HTML output (default: static, dynamic) 
+* `--root` _&lt;url&gt;_                    URL to treat as server root, i.e. rebase import maps against 
+* `--no-flatten-scopes`             Disable import map scope flattening into a single top-level scope per origin (default: true)
+* `--no-combine-subpaths`           Disable import map subpath combining under folder maps (ending in /) (default: true)
+* `--compact`                       Output a compact import map (default: false)
+* `--stdout`                        Output the import map to stdout (default: false)
+* `-o, --output` _&lt;file&gt;_             File to inject the final import map into (default: --map / importmap.json) 
+* `--strip-env`                     Do not inline the environment into the importmap. (default: false)
+* `-s, --silent`                    Silence all output (default: false)
+* `--show-version`                  Output the JSPM version (default: false)
+* `-h, --help`                      Display this message 
+
+### Examples
+
+
+```
+jspm deploy publish
+```
+Publish the current directory as a package to the JSPM CDN.
+
+
+
+```
+jspm deploy publish dist
+```
+Publish the ./dist directory as a package to the JSPM CDN.
+
+
+
+```
+jspm deploy publish dist --version dev-feat-2 --watch
+```
+Start a watched deployment to a custom mutable version tag (dev-feat-2) instead of the version from package.json.
+
+
+
+```
+jspm deploy eject app:foo@bar --dir foo
+```
+Download the application package foo@bar into the folder foo, merging its import map into importmap.json.
+
+
+
+```
+jspm deploy eject app:foo@bar --dir foo -o test.html
+```
+Download the application package foo@bar into the folder foo, merging its import map into the provided HTML file.
+
+## provider
+
+### Usage
+  
+```
+jspm provider _&lt;action&gt;_ [options]
+```
+Manages package providers for JSPM.
+
+### Actions
+  auth &lt;[providers](#providers)&gt;    Authenticate with a provider
+  list               List available providers and their authentication status
+
+
+### Options
+* `-u, --username` _&lt;username&gt;_  Username for authentication (if required, for auth action) 
+* `--no-open`                  Disable automatically opening the authorization URL (for auth action) (default: true)
+* `-s, --silent`               Silence all output (default: false)
+* `--show-version`             Output the JSPM version (default: false)
+* `-h, --help`                 Display this message 
+
+### Examples
+
+
+```
+jspm provider auth jspm.io
+```
+Authenticate with the JSPM CDN provider.
+
+
+
+```
+jspm provider list
+```
+List all available providers and their authentication status.
+
+## serve
+
+### Usage
+  
+```
+jspm serve [directory] [options]
+```    
+Starts a local development server for the specified directory. If no directory is specified, 
+the current directory is used. The server provides directory listings and serves files with 
+appropriate MIME types.
+
+### Options
+* `-p, --port` _&lt;number&gt;_  Port to run the server on (default: 5776)
+* `-m, --map` _&lt;file&gt;_     Import map path. For 'importmap.json', 'importmap.js' is served as a natively supported injection script (default: importmap.json)
+* `--no-typestripping`   Disable TypeScript type stripping (serve .ts files as is) (default: false)
+* `-w, --watch`          Watch for file changes and trigger live reloads (default: false)
+* `-s, --silent`         Silence all output (default: false)
+* `--show-version`       Output the JSPM version (default: false)
+* `-h, --help`           Display this message 
+
+### Examples
+
+
+```
+jspm serve
+```    
+Start a server for the current directory on port 5776.
+
+
+
+```
+jspm serve ./dist --port 8080
+```    
+Start a server for the ./dist directory on port 8080.
+
+## ls
+
+### Usage
+  
+```
+jspm ls _&lt;package&gt;_ [options]
+```
+Lists all available exports for a specified package. If a version is not specified, the latest version will be used.
+This command helps you discover what subpaths are available for a package and their corresponding export mappings.
+
+### Options
+* `-f, --filter` _&lt;pattern&gt;_  Filter exports by pattern (case-insensitive substring match)
+
+### Options
+* `-f, --filter` _&lt;pattern&gt;_  Filter exports by pattern (case-insensitive substring match) 
+* `-s, --silent`            Silence all output (default: false)
+* `--show-version`          Output the JSPM version (default: false)
+* `-h, --help`              Display this message 
+
+### Examples
+
+
+```
+jspm ls react@18.2.0
+```
+List all exports for the React package version 18.2.0.
+
+
+
+```
+jspm ls lit@2.7.0 --filter server
+```
+List exports for the Lit package that contain "server" in their paths.
+
 
 # Configuration
 

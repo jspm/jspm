@@ -27,6 +27,8 @@ import { JspmError, availableProviders, wrapCommand } from "./utils.ts";
 import build from "./build/index.ts";
 import { eject, publish } from "./deploy.ts";
 import * as provider from "./provider.ts";
+import serve from "./serve.ts";
+import ls from "./ls.ts";
 
 const { version } = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8")
@@ -109,11 +111,6 @@ const outputOpts: OptionGroup = (cac) =>
       "-o, --output <file>",
       "File to inject the final import map into (default: --map / importmap.json)",
       {}
-    )
-    .option(
-      "--strip-env",
-      "Do not inline the environment into the importmap.",
-      { default: false }
     );
 
 export interface GenerateOutputFlags extends GenerateFlags {
@@ -121,7 +118,6 @@ export interface GenerateOutputFlags extends GenerateFlags {
   compact?: boolean;
   stdout?: boolean;
   output?: string;
-  stripEnv?: boolean;
   flattenScopes?: boolean;
   combineSubpaths?: boolean;
 }
@@ -502,6 +498,17 @@ export interface ProviderAuthFlags extends BaseFlags {
   open?: boolean;
 }
 
+export interface ServeFlags extends BaseFlags {
+  map?: string;
+  port?: number;
+  typestripping?: boolean;
+  watch?: boolean;
+}
+
+export interface LsFlags extends BaseFlags {
+  filter?: string;
+}
+
 // Provider command with subcommands
 cli
   .command("provider <action> [provider]", "Manage package providers")
@@ -568,6 +575,77 @@ Actions:
       }
     )
   );
+
+cli
+  .command("serve [directory]", "Start a local development server")
+  .option("-p, --port <number>", "Port to run the server on", { default: 5776 })
+  .option(
+    "-m, --map <file>",
+    "Import map path. For 'importmap.json', 'importmap.js' is served as a natively supported injection script",
+    { default: "importmap.json" }
+  )
+  .option(
+    "--no-typestripping",
+    "Disable TypeScript type stripping (serve .ts files as is)",
+    { default: false }
+  )
+  .option("-w, --watch", "Watch for file changes and trigger live reloads", {
+    default: false,
+  })
+  .example(
+    (name) => `
+$ ${name} serve
+    
+Start a server for the current directory on port 5776.
+`
+  )
+  .example(
+    (name) => `
+$ ${name} serve ./dist --port 8080
+    
+Start a server for the ./dist directory on port 8080.
+`
+  )
+  .usage(
+    `serve [directory] [options]
+    
+Starts a local development server for the specified directory. If no directory is specified, 
+the current directory is used. The server provides directory listings and serves files with 
+appropriate MIME types.`
+  )
+  .action(wrapCommand(serve));
+
+cli
+  .command("ls <package>", "List package exports")
+  .option(
+    "-f, --filter <pattern>",
+    "Filter exports by pattern (case-insensitive substring match)",
+    {}
+  )
+  .example(
+    (name) => `
+$ ${name} ls react@18.2.0
+
+List all exports for the React package version 18.2.0.
+`
+  )
+  .example(
+    (name) => `
+$ ${name} ls lit@2.7.0 --filter server
+
+List exports for the Lit package that contain "server" in their paths.
+`
+  )
+  .usage(
+    `ls <package> [options]
+
+Lists all available exports for a specified package. If a version is not specified, the latest version will be used.
+This command helps you discover what subpaths are available for a package and their corresponding export mappings.
+
+Options:
+  -f, --filter <pattern>  Filter exports by pattern (case-insensitive substring match)`
+  )
+  .action(wrapCommand(ls));
 
 // Taken from 'cac', as they don't export it:
 interface HelpSection {

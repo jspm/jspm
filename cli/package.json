@@ -24,6 +24,7 @@
     "esbuild": "^0.16.17",
     "eslint": "^8.38.0",
     "eslint-config-prettier": "^8.8.0",
+    "mime": "^4.0.7",
     "minimatch": "^10.0.1",
     "open": "^10.1.2",
     "ora": "^8.2.0",

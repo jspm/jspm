@@ -15,20 +15,19 @@
  */
 
 import fs from "node:fs/promises";
-import path, { join } from "node:path";
+import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { execSync, spawn } from "node:child_process";
-import { platform, tmpdir } from "node:os";
-import { existsSync, unlinkSync, writeFileSync } from "node:fs";
-import { minimatch } from "minimatch";
 import c from "picocolors";
 import open from "open";
 import {
   JspmError,
+  copyToClipboard,
   exists,
   getEnv,
+  getFilesRecursively,
   getGenerator,
   parsePackageSpec,
+  runPackageScript,
   startSpinner,
   stopSpinner,
   writeOutput,
@@ -401,162 +400,4 @@ async function startWatchMode(
       waiting = true;
     }
   }
-}
-
-async function getFilesRecursively(
-  directory: string,
-  ignore: string[] = [],
-  include: string[] = []
-): Promise<string[]> {
-  const files: string[] = [];
-
-  async function processDirectory(dir: string, parentIncluded: boolean) {
-    const entries = await fs.readdir(dir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      const relativePath = path.relative(directory, fullPath);
-
-      if (
-        entry.name === "node_modules" ||
-        entry.name.startsWith(".") ||
-        entry.name === "package-lock.json"
-      ) {
-        continue;
-      }
-
-      if (ignore.includes(relativePath) || ignore.includes(entry.name)) {
-        continue;
-      }
-
-      if (entry.isDirectory()) {
-        await processDirectory(
-          fullPath,
-          parentIncluded || include.includes(relativePath)
-        );
-      } else if (include.length === 0) {
-        // Include file if it's not ignored
-        files.push(fullPath);
-      } else if (
-        parentIncluded ||
-        include.some((include) => minimatch(relativePath, include))
-      ) {
-        // When includes are provided, only include explicitly included
-        files.push(fullPath);
-      }
-    }
-  }
-
-  await processDirectory(directory, false);
-  return files;
-}
-
-function copyToClipboard(text) {
-  try {
-    switch (platform()) {
-      case "darwin":
-        return execSync("pbcopy", {
-          input: text,
-          stdio: ["pipe", "ignore", "ignore"],
-        });
-      case "win32": {
-        const tempFile = path.join(tmpdir(), `clipboard-${Date.now()}.txt`);
-        try {
-          writeFileSync(tempFile, text, "utf8");
-          return execSync(
-            `powershell -command "Get-Content '${tempFile}' -Raw | Set-Clipboard"`,
-            {
-              stdio: "ignore",
-            }
-          );
-        } finally {
-          unlinkSync(tempFile);
-        }
-      }
-      case "linux":
-        try {
-          execSync(`echo "${text}" | xclip -selection clipboard`, {
-            stdio: "ignore",
-          });
-        } catch {
-          execSync(`echo "${text}" | xsel --clipboard`, { stdio: "ignore" });
-        }
-    }
-  } catch {}
-}
-
-async function runPackageScript(script: string, dir: string) {
-  const isWindows = platform() === "win32";
-
-  let shell: string, shellArgs: string[];
-  if (isWindows) {
-    // Try to find cmd.exe in standard locations
-    const possiblePaths = [
-      path.join(process.env.SystemRoot || "C:\\Windows", "System32", "cmd.exe"),
-      path.join(process.env.windir || "C:\\Windows", "System32", "cmd.exe"),
-      "cmd.exe", // Last resort - rely on PATH
-    ];
-
-    shell =
-      possiblePaths.find((p) => {
-        try {
-          return existsSync(p);
-        } catch {
-          return false;
-        }
-      }) || "cmd.exe";
-
-    shellArgs = ["/c"];
-  } else {
-    // For Unix-like systems, try to detect available shells
-    const possibleShells = [
-      "/bin/bash",
-      "/bin/sh",
-      "/usr/bin/bash",
-      "/usr/bin/sh",
-    ];
-
-    shell =
-      possibleShells.find((s) => {
-        try {
-          return existsSync(s);
-        } catch {
-          return false;
-        }
-      }) || "/bin/sh";
-
-    shellArgs = ["-c"];
-  }
-
-  // Set up environment variables similar to npm
-  const env = { ...process.env };
-  const PATH = isWindows ? "Path" : "PATH";
-
-  const nodeModulesPath = join(dir, "node_modules");
-  if (!env[PATH]?.includes(nodeModulesPath)) {
-    env[PATH] = isWindows
-      ? `${nodeModulesPath};${env[PATH] || ""}`
-      : `${nodeModulesPath}:${env[PATH] || ""}`;
-  }
-
-  return new Promise<void>((resolve, reject) => {
-    const childProcess = spawn(shell, [...shellArgs, script], {
-      env,
-      stdio: "inherit", // Pipe stdio to parent process
-      shell: true,
-      windowsVerbatimArguments: isWindows,
-    });
-
-    childProcess.on("error", (error) => {
-      reject(new Error(`Failed to start script process: ${error.message}`));
-    });
-
-    childProcess.on("close", (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Script exited with code ${code}`));
-      }
-    });
-  });
 }

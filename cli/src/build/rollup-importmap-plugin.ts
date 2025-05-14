@@ -36,7 +36,7 @@ export const RollupImportmapPlugin = async (flags: Flags): Promise<Plugin> => {
         return { id: resolved };
       } catch (err) {
         console.warn(
-          `Failed to resolve ${id} from ${importer}, makring as external`
+          `Failed to resolve ${id} from ${importer}, marking as external`
         );
         return { id, external: true };
       }
@@ -50,9 +50,9 @@ export const RollupImportmapPlugin = async (flags: Flags): Promise<Plugin> => {
       }
 
       switch (url.protocol) {
-        case 'file:':
+        case "file:":
           return await fs.readFile(new URL(id), "utf-8");
-        case 'https:': {
+        case "https:": {
           const response = await fetch(id);
           return await response.text();
         }

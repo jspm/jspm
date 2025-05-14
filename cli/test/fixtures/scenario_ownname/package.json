@@ -2,6 +2,6 @@
   "name": "app",
   "exports": "./app.js",
   "dependencies": {
-    "es-module-lexer": "^1"
+    "es-module-lexer": "~1.6"
   }
 }

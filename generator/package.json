@@ -50,7 +50,10 @@
     "@jspm/import-map": "^1.1.0",
     "es-module-lexer": "^1.5.4",
     "make-fetch-happen": "^8.0.14",
-    "sver": "^1.8.4"
+    "minimatch": "^10.0.1",
+    "pako": "^2.1.0",
+    "sver": "^1.8.4",
+    "tar-stream": "^3.1.6"
   },
   "devDependencies": {
     "@jspm/core": "^2.0.1",

@@ -189,7 +189,7 @@ deps = [
 ]
 watch-invalidation = 'skip-running'
 invalidation = 'always'
-run = 'prettier --cache --cache-strategy metadata --loglevel warn --ignore-path .prettierignore --write "src/**/*.ts" "test/**/*.js"'
+run = '../node_modules/.bin/prettier --cache --cache-strategy metadata --loglevel warn --ignore-path .prettierignore --write "src/**/*.ts" "test/**/*.js"'
 
 [[task]]
 name = 'typecheck'

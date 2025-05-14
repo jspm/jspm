@@ -1,0 +1,7 @@
+{
+  "name": "deploy-package",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Test package for JSPM deploy",
+  "main": "index.js"
+}

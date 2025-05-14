@@ -52,6 +52,7 @@ jobs:
       - run: npm run -ws build
       - run: chomp -c generator test:browser
         env:
+          JSPM_AUTH_TOKEN: ${{ secrets.JSPM_TOKEN }}
           CI_BROWSER: C:\Program Files\Firefox_${{ matrix.firefox }}\firefox.exe
           CI_BROWSER_FLAGS: -headless
           CI_BROWSER_FLUSH: taskkill /F /IM firefox.exe
@@ -82,3 +83,5 @@ jobs:
     - run: npm install
     - run: npm run -ws build
     - run: chomp -c generator test
+      env:
+        JSPM_AUTH_TOKEN: ${{ secrets.JSPM_TOKEN }}

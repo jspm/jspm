@@ -7,7 +7,8 @@ import ora from "ora";
 import c from "picocolors";
 import { withType } from "./logger.ts";
 import { loadConfig } from "./config.ts";
-import type { Flags, IImportMapJspm } from "./types.ts";
+import type { IImportMapJspm } from "./types.ts";
+import type { GenerateFlags, GenerateOutputFlags } from "./cli.ts";
 
 // Default import map to use if none is provided:
 const defaultMapPath = "importmap.json";
@@ -69,10 +70,11 @@ export function wrapCommand(fn: Function) {
       process.exitCode = 1;
       if (e instanceof JspmError || e?.jspmError) {
         console.error(`${c.red("Error:")} ${e.message}\n`);
-        return;
+        return false;
       }
       throw e;
     }
+    return true;
   };
 }
 
@@ -80,7 +82,7 @@ export async function writeOutput(
   generator: Generator,
   pins: string[] | null,
   env: string[],
-  flags: Flags,
+  flags: GenerateOutputFlags,
   silent = false
 ) {
   if (flags.stdout) return writeStdoutOutput(generator, pins, silent);
@@ -110,7 +112,7 @@ async function writeHtmlOutput(
   generator: Generator,
   pins: string[] | null,
   env: string[],
-  flags: Flags,
+  flags: GenerateOutputFlags,
   silent = false
 ) {
   // Don't write an output file without permission:
@@ -159,7 +161,7 @@ async function writeJsonOutput(
   generator: Generator,
   pins: string[] | null,
   env: string[],
-  flags: Flags,
+  flags: GenerateOutputFlags,
   silent = false
 ) {
   const log = withType("utils/writeJsonOutput");
@@ -172,8 +174,7 @@ async function writeJsonOutput(
     log(`Extracting full map`);
     map = generator.getMap();
   }
-  if (!flags.stripEnv)
-    map = { env, ...map };
+  if (!flags.stripEnv) map = { env, ...map };
   log(`${JSON.stringify(map, null, 2)}`);
 
   // Don't write an output file without permission:
@@ -204,8 +205,8 @@ async function writeJsonOutput(
 }
 
 export async function getGenerator(
-  flags: Flags,
-  setEnv = true
+  flags: GenerateFlags & GenerateOutputFlags,
+  configOverride: any = null
 ): Promise<Generator> {
   const log = withType("utils/getGenerator");
   const mapUrl = getOutputMapUrl(flags);
@@ -214,32 +215,43 @@ export async function getGenerator(
   log(
     `Creating generator with mapUrl ${mapUrl}, baseUrl ${baseUrl}, rootUrl ${rootUrl}`
   );
-  
+
   // Load configuration
   const config = await loadConfig();
-  log(`Loaded config with ${config.providers ? Object.keys(config.providers).length : 0} provider configurations`);
-  
+  log(
+    `Loaded config with ${
+      config.providers ? Object.keys(config.providers).length : 0
+    } provider configurations`
+  );
+
   // CLI flags take precedence over config file
   const defaultProvider = getProvider(flags) || config.defaultProvider;
-  
-  return new Generator({
-    mapUrl,
-    baseUrl,
-    rootUrl,
-    inputMap: await getInputMap(flags),
-    env: setEnv ? await getEnv(flags) : undefined,
-    defaultProvider,
-    resolutions: getResolutions(flags),
-    cache: getCacheMode(flags),
-    integrity: flags.integrity,
-    commonJS: true, // TODO: only for --local flag
-    // Pass provider configs from configuration file
-    providerConfig: config.providers
-  });
+
+  return new Generator(
+    Object.assign(
+      {
+        mapUrl,
+        baseUrl,
+        rootUrl,
+        inputMap: await getInputMap(flags),
+        env: await getEnv(flags),
+        flattenScopes: flags.flattenScopes,
+        combineSubpaths: flags.combineSubpaths,
+        defaultProvider,
+        resolutions: getResolutions(flags),
+        cache: getCacheMode(flags),
+        integrity: flags.integrity,
+        commonJS: true, // TODO: only for --local flag
+        // Pass provider configs from configuration file
+        providerConfig: config.providers,
+      },
+      configOverride
+    )
+  );
 }
 
 export async function getInput(
-  flags: Flags,
+  flags: GenerateFlags,
   fallbackDefaultMap = defaultMapPath
 ): Promise<string | undefined> {
   const mapFile = getInputPath(flags, fallbackDefaultMap);
@@ -252,7 +264,7 @@ export async function getInput(
   return fs.readFile(mapFile, "utf-8");
 }
 
-async function getInputMap(flags: Flags): Promise<IImportMapJspm> {
+async function getInputMap(flags: GenerateFlags): Promise<IImportMapJspm> {
   let inputMap;
 
   const input = await getInput(flags);
@@ -278,7 +290,7 @@ async function getInputMap(flags: Flags): Promise<IImportMapJspm> {
 }
 
 export function getInputPath(
-  flags: Flags,
+  flags: GenerateFlags,
   fallbackDefaultMap = defaultMapPath
 ): string {
   return path.resolve(
@@ -287,18 +299,18 @@ export function getInputPath(
   );
 }
 
-export function getOutputPath(flags: Flags): string | undefined {
+export function getOutputPath(flags: GenerateOutputFlags): string {
   return path.resolve(
     process.cwd(),
     flags.output || flags.map || defaultMapPath
   );
 }
 
-function getOutputMapUrl(flags: Flags): URL {
+function getOutputMapUrl(flags: GenerateOutputFlags): URL {
   return pathToFileURL(getOutputPath(flags));
 }
 
-function getRootUrl(flags: Flags): URL {
+function getRootUrl(flags: GenerateOutputFlags): URL | undefined {
   if (!flags?.root) return undefined;
   return pathToFileURL(path.resolve(process.cwd(), flags.root));
 }
@@ -331,7 +343,7 @@ function addEnvs(env: string[], newEnvs: string[]) {
   return env.sort();
 }
 
-export async function getEnv(flags: Flags) {
+export async function getEnv(flags: GenerateFlags) {
   const inputMap = await getInputMap(flags);
   const envFlags = Array.isArray(flags?.env)
     ? flags.env
@@ -352,14 +364,16 @@ export async function getEnv(flags: Flags) {
   return removeNonStaticEnvKeys(env);
 }
 
-function getProvider(flags: Flags): (typeof availableProviders)[number] {
+function getProvider(
+  flags: GenerateFlags
+): (typeof availableProviders)[number] {
   if (flags.provider && !availableProviders.includes(flags.provider))
     throw new JspmError(
       `Invalid provider "${
         flags.provider
       }". Available providers are: "${availableProviders.join('", "')}".`
     );
-  return flags.provider;
+  return flags.provider!;
 }
 
 function removeNonStaticEnvKeys(env: string[]) {
@@ -368,7 +382,9 @@ function removeNonStaticEnvKeys(env: string[]) {
   );
 }
 
-function getResolutions(flags: Flags): Record<string, string> {
+function getResolutions(
+  flags: GenerateFlags
+): Record<string, string> | undefined {
   if (!flags.resolution) return;
   const resolutions = Array.isArray(flags.resolution)
     ? flags.resolution
@@ -389,7 +405,7 @@ function getResolutions(flags: Flags): Record<string, string> {
 }
 
 const validCacheModes = ["online", "offline", "no-cache"];
-function getCacheMode(flags: Flags): "offline" | boolean {
+function getCacheMode(flags: GenerateFlags): "offline" | boolean {
   if (!flags.cache) return true;
   if (!validCacheModes.includes(flags.cache))
     throw new JspmError(
@@ -410,7 +426,7 @@ function getCacheMode(flags: Flags): "offline" | boolean {
 }
 
 const validPreloadModes = ["static", "dynamic"];
-function getPreloadMode(flags: Flags): boolean | "static" | "all" {
+function getPreloadMode(flags: GenerateFlags): boolean | "static" | "all" {
   if (flags.preload === null || flags.preload === undefined) return false;
   if (typeof flags.preload === "boolean") {
     return flags.preload;
@@ -485,7 +501,6 @@ export function parsePackageSpec(pkgTarget: string): string {
  * Returns true if the given specifier is a relative URL or a URL.
  */
 export function isUrlLikeNotPackage(spec: string): boolean {
-  if (spec.endsWith("/")) return false;
   if (spec.startsWith("./") || spec.startsWith("../") || spec.startsWith("/"))
     return true;
   try {

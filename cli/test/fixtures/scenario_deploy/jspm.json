@@ -1,0 +1,14 @@
+{
+  "ignore": [
+    "node_modules",
+    ".git",
+    "dist",
+    "temp.txt"
+  ],
+  "include": [
+    "src",
+    "index.js",
+    "package.json",
+    "README.md"
+  ]
+}

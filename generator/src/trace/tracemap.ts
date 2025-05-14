@@ -31,6 +31,7 @@ import {
   mergeConstraints,
   mergeLocks,
   extractLockConstraintsAndMap,
+  InstalledResolution,
 } from "../install/lock.js";
 
 // TODO: options as trace-specific / stored as top-level per top-level load
@@ -362,8 +363,8 @@ export default class TraceMap {
     name: string,
     target: InstallTarget,
     opts: InstallMode
-  ): Promise<void> {
-    await this.installer.installTarget(
+  ): Promise<InstalledResolution> {
+    return await this.installer.installTarget(
       name,
       target,
       null,
@@ -373,9 +374,6 @@ export default class TraceMap {
     );
   }
 
-  /**
-   * @returns `resolved` - either a URL `string` pointing to the module or `null` if the specifier should be ignored.
-   */
   async resolve(
     specifier: string,
     parentUrl: string,
@@ -422,10 +420,14 @@ export default class TraceMap {
         finalized = urlResolved;
       }
       if (finalized !== resolvedHref) {
-        this.inputMap.set(
-          resolvedHref.endsWith("/") ? resolvedHref.slice(0, -1) : resolvedHref,
-          finalized
-        );
+        // unless it is a package resolve operation
+        if (!finalized.endsWith("/"))
+          this.inputMap.set(
+            resolvedHref.endsWith("/")
+              ? resolvedHref.slice(0, -1)
+              : resolvedHref,
+            finalized
+          );
         resolvedUrl = new URL(finalized);
       }
       this.log(

@@ -291,7 +291,7 @@ async function startWatchMode(
   let lastDeployTime = 0;
   const fileMTimes = new Map<string, number>();
 
-  let packageUrl, mapUrl, codeSnippet;
+  let packageUrl, codeSnippet;
   let forcedRedeploy = false;
   let lastRunWasError = false;
   let waiting = false;
@@ -332,7 +332,7 @@ async function startWatchMode(
         break;
       case "l":
         if (packageUrl)
-          open(packageUrl.endsWith("/") ? packageUrl : packageUrl + "/");
+          open(packageUrl.endsWith("/") ? packageUrl : `${packageUrl  }/`);
         break;
       case "r":
         forcedRedeploy = true;
@@ -410,7 +410,7 @@ async function startWatchMode(
           );
         }
         forcedRedeploy = false;
-        ({ packageUrl, mapUrl, codeSnippet } = await deployOnce(
+        ({ packageUrl, codeSnippet } = await deployOnce(
           name,
           version,
           directory,

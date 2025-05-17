@@ -39,16 +39,16 @@ import { loadConfig } from "./config.ts";
 function showShortcuts(directory?: string) {
   console.log(`${c.magenta(c.bold("\nKeyboard shortcuts:"))}
  → ${c.bold(c.bgBlueBright(c.whiteBright(" o ")))} ${c.dim(
-    "Open preview URL in the browser"
+    "Open package URL in the browser"
+  )}
+ → ${c.bold(c.bgBlueBright(c.whiteBright(" l ")))} ${c.dim(
+    "Open package listing page in the browser"
   )}
  → ${c.bold(c.bgBlueBright(c.whiteBright(" c ")))} ${c.dim(
     "Copy HTML usage script code snippet to clipboard"
   )}
  → ${c.bold(c.bgBlueBright(c.whiteBright(" p ")))} ${c.dim(
-    "Open package URL in the browser"
-  )}
- → ${c.bold(c.bgBlueBright(c.whiteBright(" i ")))} ${c.dim(
-    "Open package import map in the browser"
+    "Open self-contained preview URL in the browser"
   )}
  → ${c.bold(c.bgBlueBright(c.whiteBright(" r ")))} ${c.dim(
     "Force redeployment"
@@ -118,7 +118,7 @@ export async function eject(pkg: string, flags: EjectFlags = {}) {
   const version = pkg.slice(4 + name.length + 1);
 
   startSpinner(`Ejecting ${c.bold(pkg)}...`);
-  await generator.eject({ name, version, provider }, flags.dir);
+  await generator.eject({ name, version, provider }, flags.dir!);
   stopSpinner();
 
   startSpinner(`Merging deployment import map for ${c.bold(pkg)}...`);
@@ -326,11 +326,13 @@ async function startWatchMode(
       case "q":
         stopWatch();
         break;
-      case "p":
-        if (packageUrl) open(packageUrl);
+      case "o":
+        if (packageUrl)
+          open(packageUrl.endsWith("/") ? packageUrl.slice(0, -1) : packageUrl);
         break;
-      case "i":
-        if (mapUrl) open(mapUrl);
+      case "l":
+        if (packageUrl)
+          open(packageUrl.endsWith("/") ? packageUrl : packageUrl + "/");
         break;
       case "r":
         forcedRedeploy = true;
@@ -338,7 +340,7 @@ async function startWatchMode(
       case "c":
         if (codeSnippet) copyToClipboard(codeSnippet);
         break;
-      case "o":
+      case "p":
         if (codeSnippet)
           open(
             `data:text/html;base64,${Buffer.from(

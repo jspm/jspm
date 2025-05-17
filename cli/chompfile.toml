@@ -110,7 +110,7 @@ run = 'node jspm.js link ./test/fixtures/test.js --env=deno,node --strip-env'
 [[task]]
 name = 'deno:test'
 dep = 'link:test'
-run = 'deno run --importmap importmap.json -A ./test/fixtures/test.js'
+run = 'deno run -A ./test/fixtures/test.js'
 
 [[task]]
 name = 'test'

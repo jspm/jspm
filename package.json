@@ -1,6 +1,5 @@
 {
   "workspaces": [
-    "create-app",
     "import-map",
     "generator",
     "cli"

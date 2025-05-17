@@ -7,7 +7,7 @@ test("Swapping providers with a reinstall", async () => {
   // Scenario that checks we can swap providers with a reinstall:
   await run({
     files: await mapDirectory("fixtures/scenario_provider_swap"),
-    commands: [`jspm install --provider nodemodules`],
+    commands: [`jspm link -m importmap.json --provider nodemodules`],
     validationFn: async (files) => {
       const map = files.get("importmap.json");
       assert(!!map);
@@ -40,33 +40,35 @@ for (const provider of availableProviders) {
   }
 
   test(`Using provider: ${provider}`, async () => {
-    let spec = "lit";
     let name = "lit";
-    // TODO: Disabled pending JSR support
-    // if (provider.includes("deno")) {
-    //   // oak is using jsr. We need to add support for jsr registry and imort protocol
-    //   // https://github.com/jspm/generator/issues/366
-    //   // spec = "denoland:oak/body.ts"; // deno doesn't support npm packages
-    //   // name = "oak/body.ts";
-    //   spec = "denoland:zod";
-    //   name = "zod";
-    // }
     if (provider === "node") {
-      spec = "@jspm/core/nodelibs/fs"; // node provider is only for polyfills
       name = "@jspm/core/nodelibs/fs";
     }
     if (provider === "nodemodules") {
-      spec = "lit"; // must be installed in the fixture
       name = "lit";
     }
 
     const files = await mapDirectory("fixtures/scenario_providers");
+
+    // Setup a package.json with appropriate exports and dependencies for testing
+    const pjson = JSON.parse(files.get("package.json") || "{}");
+    if (!pjson.name) pjson.name = "test-project";
+    if (!pjson.exports) pjson.exports = { "./index.js": "./index.js" };
+    if (!pjson.dependencies) pjson.dependencies = {};
+    pjson.dependencies[name] = "*";
+    files.set("package.json", JSON.stringify(pjson, null, 2));
+
+    // Add a test file that imports the module
+    files.set("index.js", `import "${name}";\nexport default {};`);
+
     await run({
       files,
-      commands: [`jspm install ${spec} -p ${provider} -e production`],
+      commands: [
+        `jspm install ./fixtures/scenario_providers -p ${provider} -C production -m importmap.json`,
+      ],
       validationFn: async (files: Map<string, string>) => {
         const map = JSON.parse(files.get("importmap.json") ?? "{}");
-        assert(map?.imports?.[name]);
+        assert(map?.scopes?.["./"]?.[name]);
       },
     });
   });

@@ -1,8 +1,8 @@
-import type { Plugin } from "rollup";
 import fs from "node:fs/promises";
+import type { Plugin } from "rollup";
 import { fetch } from "@jspm/generator";
 import type { Flags } from "../types.ts";
-import { getGenerator, JspmError } from "../utils.ts";
+import { JspmError, getGenerator } from "../utils.ts";
 
 const isValidUrl = (url: string) => {
   try {
@@ -19,7 +19,7 @@ export const RollupImportmapPlugin = async (flags: Flags): Promise<Plugin> => {
     to resolve any dependencies.
   */
   const generator = await getGenerator({ ...flags });
-  await generator.reinstall();
+  await generator.install();
 
   return {
     name: "rollup-importmap-plugin",

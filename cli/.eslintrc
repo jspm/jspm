@@ -3,13 +3,14 @@
     "@antfu",
     "prettier"
   ],
-  "ignorePatterns": ["**/*importmap*", "generator/**"],
+  "ignorePatterns": ["sandbox/**", "dist/**", "lib/**"],
   "rules": {
     "no-console": "off",
     "no-cond-assign": "off",
     "antfu/if-newline": "off",
     "no-control-regex": "off",
     "unicorn/escape-case": "off",
-    "no-regex-spaces": "off"
+    "no-regex-spaces": "off",
+    "@typescript-eslint/no-use-before-define": "off"
   }
 }

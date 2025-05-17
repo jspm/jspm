@@ -20,12 +20,40 @@ run = 'chomp -c ../generator'
 name = 'build'
 deps = [
     'dist/cli.js',
+    'dist/jspm.js',
     'docs.md',
     'generator'
 ]
 
 [[task]]
+target = 'dist/jspm.js'
+dep = 'jspm.js'
+engine = 'node'
+run = '''
+import { readFileSync, writeFileSync } from 'node:fs';
+const source = readFileSync(process.env.DEP, 'utf8').replace('./src/cli.ts', './cli.js');
+writeFileSync(process.env.TARGET, source);
+'''
+
+[[task]]
 target = 'dist/cli.js'
+dep = 'lib/cli.js'
+engine = 'node'
+run = '''
+import { readFileSync, writeFileSync } from 'node:fs';
+
+const input = readFileSync(process.env.DEP, 'utf8')
+
+const output = `import $__util from 'node:util';
+import $__buffer from 'node:buffer';
+` + input
+    .replace('__require("util")', '$__util')
+    .replace('__require("node:buffer")', '$__buffer')
+writeFileSync(process.env.TARGET, output);
+'''
+
+[[task]]
+target = 'lib/cli.js'
 deps = [
     'src/**/*.ts',
     'npm:install',
@@ -92,4 +120,4 @@ dep = 'test:'
 name = 'test:##'
 deps = ['test/##.test.ts', 'dist/cli.js', 'generator']
 serial = true
-run = 'node --experimental-strip-types --test $DEP'
+run = 'node --no-warnings --experimental-strip-types --test $DEP'

@@ -1,3 +1,4 @@
+import { pathToFileURL } from "node:url";
 import c from "picocolors";
 import { withType } from "./logger.ts";
 import type { GenerateOutputFlags } from "./cli.ts";
@@ -5,82 +6,60 @@ import {
   JspmError,
   getEnv,
   getGenerator,
-  getInput,
-  isUrlLikeNotPackage,
+  getInputMap,
   startSpinner,
   stopSpinner,
   writeOutput,
 } from "./utils.ts";
+import type { IImportMap } from "./types.ts";
+import { initProject } from "./init.ts";
 
-export default async function install(
-  packages: string[],
-  flags: GenerateOutputFlags
-) {
+export default async function install(flags: GenerateOutputFlags): Promise<{
+  staticDeps: string[];
+  dynamicDeps: string[];
+  map: IImportMap | undefined;
+} | null> {
   const log = withType("install/install");
-
-  log(`Installing packages: ${packages.join(", ")}`);
   log(`Flags: ${JSON.stringify(flags)}`);
 
-  const isInstallable = (p) => !isUrlLikeNotPackage(p.target);
-  const parsedPackages = packages.map((p) => {
-    if (!p.includes("=")) return { target: p };
-    const [alias, target] = p.split("=");
-    return { alias, target };
-  });
-
-  // Packages that can be installed by the generator:
-  const resolvedPackages = parsedPackages.filter(isInstallable);
-
-  // Packages that can be installed directly as URLs, see the issue:
-  // https://github.com/jspm/generator/issues/291
-  const urlLikePackages = parsedPackages.filter((p) => !isInstallable(p));
-
   const env = await getEnv(flags);
-  const input = await getInput(flags);
+  const input = await getInputMap(flags);
   const generator = await getGenerator(flags);
-  let pins: string[] = [];
-  if (input) {
-    pins = await generator.addMappings(input);
-  }
-  if (urlLikePackages?.length) {
-    const imports = {};
-    for (const { alias, target } of urlLikePackages) {
-      if (!alias)
-        throw new JspmError(
-          `URL-like target "${target}" must be given an alias to install under, such as "name=${target}".`
-        );
-
-      imports[alias] = target;
-    }
-
-    pins.push(...(await generator.addMappings(JSON.stringify({ imports }))));
-  }
 
   log(`Input map parsed: ${input}`);
 
-  // Install provided packages, or reinstall existing if none provided:
-  if (resolvedPackages.length) {
-    !flags.silent &&
-      startSpinner(
-        `Installing ${c.bold(
-          resolvedPackages.map((p) => p.alias || p.target).join(", ")
-        )}. (${env.join(", ")})`
-      );
-    await generator.install(resolvedPackages);
+  let staticDeps, dynamicDeps;
+
+  // Install the local package with exports
+  try {
+    // Initialize using the specified package directory or current directory
+    const projectConfig = await initProject(flags);
+
+    if (!flags.quiet) startSpinner(`Installing local package.json exports...`);
+
+    const packageUrl = pathToFileURL(`${projectConfig.projectPath}/`).href;
+    // Install the local package with subpaths option to trace all exports
+    ({ staticDeps, dynamicDeps } = await generator.install(
+      {
+        alias: projectConfig.name,
+        target: `${packageUrl}/`,
+        subpaths: true,
+      },
+      "freeze"
+    ));
+  } catch (e) {
+    if (e instanceof JspmError && !flags.quiet) {
+      console.warn(`${c.red("Warning:")} ${e.message}`);
+    } else {
+      throw e;
+    }
+    return null;
+  } finally {
     stopSpinner();
-  } else if (pins.length) {
-    !flags.silent && startSpinner(`Reinstalling all top-level imports.`);
-    await generator.install();
-    stopSpinner();
-  } else {
-    !flags.silent &&
-      console.warn(
-        `${c.red(
-          "Warning:"
-        )} Nothing to install, outputting an empty import map. Either provide a list of package to install, or a non-empty input file.`
-      );
   }
 
   // Installs always behave additively, and write all top-level pins:
-  return await writeOutput(generator, null, env, flags, flags.silent);
+  const map = await writeOutput(generator, null, env, flags, flags.quiet);
+
+  return { staticDeps, dynamicDeps, map };
 }

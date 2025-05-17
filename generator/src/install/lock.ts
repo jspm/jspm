@@ -497,10 +497,6 @@ export async function extractLockConstraintsAndMap(
           parsedTarget &&
           (await resolver.getExportResolution(pkgUrl, subpath, key));
 
-        // TODO: we don't handle trailing-slash mappings here at all, which
-        // leads to them sticking around in the import map as custom
-        // resolutions forever.
-
         if (exportSubpath) {
           // Imports resolutions that resolve as expected can be skipped
           if (key[0] === "#") continue;

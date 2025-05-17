@@ -1034,6 +1034,10 @@ export class Generator {
    * Install a package target into the import map, including all its dependency resolutions via tracing.
    *
    * @param install Package or list of packages to install into the import map.
+   * @param mode Install constraint mode.
+   *
+   * Passing no install list or an empty install list will reinsstall all top-level "imports" from the
+   * provided input import map.
    *
    * @example
    * ```js
@@ -1058,9 +1062,24 @@ export class Generator {
    * ```
    */
   async install(
-    install?: string | Install | (string | Install)[]
+    install: string | Install | (string | Install)[],
+    mode?: InstallMode
+  );
+  async install(mode?: InstallMode);
+  async install(
+    install?: string | Install | (string | Install)[] | InstallMode,
+    mode?: InstallMode
   ): Promise<void | { staticDeps: string[]; dynamicDeps: string[] }> {
-    return this._install(install);
+    if (
+      install === "default" ||
+      install === "latest-primaries" ||
+      install === "latest-all" ||
+      install === "freeze"
+    ) {
+      mode = install;
+      install = [];
+    }
+    return this._install(install, mode);
   }
 
   private async _install(
@@ -1148,6 +1167,10 @@ export class Generator {
             const pcfg = await this.traceMap.resolver.getPackageConfig(
               installed.installUrl
             );
+            // no entry point case
+            if (!pcfg.exports && !pcfg.main) {
+              return [];
+            }
             // main only
             if (
               !pcfg.exports ||
@@ -1216,15 +1239,10 @@ export class Generator {
   /**
    * Locking install, retraces all top-level pins but does not change the
    * versions of anything (similar to "npm ci").
+   * @deprecated use generator.install('freeze') instead.
    */
   async reinstall() {
-    await this.traceMap.processInputMap;
-    const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
-      this.traceMap.pins,
-      this.integrity
-    );
-    this.map = map;
-    return { staticDeps, dynamicDeps };
+    return this.install("freeze");
   }
 
   /**
@@ -1643,11 +1661,11 @@ export class Generator {
     const mergeGenerator = this.clone();
     mergeGenerator.flattenScopes = false;
     mergeGenerator.addMappings(map, mapUrl);
-    await mergeGenerator.reinstall();
+    await mergeGenerator.install("freeze");
     await this.addMappings(
       mergeGenerator.getMap(mergeGenerator.mapUrl, mergeGenerator.rootUrl)
     );
-    await this.reinstall();
+    await this.install("freeze");
   }
 
   /**

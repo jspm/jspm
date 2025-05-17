@@ -1,4 +1,4 @@
-import fs from "fs/promises";
+import { createWriteStream } from "node:fs";
 import os from "os";
 import c from "picocolors";
 
@@ -11,6 +11,7 @@ export type LogStream = () => AsyncGenerator<
 
 // Switch for checking if debug logging is on:
 export const logEnabled = !!process.env.JSPM_CLI_LOG;
+export const logToStdout = process.env.JSPM_CLI_LOG === "1";
 
 // Actual debug logger implementation:
 let _log: Log, _logStream: LogStream;
@@ -19,36 +20,58 @@ if (logEnabled) {
 
   try {
     let logPath;
-    if (
-      process.env.JSPM_CLI_LOG === "1" ||
-      process.env.JSPM_CLI_LOG?.toLowerCase() === "true"
-    ) {
-      logPath = `${os.tmpdir()}/jspm-${new Date()
-        .toISOString()
-        .slice(0, 19)}.log`;
-    } else {
-      logPath = process.env.JSPM_CLI_LOG;
-    }
+    let logFileStream = null;
 
-    const logWriter = async (msg: string) =>
-      await fs.writeFile(logPath, msg, {
-        encoding: "utf-8",
-        flag: "a+",
+    if (logToStdout) {
+      // If JSPM_CLI_LOG=1, log to stdout
+      console.log(c.red(`Debug logging enabled - outputting to stdout`));
+    } else {
+      // Otherwise, log to file
+      if (
+        process.env.JSPM_CLI_LOG === "true" ||
+        process.env.JSPM_CLI_LOG?.toLowerCase() === "true"
+      ) {
+        logPath = `${os.tmpdir()}/jspm-${new Date()
+          .toISOString()
+          .slice(0, 19)}.log`;
+      } else {
+        logPath = process.env.JSPM_CLI_LOG;
+      }
+
+      // Use a write stream instead of fs.writeFile for better performance and auto-flushing
+      logFileStream = createWriteStream(logPath, {
+        flags: "a",
+        encoding: "utf8",
         mode: 0o666,
       });
 
+      console.log(c.red(`Debug logging enabled - writing to ${logPath}`));
+    }
+
     (async () => {
-      console.log(c.red(`Creating debug logger at ${logPath}`));
-      await logWriter(""); // touch
+      if (logFileStream) {
+        // Write header to the log file
+        logFileStream.write(
+          `JSPM CLI Log started at ${new Date().toISOString()}\n\n`
+        );
+      }
 
       for await (const { type, message } of _logStream()) {
         const time = new Date().toISOString().slice(11, 23);
-        const prefix = c.bold(`${time} ${type}:`);
-        await logWriter(`${prefix} ${message}\n`);
+        const formattedMessage = `${time} ${type}: ${message}\n`;
+
+        if (logToStdout) {
+          // Log to stdout
+          const prefix = c.bold(`${time} ${type}:`);
+          console.log(`${prefix} ${message}`);
+        } else if (logFileStream) {
+          // Log to file
+          logFileStream.write(formattedMessage);
+        }
       }
     })();
   } catch (e) {
-    console.log(c.red(`Failed to create debug logger: ${e.message}`));
+    console.error(c.red(`Failed to create debug logger: ${e.message}`));
   }
 }
 

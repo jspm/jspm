@@ -2,18 +2,13 @@ import { test } from "node:test";
 import assert from "assert";
 import { mapFile, run } from "./scenarios.ts";
 
-let importMap: Map<string, string>;
-let packageJson: Map<string, string>;
-
-test("setup", async () => {
-  importMap = await mapFile("fixtures/importmap.json");
-  packageJson = await mapFile("fixtures/package.json");
-});
+const importMap = await mapFile("fixtures/importmap.js");
+const packageJson = await mapFile("fixtures/package.json");
 
 test("Basic upgrade to latest react version", async () => {
   await run({
     files: importMap,
-    commands: ["jspm update react"],
+    commands: ["jspm update react -o importmap.json"],
     validationFn: async (files: Map<string, string>) => {
       const map = JSON.parse(files.get("importmap.json")!);
       assert(map.imports.react);
@@ -28,7 +23,7 @@ test("Basic upgrade to latest react version", async () => {
 test("Basic upgrade without parameters should upgrade all", async () => {
   await run({
     files: importMap,
-    commands: ["jspm update"],
+    commands: ["jspm update -o importmap.json"],
     validationFn: async (files: Map<string, string>) => {
       const map = JSON.parse(files.get("importmap.json")!);
       assert(map.imports.react);
@@ -43,7 +38,7 @@ test("Basic upgrade without parameters should upgrade all", async () => {
 test("Upgrade should use version from package.json", async () => {
   await run({
     files: new Map([...importMap, ...packageJson]),
-    commands: ["jspm update react -e development"],
+    commands: ["jspm update react -C development -o importmap.json"],
     validationFn: async (files: Map<string, string>) => {
       const map = JSON.parse(files.get("importmap.json")!);
       assert(map.imports.react);

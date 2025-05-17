@@ -69,7 +69,7 @@ async function getConfig(key: string, flags: ConfigFlags): Promise<void> {
   const value = getConfigValue(config, key);
 
   if (value === undefined) {
-    if (!flags.silent) {
+    if (!flags.quiet) {
       console.log(
         `${c.yellow("Warning:")} Configuration key '${key}' is not set.`
       );
@@ -81,7 +81,7 @@ async function getConfig(key: string, flags: ConfigFlags): Promise<void> {
   const displayValue =
     typeof value === "object" ? JSON.stringify(value, null, 2) : String(value);
 
-  if (!flags.silent) {
+  if (!flags.quiet) {
     console.log(displayValue);
   }
 }
@@ -111,7 +111,7 @@ async function setConfig(
   try {
     await updateConfig(updates, scope);
 
-    if (!flags.silent) {
+    if (!flags.quiet) {
       console.log(
         `${c.green("Ok:")} Set ${scope} config ${c.cyan(key)} to ${
           typeof parsedValue === "object"
@@ -137,7 +137,7 @@ async function deleteConfig(
 
   // Check if the key exists
   if (getConfigValue(config, key) === undefined) {
-    if (!flags.silent) {
+    if (!flags.quiet) {
       console.log(
         `${c.yellow("Warning:")} Configuration key '${key}' does not exist.`
       );
@@ -152,7 +152,7 @@ async function deleteConfig(
   try {
     await saveConfig(config, scope);
 
-    if (!flags.silent) {
+    if (!flags.quiet) {
       console.log(
         `${c.green("Ok:")} Deleted ${scope} config key ${c.cyan(key)}`
       );
@@ -169,13 +169,13 @@ async function listConfig(flags: ConfigFlags): Promise<void> {
   const config = await loadConfig();
 
   if (Object.keys(config).length === 0) {
-    if (!flags.silent) {
+    if (!flags.quiet) {
       console.log(`No configuration values set.`);
     }
     return;
   }
 
-  if (!flags.silent) {
+  if (!flags.quiet) {
     console.log(JSON.stringify(config, null, 2));
   }
 }
@@ -229,6 +229,7 @@ function parseKeyParts(key: string): string[] {
  * Helper to get a nested configuration value using dot notation
  */
 function getConfigValue(config: any, key: string): any {
+  if (key.trim() === "") throw new JspmError(`No key provided to get`);
   const parts = parseKeyParts(key);
   let current = config;
 

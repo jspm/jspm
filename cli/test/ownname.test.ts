@@ -2,23 +2,21 @@ import { test } from "node:test";
 import assert from "assert";
 import { mapDirectory, run } from "./scenarios.ts";
 
-let filesOwnName: Map<string, string>;
+const filesOwnName = await mapDirectory("fixtures/scenario_ownname");
 
-test("setup", async () => {
-  filesOwnName = await mapDirectory("fixtures/scenario_ownname");
-});
-
-test("Installing own-name package should upgrade transitive dependencies", async () => {
+test("Linking own-name package should not upgrade transitive dependencies", async () => {
   await run({
     files: filesOwnName,
-    commands: ["jspm install app"],
+    commands: ["jspm link app -o importmap.json"],
     validationFn: async (files: Map<string, string>) => {
-      // Installing the own-name package "app" should result in the version of
+      // Linking the own-name package "app" should not result in the version of
       // es-module-lexer in the import map being upgraded to 1.6.0, since it's a
       // transitive dependency of "./app.js".
       const map = JSON.parse(files.get("importmap.json")!);
       assert(
-        map?.imports?.["es-module-lexer"]?.includes("es-module-lexer@1.6.0")
+        map?.scopes?.["./"]?.["es-module-lexer"]?.includes(
+          "es-module-lexer@0.10.5"
+        )
       );
     },
   });

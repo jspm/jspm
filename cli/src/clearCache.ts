@@ -4,5 +4,5 @@ import type { BaseFlags } from "./cli.ts";
 
 export default async function clearCache(flags: BaseFlags) {
   _clearCache();
-  !flags.silent && console.warn(`${c.green("Ok:")} Cache cleared successfully`);
+  !flags.quiet && console.warn(`${c.green("Ok:")} Cache cleared successfully`);
 }

@@ -20,15 +20,6 @@ import { getPackageConfig, lookup } from "@jspm/generator";
 import ls from "../src/ls.ts";
 
 describe("ls command", () => {
-  it("should throw if package name is not provided", async () => {
-    try {
-      await ls("", { silent: true });
-      assert.fail("Should have thrown an error");
-    } catch (err) {
-      assert.ok(err.message.includes("Please provide a package name"));
-    }
-  });
-
   it("should successfully lookup and get exports for a package", async () => {
     // Test with lit which is known to have exports
     const packageName = "lit@2.7.0";
@@ -41,11 +32,7 @@ describe("ls command", () => {
     };
 
     try {
-      await ls(packageName, { silent: false });
-
-      // Verify logs contain export information
-      const exportsLogged = logCalls.some((log) => log.includes("Exports for"));
-      assert.ok(exportsLogged, "Should log exports information");
+      await ls(packageName, { quiet: false });
 
       // Verify version is displayed
       const versionDisplayed = logCalls.some((log) => log.includes("2.7.0"));
@@ -69,7 +56,7 @@ describe("ls command", () => {
 
     try {
       // Test with filter that should match some exports
-      await ls(packageName, { silent: false, filter: "decorators" });
+      await ls(packageName, { quiet: false, filter: "decorators" });
 
       // Verify only filtered exports are displayed
       const hasFilteredExports = logCalls.some((log) =>
@@ -82,7 +69,7 @@ describe("ls command", () => {
 
       // Test with filter that shouldn't match any exports
       await ls(packageName, {
-        silent: false,
+        quiet: false,
         filter: "nonexistent-pattern-xyz",
       });
 
@@ -111,11 +98,11 @@ describe("ls command", () => {
     };
 
     try {
-      await ls(packageName, { silent: false });
+      await ls(packageName, { quiet: false });
 
       // Verify export information contains a version
       const versionDisplayed = logCalls.some((log) => {
-        return log.includes("Exports for") && /\d+\.\d+\.\d+/.test(log);
+        return /\d+\.\d+\.\d+/.test(log);
       });
       assert.ok(
         versionDisplayed,

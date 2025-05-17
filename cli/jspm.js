@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import c from "picocolors";
-import { cli } from './dist/cli.js';
+import { cli } from './src/cli.ts';
 
 try {
   cli.parse();

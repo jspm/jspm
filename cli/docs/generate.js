@@ -1,6 +1,6 @@
 import { cli } from '../dist/cli.js';
 
-const commands = ['link', 'install', 'uninstall', 'update', 'clear-cache', 'config', 'build', 'deploy', 'provider', 'serve', 'ls'];
+const commands = ['init', 'ls', 'install', 'serve', 'build', 'deploy', 'auth', 'clear-cache'];
 
 for (const command of commands) {
   console.log(`## ${command}`);

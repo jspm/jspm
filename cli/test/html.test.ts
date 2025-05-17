@@ -2,11 +2,7 @@ import { test } from "node:test";
 import assert from "assert";
 import { mapFile, run } from "./scenarios.ts";
 
-let importMap: Map<string, string>;
-
-test("setup", async () => {
-  importMap = await mapFile("fixtures/importmap.json");
-});
+const importMap = await mapFile("fixtures/importmap.js");
 
 test("linking inline modules in HTML", async () => {
   await run({
@@ -75,7 +71,9 @@ test("linking with static preload", async () => {
 test("installing with preload and integrity", async () => {
   await run({
     files: importMap,
-    commands: ["jspm install react -o index.html --preload --integrity"],
+    commands: [
+      "jspm install react -o index.html --preload --integrity -C production",
+    ],
     validationFn: async (files: Map<string, string>) => {
       // The index.html should contain all the pins, and integrities for them:
       // NOTE: this will break if we change the CDN build!

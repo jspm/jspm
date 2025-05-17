@@ -2,16 +2,12 @@ import { test } from "node:test";
 import assert from "assert";
 import { mapDirectory, run } from "./scenarios.ts";
 
-let filesRoot: Map<string, string>;
-
-test("setup", async () => {
-  filesRoot = await mapDirectory("fixtures/scenario_roots");
-});
+const filesRoot = await mapDirectory("fixtures/scenario_roots");
 
 test("rootURL = /, mapURL = /importmap.json", async () => {
   await run({
     files: filesRoot,
-    commands: ["jspm install roots"],
+    commands: ["jspm install roots -o importmap.json"],
     validationFn: async (files: Map<string, string>) => {
       const map = JSON.parse(files.get("importmap.json")!);
       assert.strictEqual(map.imports.roots, "./a/b/index.js");

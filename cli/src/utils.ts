@@ -1,20 +1,41 @@
 import fs from "node:fs/promises";
-import { accessSync, existsSync, unlinkSync, writeFileSync } from "node:fs";
-import path, { join } from "node:path";
+import {
+  accessSync,
+  existsSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import path, { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { platform, tmpdir } from "node:os";
 import { execSync, spawn } from "node:child_process";
 import { Generator, analyzeHtml } from "@jspm/generator";
+import { SemverRange } from "sver";
 import ora from "ora";
 import c from "picocolors";
 import { minimatch } from "minimatch";
 import { withType } from "./logger.ts";
 import { loadConfig } from "./config.ts";
-import type { IImportMapJspm } from "./types.ts";
+import type { IImportMap, IImportMapJspm } from "./types.ts";
 import type { GenerateFlags, GenerateOutputFlags } from "./cli.ts";
 
 // Default import map to use if none is provided:
-const defaultMapPath = "importmap.json";
+const defaultMapPath = "importmap.js";
+
+export function cliHtmlHighlight(code: string) {
+  return code
+    .split("\n")
+    .map((l) => {
+      if (l.startsWith("<!--") && l.endsWith("-->")) return `  ${c.gray(l)}`;
+      if (l.startsWith("//")) return `  ${c.gray(l)}`;
+      l = l
+        .replace(/("[^"]*")/g, (s) => c.red(s))
+        .replace(/\>?\<\/?script\>?/g, (s) => c.blue(s));
+      return `  ${l}`;
+    })
+    .join("\n");
+}
 
 export function isJsExtension(ext) {
   return (
@@ -34,12 +55,83 @@ const defaultHtmlTemplate = `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
-    <title>JSPM example</title>
     <script type="importmap"></script>
   </head>
   <body>
   </body>
 </html>`;
+
+// JavaScript wrapper to wrap import map injection
+export function isURL(url: string) {
+  try {
+    // eslint-disable-next-line no-new
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function relativeUrlLike(value: string) {
+  return (
+    value.startsWith("./") || value.startsWith("../") || value.startsWith("/")
+  );
+}
+export const jsTemplate = (map: IImportMap, compact: boolean) => {
+  const mapJson = compact ? JSON.stringify(map) : JSON.stringify(map, null, 2);
+  const importsRebase =
+    map.imports &&
+    (Object.keys(map.imports).some(relativeUrlLike) ||
+      Object.values(map.imports).some(relativeUrlLike));
+  const scopesRebase =
+    map.scopes &&
+    (Object.keys(map.scopes).some(relativeUrlLike) ||
+      Object.values(map.scopes).some(
+        (scope) =>
+          Object.keys(scope).some(relativeUrlLike) ||
+          Object.values(scope).some(relativeUrlLike)
+      ));
+  const integrityRebase =
+    map.integrity && Object.keys(map.integrity).some(relativeUrlLike);
+  const s = compact ? "" : " ";
+  const n = compact ? "" : "\n";
+  const m = compact ? "m" : "map";
+  const u = compact ? "u" : "mapUrl";
+  const r = compact ? "r" : "resolve";
+  const i = compact ? "i" : "imports";
+  const t = compact ? "" : "  ";
+  return `${
+    compact
+      ? ""
+      : `/** 
+* JSPM Import Map Injection Script
+* Include in any HTML page with <script src="importmap.js"></script>
+*/`
+  }${compact ? "" : "\n"}(${m}${s}=>${s}{${n}${t}${
+    importsRebase || scopesRebase || integrityRebase
+      ? `const ${u}${s}=${s}document.currentScript.src;${n}${t}const ${r}${s}=${s}${i}${s}=>${s}Object.fromEntries(Object.entries(${i}${s}).map(([k,${s}v])${s}=>${s}[k,${s}new URL(v,${s}${u}).href]));${n}${t}`
+      : ""
+  }document.head.appendChild(Object.assign(document.createElement("script"),${s}{${n}${t}${t}type:${s}"importmap",${n}${t}${t}innerHTML:${s}JSON.stringify({${n}${t}${t}${t}imports:${s}${
+    importsRebase ? `${r}(${m}.imports)` : `${m}.imports`
+  }${map.scopes || map.integrity ? `,${n}` : ""}${
+    map.scopes
+      ? `${t}${t}${t}scopes:${s}${
+          scopesRebase
+            ? `Object.fromEntries(Object.entries(${m}.scopes).map(([k,${s}v])${s}=>${s}[new URL(k,${s}${u}).href,${s}${r}(v)]))`
+            : `${m}.scopes`
+        }`
+      : ""
+  }${map.integrity ? `,${n}` : ""}${
+    map.integrity
+      ? `${t}${t}${t}integrity:${s}${
+          integrityRebase
+            ? `Object.fromEntries(Object.entries(${m}.integrity).map(([k,${s}v])${s}=>${s}[new URL(k,${s}${u}).href,${s}v]))${n}`
+            : `${m}.integrity`
+        }`
+      : ""
+  }${n}${t}${t}})${n}${t}}))${compact ? "" : ";"}${n}})
+(${mapJson});
+`;
+};
 
 // Providers that can be used to resolve dependencies:
 export const availableProviders = [
@@ -87,26 +179,25 @@ export async function writeOutput(
   env: string[],
   flags: GenerateOutputFlags,
   silent = false
-) {
-  if (flags.stdout) return writeStdoutOutput(generator, pins, silent);
+): Promise<IImportMap | undefined> {
+  if (flags.stdout) return writeStdoutOutput(generator, pins);
 
   const mapFile = getOutputPath(flags);
-  if (mapFile.endsWith(".html"))
+  if (mapFile.endsWith(".html")) {
     return writeHtmlOutput(mapFile, generator, pins, env, flags, silent);
+  } else if (mapFile.endsWith(".js")) {
+    return writeJsOutput(mapFile, generator, pins, env, flags, silent);
+  }
   return writeJsonOutput(mapFile, generator, pins, env, flags, silent);
 }
 
-async function writeStdoutOutput(
-  generator: Generator,
-  pins: string[] | null,
-  silent = false
-) {
+async function writeStdoutOutput(generator: Generator, pins: string[] | null) {
   let map: IImportMapJspm = pins?.length
     ? (await generator.extractMap(pins))?.map
     : generator.getMap();
   map = { ...map };
 
-  !silent && console.log(JSON.stringify(map, null, 2));
+  console.log(JSON.stringify(map, null, 2));
   return map;
 }
 
@@ -117,7 +208,7 @@ async function writeHtmlOutput(
   env: string[],
   flags: GenerateOutputFlags,
   silent = false
-) {
+): Promise<undefined> {
   // Don't write an output file without permission:
   if (!(await canWrite(mapFile)))
     throw new JspmError(
@@ -159,7 +250,7 @@ async function writeHtmlOutput(
   !silent && console.warn(`${c.green("Ok:")} Updated ${c.cyan(mapFileRel)}`);
 }
 
-async function writeJsonOutput(
+async function writeJsOutput(
   mapFile: string,
   generator: Generator,
   pins: string[] | null,
@@ -167,6 +258,48 @@ async function writeJsonOutput(
   flags: GenerateOutputFlags,
   silent = false
 ) {
+  const log = withType("utils/writeJsOutput");
+
+  // Get the map in the same way as writeJsonOutput
+  let map: IImportMapJspm;
+  if (pins?.length) {
+    log(`Extracting map for top-level pins: ${pins?.join(", ")}`);
+    map = (await generator.extractMap(pins))?.map;
+  } else {
+    log(`Extracting full map`);
+    map = generator.getMap();
+  }
+  log(`${JSON.stringify(map, null, 2)}`);
+
+  // Don't write an output file without permission:
+  if (!(await canWrite(mapFile)))
+    throw new JspmError(
+      `JSPM does not have permission to write to ${mapFile}.`
+    );
+
+  const jsWrapper = jsTemplate(map, flags.compact || false);
+
+  const existing = exists(mapFile);
+  await fs.writeFile(mapFile, jsWrapper);
+  const mapFileRel = path.relative(process.cwd(), mapFile);
+  !silent &&
+    console.warn(
+      `${c.green("Ok:")} ${existing ? "Updated" : "Created"} ${c.cyan(
+        mapFileRel
+      )} import map injection script`
+    );
+
+  return map;
+}
+
+async function writeJsonOutput(
+  mapFile: string,
+  generator: Generator,
+  pins: string[] | null,
+  env: string[],
+  flags: GenerateOutputFlags,
+  silent = false
+): Promise<IImportMap> {
   const log = withType("utils/writeJsonOutput");
 
   let map: IImportMapJspm;
@@ -252,60 +385,136 @@ export async function getGenerator(
   );
 }
 
-export async function getInput(
-  flags: GenerateFlags,
-  fallbackDefaultMap = defaultMapPath
-): Promise<string | undefined> {
-  const mapFile = getInputPath(flags, fallbackDefaultMap);
-  if (!exists(mapFile)) return undefined;
-  if (!canRead(mapFile)) {
-    if (mapFile === defaultMapPath) return undefined;
-    else
-      throw new JspmError(`JSPM does not have permission to read ${mapFile}.`);
+function findJsMap(
+  input: string,
+  mapPath: string
+): { map: IImportMap; range: [number, number] } {
+  try {
+    // Regex to find a JSON import map object in a JS file
+    const jspmMapRegex =
+      /({(?:\s*"env"\s*:\s*\[[^\]]*\],)?(?:\s*"imports"\s*:\s*{[^{}]*(?:{[^{}]*}[^{}]*)*})(?:\s*,\s*"scopes"\s*:\s*{[^{}]*(?:{[^{}]*}[^{}]*)*})?(?:\s*,\s*"integrity"\s*:\s*{[^{}]*})?(?:\s*,\s*"env"\s*:\s*\[[^\]]*\])?\s*})/;
+    const mapMatch = jspmMapRegex.exec(input);
+    if (mapMatch && mapMatch[1]) {
+      try {
+        try {
+          return {
+            map: JSON.parse(mapMatch[1]) as IImportMapJspm,
+            range: [mapMatch.index, mapMatch.index + mapMatch[1].length],
+          };
+        } catch (jsonError) {
+          throw new JspmError(
+            `Found a potential import map in JavaScript file, but it is not valid JSON: ${jsonError.message}`
+          );
+        }
+      } catch (jsonError) {
+        throw new JspmError(
+          `Found a potential import map in JavaScript file, but it must be valid JSON: ${jsonError.message}`
+        );
+      }
+    } else {
+      const objectIdx = input.lastIndexOf("{}");
+      if (objectIdx !== -1)
+        return {
+          map: {} as IImportMapJspm,
+          range: [objectIdx, objectIdx + 2],
+        };
+      throw new JspmError(
+        `Could not find a valid import map object in the JavaScript file "${mapPath}"`
+      );
+    }
+  } catch (jsError) {
+    throw new JspmError(
+      `Failed to extract import map from JavaScript file "${mapPath}": ${jsError.message}`
+    );
   }
-  return fs.readFile(mapFile, "utf-8");
 }
 
-async function getInputMap(flags: GenerateFlags): Promise<IImportMapJspm> {
-  let inputMap;
-
-  const input = await getInput(flags);
-  const mapUrl = getOutputMapUrl(flags);
-  if (input) {
-    try {
-      inputMap = JSON.parse(input) as IImportMapJspm;
-    } catch {
+export function readInputMap(
+  mapPath: string,
+  fallbackDefaultMap = defaultMapPath
+) {
+  let input;
+  if (exists(mapPath)) {
+    if (canRead(mapPath)) {
+      input = readFileSync(mapPath, "utf-8");
+    } else if (
+      mapPath !== resolve(defaultMapPath) &&
+      mapPath !== resolve(fallbackDefaultMap)
+    ) {
+      // Only throw permissions errorsfor non default paths
+      throw new JspmError(`JSPM does not have permission to read ${mapPath}.`);
+    }
+  }
+  if (!input) {
+    return {} as IImportMapJspm;
+  }
+  try {
+    // Direct JSON parsing for JSON files
+    return JSON.parse(input) as IImportMapJspm;
+  } catch {
+    // If this is a JavaScript file, try to extract import map using regex
+    if (
+      mapPath.endsWith(".js") ||
+      mapPath.endsWith(".ts") ||
+      mapPath.endsWith(".mjs") ||
+      mapPath.endsWith(".mts")
+    ) {
+      return findJsMap(input, mapPath).map;
+    } else {
       try {
-        const analysis = analyzeHtml(input, mapUrl);
-        inputMap = analysis.map;
-      } catch {
+        // Try to parse as HTML with import map
+        const analysis = analyzeHtml(input, pathToFileURL(mapPath));
+        return analysis.map?.json || ({} as IImportMapJspm);
+      } catch (e) {
         throw new JspmError(
-          `Input map "${getInputPath(
-            flags
-          )}" is neither a valid JSON or a HTML file containing an inline import map.`
+          `Input map "${mapPath}" is neither a valid JSON, HTML file containing an inline import map, nor a JavaScript file with an import map.`
         );
       }
     }
   }
+}
 
-  return (inputMap || {}) as IImportMapJspm;
+export function getInputMap(
+  flags: GenerateFlags,
+  fallbackDefaultMap = defaultMapPath
+): IImportMapJspm {
+  return readInputMap(
+    getInputPath(flags, fallbackDefaultMap),
+    fallbackDefaultMap
+  );
 }
 
 export function getInputPath(
   flags: GenerateFlags,
   fallbackDefaultMap = defaultMapPath
 ): string {
-  return path.resolve(
-    process.cwd(),
-    flags?.map || (exists(defaultMapPath) ? defaultMapPath : fallbackDefaultMap)
-  );
+  const mapPath = flags?.map;
+  if (mapPath) {
+    return resolve(mapPath);
+  }
+
+  // If importmap.json exists, use it
+  if (exists(defaultMapPath)) {
+    return resolve(defaultMapPath);
+  }
+
+  // Otherwise use the provided fallback
+  return resolve(fallbackDefaultMap);
 }
 
 export function getOutputPath(flags: GenerateOutputFlags): string {
-  return path.resolve(
-    process.cwd(),
-    flags.output || flags.map || defaultMapPath
-  );
+  // If output or map is specified, use that
+  if (flags.out || flags.map) {
+    return resolve(flags.out || (flags.map as string));
+  }
+
+  // If importmap.json exists, use that
+  if (exists(defaultMapPath)) {
+    return resolve(defaultMapPath);
+  }
+
+  // Default to importmap.json if nothing else is available
+  return resolve(defaultMapPath);
 }
 
 function getOutputMapUrl(flags: GenerateOutputFlags): URL {
@@ -314,7 +523,7 @@ function getOutputMapUrl(flags: GenerateOutputFlags): URL {
 
 function getRootUrl(flags: GenerateOutputFlags): URL | undefined {
   if (!flags?.root) return undefined;
-  return pathToFileURL(path.resolve(process.cwd(), flags.root));
+  return pathToFileURL(resolve(flags.root));
 }
 
 const excludeDefinitions = {
@@ -347,9 +556,9 @@ function addEnvs(env: string[], newEnvs: string[]) {
 
 export async function getEnv(flags: GenerateFlags) {
   const inputMap = await getInputMap(flags);
-  const envFlags = Array.isArray(flags?.env)
-    ? flags.env
-    : (flags.env || "")
+  const envFlags = Array.isArray(flags?.conditions)
+    ? flags.conditions
+    : (flags.conditions || "")
         .split(",")
         .map((e) => e.trim())
         .filter(Boolean);
@@ -470,6 +679,15 @@ export function exists(file: string) {
   }
 }
 
+export async function isDirectory(path: string): Promise<boolean> {
+  try {
+    const stats = await fs.stat(path);
+    return stats.isDirectory();
+  } catch (e) {
+    return false;
+  }
+}
+
 function canRead(file: string) {
   try {
     accessSync(file, (fs.constants || fs).R_OK);
@@ -485,31 +703,6 @@ function canWrite(file: string) {
     accessSync(file, (fs.constants || fs).W_OK);
     return true;
   } catch (e) {
-    return false;
-  }
-}
-
-/**
- * Takes an npm-style package specifier (such as "react@^16.8.0") and returns
- * the package name (in this case "react").
- *   see https://docs.npmjs.com/cli/v8/using-npm/package-spec
- */
-export function parsePackageSpec(pkgTarget: string): string {
-  if (pkgTarget.startsWith("@")) return `@${pkgTarget.slice(1).split("@")[0]}`;
-  return pkgTarget.split("@")[0];
-}
-
-/**
- * Returns true if the given specifier is a relative URL or a URL.
- */
-export function isUrlLikeNotPackage(spec: string): boolean {
-  if (spec.startsWith("./") || spec.startsWith("../") || spec.startsWith("/"))
-    return true;
-  try {
-    // eslint-disable-next-line no-new
-    new URL(spec);
-    return spec[spec.indexOf(":") + 1] === "/";
-  } catch {
     return false;
   }
 }
@@ -560,7 +753,9 @@ export async function getFilesRecursively(
 
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
-      const relativePath = path.relative(directory, fullPath);
+      const relativePath = path
+        .relative(directory, fullPath)
+        .replace(/\\/g, "/");
 
       if (
         entry.name === "node_modules" ||
@@ -594,6 +789,43 @@ export async function getFilesRecursively(
 
   await processDirectory(directory, false);
   return files;
+}
+
+/**
+ * Finds the nearest package.json file starting from the given directory
+ * and traversing up the directory tree.
+ *
+ * @param dir The directory to start searching from
+ * @returns An object containing the package.json contents and its path, or null if not found
+ */
+export async function getPackageJson(dir?: string): Promise<{
+  packageJson: any;
+  packagePath: string;
+} | null> {
+  let currentDir = resolve(dir || process.cwd());
+  const rootDir = resolve("/");
+  while (currentDir !== rootDir) {
+    const packageJsonPath = path.join(currentDir, "package.json");
+    if (exists(packageJsonPath)) {
+      const content = await fs.readFile(packageJsonPath, "utf8");
+      try {
+        const packageJson = JSON.parse(content);
+        return {
+          packageJson,
+          packagePath: currentDir,
+        };
+      } catch (jsonError) {
+        throw new JspmError(
+          `Invalid package.json file at ${path
+            .relative(process.cwd(), packageJsonPath)
+            .replace(/\\/g, "/")} - ${jsonError.message}`
+        );
+      }
+    }
+    if (dir) return null;
+    currentDir = path.dirname(currentDir);
+  }
+  return null;
 }
 
 export async function runPackageScript(script: string, dir: string) {
@@ -670,4 +902,313 @@ export async function runPackageScript(script: string, dir: string) {
       }
     });
   });
+}
+
+export async function getLatestEsms(generator: Generator, provider: string) {
+  // @ts-expect-error generator internals
+  const esmsPkg = await generator.traceMap.resolver.pm.resolveLatestTarget(
+    {
+      name: "es-module-shims",
+      registry: "npm",
+      ranges: [new SemverRange("*")],
+    },
+    // @ts-expect-error generator internals
+    generator.traceMap.installer.defaultProvider
+  );
+  return `${await generator.traceMap.resolver.pm.pkgToUrl(
+    esmsPkg,
+    provider,
+    "default"
+  )}dist/es-module-shims.js`;
+}
+
+export function getMapMatch<T = any>(
+  specifier: string,
+  map: Record<string, T>
+): string | undefined {
+  if (specifier in map) return specifier;
+  let bestMatch;
+  for (const match of Object.keys(map)) {
+    const wildcardIndex = match.indexOf("*");
+    if (!match.endsWith("/") && wildcardIndex === -1) continue;
+    if (match.endsWith("/")) {
+      if (specifier.startsWith(match)) {
+        if (!bestMatch || match.length > bestMatch.length) bestMatch = match;
+      }
+    } else {
+      const prefix = match.slice(0, wildcardIndex);
+      const suffix = match.slice(wildcardIndex + 1);
+      if (
+        specifier.startsWith(prefix) &&
+        specifier.endsWith(suffix) &&
+        specifier.length > prefix.length + suffix.length
+      ) {
+        if (
+          !bestMatch ||
+          !bestMatch.startsWith(prefix) ||
+          !bestMatch.endsWith(suffix)
+        )
+          bestMatch = match;
+      }
+    }
+  }
+  return bestMatch;
+}
+
+export function allDotKeys(exports: Record<string, any>) {
+  for (const p in exports) {
+    if (p[0] !== ".") return false;
+  }
+  return true;
+}
+
+/**
+ * Expand a package exports field into its set of subpaths and resolution
+ * With an optional file list for expanding globs
+ */
+export function expandExportsResolutions(
+  exports: any | Record<string, any>,
+  env: string[],
+  files?: Set<string> | undefined,
+  exportsResolutions: Map<string, string> = new Map()
+) {
+  if (typeof exports !== "object" || exports === null || !allDotKeys(exports)) {
+    const targetList = new Set<string>();
+    expandTargetResolutions(exports, files, env, targetList, [], true);
+    for (const target of targetList) {
+      if (target.startsWith("./")) {
+        const targetFile = target.slice(2);
+        if (!files || files.has(targetFile))
+          exportsResolutions.set(".", targetFile);
+      }
+    }
+  } else {
+    for (const subpath of Object.keys(exports)) {
+      const targetList = new Set<string>();
+      expandTargetResolutions(
+        exports[subpath],
+        files,
+        env,
+        targetList,
+        [],
+        true
+      );
+      for (const target of targetList) {
+        expandExportsTarget(
+          exports as Record<string, any>,
+          subpath,
+          target,
+          files,
+          exportsResolutions
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Expand a package exports field into a list of entry points
+ * With an optional file list for expanding globs
+ */
+export function expandExportsEntries(
+  exports: any | Record<string, any>,
+  env: string[],
+  files?: Set<string> | undefined,
+  entriesList: Set<string> = new Set()
+) {
+  if (typeof exports !== "object" || exports === null || !allDotKeys(exports)) {
+    const targetList = new Set<string>();
+    expandTargetResolutions(exports, files, env, targetList, [], false);
+    for (const target of targetList) {
+      if (target.startsWith("./")) {
+        const targetFile = target.slice(2);
+        if (!files || files.has(targetFile)) entriesList.add(targetFile);
+      }
+    }
+  } else {
+    for (const subpath of Object.keys(exports)) {
+      const targetList = new Set<string>();
+      expandTargetResolutions(
+        exports[subpath],
+        files,
+        env,
+        targetList,
+        [],
+        false
+      );
+      for (const target of targetList) {
+        const map = new Map();
+        expandExportsTarget(
+          exports as Record<string, any>,
+          subpath,
+          target,
+          files,
+          map
+        );
+        for (const entry of map.values()) {
+          entriesList.add(entry);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Expand the given exports target into its possible resolution list,
+ * given an environment union.
+ * Unknown environment conditions are expanded, with handling for
+ * mutual exclusions between environment conditions - i.e. if env is [], and we
+ * expand into a "production" branch of the environment, then "development" branches
+ * will be excluded on that walk of the branch further.
+ */
+const conditionMutualExclusions = {
+  production: "development",
+  development: "production",
+  import: "require",
+  require: "import",
+};
+function expandTargetResolutions(
+  exports: any,
+  files: Set<string> | undefined,
+  env: string[],
+  targetList: Set<string>,
+  envExclusions = env
+    .map((condition) => conditionMutualExclusions[condition])
+    .filter((c) => c),
+  firstOnly: boolean
+): boolean {
+  if (typeof exports === "string") {
+    if (exports.startsWith("./")) targetList.add(exports);
+    return true;
+  } else if (Array.isArray(exports)) {
+    for (const item of exports) {
+      if (
+        expandTargetResolutions(
+          item,
+          files,
+          env,
+          targetList,
+          envExclusions,
+          firstOnly
+        )
+      )
+        return true;
+    }
+    return false;
+  } else if (exports === null) {
+    // the null resolution target is a match for not resolving
+    return true;
+  } else {
+    let hasSomeResolution = false;
+    for (const condition of Object.keys(exports)) {
+      if (condition.startsWith(".")) continue;
+      if (condition === "default" || env.includes(condition)) {
+        if (
+          expandTargetResolutions(
+            exports[condition],
+            files,
+            env,
+            targetList,
+            envExclusions,
+            firstOnly
+          )
+        ) {
+          return true;
+        }
+      }
+      if (envExclusions.includes(condition)) continue;
+      const maybeNewExclusion = conditionMutualExclusions[condition];
+      const newExclusions =
+        maybeNewExclusion && !envExclusions.includes(maybeNewExclusion)
+          ? [...envExclusions, maybeNewExclusion]
+          : envExclusions;
+      // if we did match the condition, then we know any subsequent condition checks are under exclusion as well
+      if (
+        expandTargetResolutions(
+          exports[condition],
+          files,
+          env,
+          targetList,
+          newExclusions,
+          firstOnly
+        )
+      ) {
+        if (firstOnly) return true;
+        hasSomeResolution = true;
+        envExclusions = newExclusions;
+      }
+    }
+    return hasSomeResolution;
+  }
+}
+
+/**
+ * Expands the given target string into the entries list,
+ * handling wildcard globbing
+ */
+function expandExportsTarget(
+  exports: Record<string, any>,
+  subpath: string,
+  target: string,
+  files: Set<string> | undefined,
+  entriesMap: Map<string, string>
+) {
+  if (
+    !target.startsWith("./") ||
+    !(subpath.startsWith("./") || subpath === ".")
+  )
+    return;
+  if (!target.includes("*") || !subpath.includes("*")) {
+    const targetFile = target.slice(2);
+    if (!files || files.has(targetFile))
+      entriesMap.set(subpath, target.slice(2));
+    return;
+  }
+  if (!files) return;
+
+  // First determine the list of files that could match the target glob
+  const lhs = target.slice(2, target.indexOf("*"));
+  const rhs = target.slice(target.indexOf("*") + 1);
+
+  const fileMatches = new Set<string>();
+  for (const file of files) {
+    if (
+      file.startsWith(lhs) &&
+      file.endsWith(rhs) &&
+      file.length > lhs.length + rhs.length
+    ) {
+      fileMatches.add(file);
+    }
+  }
+
+  // Backtrack to determine their original subpaths and
+  // re-resolve those subpaths to verify they do indeed resolve to our target glob
+  // since they could be shadowed by other subpath resolutions
+  for (const fileMatch of fileMatches) {
+    const pattern = fileMatch.slice(lhs.length, fileMatch.length - rhs.length);
+    const originalSubpath = subpath.replace("*", pattern);
+    const matchedSubpath = getMapMatch(originalSubpath, exports);
+    if (matchedSubpath === subpath) entriesMap.set(originalSubpath, fileMatch);
+  }
+}
+
+/**
+ * Expands the exports resolution set of a package against the filesystem
+ * Returns the record mapping packagename/subpath entries to file paths
+ */
+export function getExportsEntries(
+  name: string,
+  exports: any,
+  fileList: string[],
+  env: string[]
+): Record<string, string[]> {
+  const resolutionMap = new Map<string, string>();
+  expandExportsResolutions(exports, env, new Set(fileList), resolutionMap);
+  const outMap = {};
+  for (const [subpath, entry] of resolutionMap) {
+    const expt = name + subpath.slice(1);
+    outMap[expt] = outMap[expt] || [];
+    outMap[expt].push(entry);
+  }
+  return outMap;
 }

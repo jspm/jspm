@@ -1,4 +1,5 @@
 {
+  "name": "provider-swap",
   "dependencies": {
     "lit": "^2.7.0"
   }

@@ -1,207 +1,183 @@
-import { test } from "node:test";
-import assert from "assert";
-import { run } from "./scenarios.ts";
+import { test } from 'node:test';
+import assert from 'assert';
+import { run } from './scenarios.ts';
 
-test("Config - set and get user level configuration", async () => {
+test('Config - set and get user level configuration', async () => {
   await run({
-    commands: [
-      "jspm config set defaultProvider jsdelivr",
-      "jspm config get defaultProvider",
-    ],
+    commands: ['jspm config set defaultProvider jsdelivr', 'jspm config get defaultProvider'],
     validationFn: async (_files: Map<string, string>) => {
       // Validate that the defaultProvider was set to jsdelivr
       // The output is captured in the test framework
-    },
+    }
   });
 });
 
-test("Config - set and get local configuration", async () => {
+test('Config - set and get local configuration', async () => {
   await run({
     commands: [
-      "jspm config set defaultProvider jsdelivr --local",
-      "jspm config get defaultProvider",
+      'jspm config set defaultProvider jsdelivr --local',
+      'jspm config get defaultProvider'
     ],
     validationFn: async (files: Map<string, string>) => {
       // Verify .jspmrc file was created in the local directory
-      assert(files.has(".jspmrc"), "Local .jspmrc file not created");
+      assert(files.has('.jspmrc'), 'Local .jspmrc file not created');
 
       // Parse the .jspmrc file and check its contents
-      const config = JSON.parse(files.get(".jspmrc")!);
-      assert.strictEqual(config.defaultProvider, "jsdelivr");
-    },
+      const config = JSON.parse(files.get('.jspmrc')!);
+      assert.strictEqual(config.defaultProvider, 'jsdelivr');
+    }
   });
 });
 
-test("Config - list configuration", async () => {
+test('Config - list configuration', async () => {
   await run({
     commands: [
-      "jspm config set defaultProvider jsdelivr --local",
-      "jspm config set providers.npm.baseUrl https://custom-registry.example.com/ --local",
-      "jspm config list",
+      'jspm config set defaultProvider jsdelivr --local',
+      'jspm config set providers.npm.baseUrl https://custom-registry.example.com/ --local',
+      'jspm config list'
     ],
     validationFn: async (files: Map<string, string>) => {
-      assert(files.has(".jspmrc"), "Local .jspmrc file not created");
+      assert(files.has('.jspmrc'), 'Local .jspmrc file not created');
 
-      const config = JSON.parse(files.get(".jspmrc")!);
-      assert.strictEqual(config.defaultProvider, "jsdelivr");
+      const config = JSON.parse(files.get('.jspmrc')!);
+      assert.strictEqual(config.defaultProvider, 'jsdelivr');
       // Only check the baseUrl property, not the entire object
-      assert.strictEqual(
-        config.providers.npm.baseUrl,
-        "https://custom-registry.example.com/"
-      );
-    },
+      assert.strictEqual(config.providers.npm.baseUrl, 'https://custom-registry.example.com/');
+    }
   });
 });
 
-test("Config - delete configuration value", async () => {
+test('Config - delete configuration value', async () => {
   await run({
     commands: [
-      "jspm config set defaultProvider jsdelivr --local",
-      "jspm config set providers.npm.baseUrl https://custom-registry.example.com/ --local",
-      "jspm config delete defaultProvider --local",
-      "jspm config list",
+      'jspm config set defaultProvider jsdelivr --local',
+      'jspm config set providers.npm.baseUrl https://custom-registry.example.com/ --local',
+      'jspm config delete defaultProvider --local',
+      'jspm config list'
     ],
     validationFn: async (files: Map<string, string>) => {
-      assert(files.has(".jspmrc"), "Local .jspmrc file not created");
+      assert(files.has('.jspmrc'), 'Local .jspmrc file not created');
 
-      const config = JSON.parse(files.get(".jspmrc")!);
-      assert(
-        config.defaultProvider === undefined,
-        "defaultProvider should be deleted"
-      );
+      const config = JSON.parse(files.get('.jspmrc')!);
+      assert(config.defaultProvider === undefined, 'defaultProvider should be deleted');
       // Only check the baseUrl property, not the entire object
-      assert.strictEqual(
-        config.providers.npm.baseUrl,
-        "https://custom-registry.example.com/"
-      );
-    },
+      assert.strictEqual(config.providers.npm.baseUrl, 'https://custom-registry.example.com/');
+    }
   });
 });
 
-test("Config - nested provider configuration", async () => {
+test('Config - nested provider configuration', async () => {
   await run({
     commands: [
-      "jspm config set providers.npm.baseUrl https://custom-registry.example.com/ --local",
-      "jspm config set providers.npm.auth token123 --local",
-      "jspm config get providers.npm",
+      'jspm config set providers.npm.baseUrl https://custom-registry.example.com/ --local',
+      'jspm config set providers.npm.auth token123 --local',
+      'jspm config get providers.npm'
     ],
     validationFn: async (files: Map<string, string>) => {
-      assert(files.has(".jspmrc"), "Local .jspmrc file not created");
+      assert(files.has('.jspmrc'), 'Local .jspmrc file not created');
 
-      const config = JSON.parse(files.get(".jspmrc")!);
+      const config = JSON.parse(files.get('.jspmrc')!);
       // Only check specific properties, not the entire object
-      assert.strictEqual(
-        config.providers.npm.baseUrl,
-        "https://custom-registry.example.com/"
-      );
-      assert.strictEqual(config.providers.npm.auth, "token123");
-    },
+      assert.strictEqual(config.providers.npm.baseUrl, 'https://custom-registry.example.com/');
+      assert.strictEqual(config.providers.npm.auth, 'token123');
+    }
   });
 });
 
-test("Config - provider flag with dots in provider name", async () => {
+test('Config - provider flag with dots in provider name', async () => {
   await run({
     commands: [
-      "jspm config set -p jspm.io baseUrl https://jspm.io/ --local",
-      "jspm config set -p jspm.io auth token456 --local",
-      "jspm config get -p jspm.io",
+      'jspm config set -p jspm.io baseUrl https://jspm.io/ --local',
+      'jspm config set -p jspm.io auth token456 --local',
+      'jspm config get -p jspm.io'
     ],
     validationFn: async (files: Map<string, string>) => {
-      assert(files.has(".jspmrc"), "Local .jspmrc file not created");
+      assert(files.has('.jspmrc'), 'Local .jspmrc file not created');
 
-      const config = JSON.parse(files.get(".jspmrc")!);
+      const config = JSON.parse(files.get('.jspmrc')!);
       // Verify that the provider with dots in the name was set correctly
-      assert.strictEqual(
-        config.providers["jspm.io"].baseUrl,
-        "https://jspm.io/"
-      );
-      assert.strictEqual(config.providers["jspm.io"].auth, "token456");
-    },
+      assert.strictEqual(config.providers['jspm.io'].baseUrl, 'https://jspm.io/');
+      assert.strictEqual(config.providers['jspm.io'].auth, 'token456');
+    }
   });
 });
 
 // Test configuration with installation scenario
-test("Config - installation with custom provider from config", async () => {
+test('Config - installation with custom provider from config', async () => {
   await run({
     // Set up initial config and then perform an installation
     files: new Map([
       [
-        ".jspmrc",
+        '.jspmrc',
         JSON.stringify({
-          defaultProvider: "jsdelivr",
-        }),
-      ],
+          defaultProvider: 'jsdelivr'
+        })
+      ]
     ]),
-    commands: ["jspm link react -o importmap.json"],
+    commands: ['jspm link react -o importmap.json'],
     validationFn: async (files: Map<string, string>) => {
-      assert(files.has("importmap.json"), "Import map not created");
+      assert(files.has('importmap.json'), 'Import map not created');
 
-      const importMap = JSON.parse(files.get("importmap.json"));
+      const importMap = JSON.parse(files.get('importmap.json'));
       assert(
-        importMap.imports.react.startsWith("https://cdn.jsdelivr.net/"),
-        "Import map should use jsdelivr provider from config"
+        importMap.imports.react.startsWith('https://cdn.jsdelivr.net/'),
+        'Import map should use jsdelivr provider from config'
       );
-    },
+    }
   });
 });
 
 // Test configuration priority (local overrides user)
-test("Config - local config overrides user config", async () => {
+test('Config - local config overrides user config', async () => {
   await run({
     files: new Map([
       [
-        ".jspmrc",
+        '.jspmrc',
         JSON.stringify({
-          defaultProvider: "jsdelivr",
-        }),
-      ],
+          defaultProvider: 'jsdelivr'
+        })
+      ]
     ]),
     commands: [
       // This would set user config, but shouldn't affect our test due to local override
-      "jspm config set defaultProvider unpkg",
-      "jspm link react -o importmap.json",
+      'jspm config set defaultProvider unpkg',
+      'jspm link react -o importmap.json'
     ],
     validationFn: async (files: Map<string, string>) => {
-      assert(files.has("importmap.json"), "Import map not created");
+      assert(files.has('importmap.json'), 'Import map not created');
 
-      const importMap = JSON.parse(files.get("importmap.json"));
+      const importMap = JSON.parse(files.get('importmap.json'));
       assert(
-        importMap.imports.react.startsWith("https://cdn.jsdelivr.net/"),
-        "Import map should use jsdelivr provider from local config"
+        importMap.imports.react.startsWith('https://cdn.jsdelivr.net/'),
+        'Import map should use jsdelivr provider from local config'
       );
-    },
+    }
   });
 });
 
 // Test configuration cascade from parent directories
-test("Config - configuration inherited from parent directory", async () => {
+test('Config - configuration inherited from parent directory', async () => {
   await run({
     files: new Map([
       [
-        ".jspmrc",
+        '.jspmrc',
         JSON.stringify({
-          defaultProvider: "jsdelivr",
-        }),
+          defaultProvider: 'jsdelivr'
+        })
       ],
-      [
-        "subdir/package.json",
-        JSON.stringify({ name: "subproject", version: "1.0.0" }),
-      ],
+      ['subdir/package.json', JSON.stringify({ name: 'subproject', version: '1.0.0' })]
     ]),
     // Use the cwd option to run commands from the subdirectory
-    cwd: "subdir",
-    commands: ["jspm link react -o importmap.json"],
+    cwd: 'subdir',
+    commands: ['jspm link react -o importmap.json'],
     validationFn: async (files: Map<string, string>) => {
-      assert(
-        files.has("subdir/importmap.json"),
-        "Import map not created in subdirectory"
-      );
+      assert(files.has('subdir/importmap.json'), 'Import map not created in subdirectory');
 
-      const importMap = JSON.parse(files.get("subdir/importmap.json"));
+      const importMap = JSON.parse(files.get('subdir/importmap.json'));
       assert(
-        importMap.imports.react.startsWith("https://cdn.jsdelivr.net/"),
-        "Import map should use jsdelivr provider from parent directory config"
+        importMap.imports.react.startsWith('https://cdn.jsdelivr.net/'),
+        'Import map should use jsdelivr provider from parent directory config'
       );
-    },
+    }
   });
 });

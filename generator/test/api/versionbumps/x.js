@@ -1,1 +1,1 @@
-import "es-module-lexer";
+import 'es-module-lexer';

@@ -1,14 +1,14 @@
-import "@jspm/generator";
+import '@jspm/generator';
 
 // keepalive
 setInterval(() => {
-  fetch("/tests/ping");
+  fetch('/tests/ping');
 }, 3000);
 
 (async () => {
-  let tests = await (await fetch("/tests/list")).json();
+  let tests = await (await fetch('/tests/list')).json();
 
-  mocha.setup("tdd");
+  mocha.setup('tdd');
   mocha.set;
   mocha.allowUncaught();
   self.assert = function (val) {
@@ -26,12 +26,12 @@ setInterval(() => {
   // Keep track of reasons for failure in a global:
   self.__TEST_FAILURES__ = [];
 
-  suite("Browser Tests", async function () {
+  suite('Browser Tests', async function () {
     this.timeout(120_000);
     for (const name of tests) {
       test(name, async function () {
         try {
-          await import("./" + name + ".js");
+          await import('./' + name + '.js');
         } catch (err) {
           __TEST_FAILURES__.push([name, err.stack]);
           throw err;
@@ -42,12 +42,12 @@ setInterval(() => {
 
   mocha.run(function (failures) {
     if (failures) {
-      fetch("/error?" + failures, {
-        method: "POST",
-        body: JSON.stringify(__TEST_FAILURES__),
+      fetch('/error?' + failures, {
+        method: 'POST',
+        body: JSON.stringify(__TEST_FAILURES__)
       });
     } else {
-      fetch("/done");
+      fetch('/done');
     }
   });
 })();

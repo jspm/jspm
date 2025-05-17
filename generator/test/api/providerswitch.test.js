@@ -1,14 +1,14 @@
-import { Generator } from "@jspm/generator";
-import assert from "assert";
+import { Generator } from '@jspm/generator';
+import assert from 'assert';
 
 const generator = new Generator({
   mapUrl: import.meta.url,
-  defaultProvider: "jspm.io",
+  defaultProvider: 'jspm.io',
   inputMap: {
     imports: {
-      react: "https://cdn.skypack.dev/react@18.2.0/index.js",
-    },
-  },
+      react: 'https://cdn.skypack.dev/react@18.2.0/index.js'
+    }
+  }
 });
 
 // The generator should swap the provider from skypack to jspm.io.
@@ -16,4 +16,4 @@ const generator = new Generator({
 await generator.install();
 
 const json = generator.getMap();
-assert(json.imports.react.startsWith("https://ga.jspm.io/npm:"));
+assert(json.imports.react.startsWith('https://ga.jspm.io/npm:'));

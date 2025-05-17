@@ -12,25 +12,18 @@ export class Replacer {
     const endOffset = findOffset(this.offsetTable, end);
 
     this.source =
-      this.source.slice(0, start + startOffset) +
-      replacement +
-      this.source.slice(end + endOffset);
-    addOffset(
-      this.offsetTable,
-      end,
-      replacement.length - (end + endOffset - start - startOffset)
-    );
+      this.source.slice(0, start + startOffset) + replacement + this.source.slice(end + endOffset);
+    addOffset(this.offsetTable, end, replacement.length - (end + endOffset - start - startOffset));
   }
 
   remove(start: number, end: number, trimWs: boolean | RegExp = false) {
-    this.replace(start, end, "");
+    this.replace(start, end, '');
     if (trimWs) {
-      if (typeof trimWs === "boolean") trimWs = wsRegEx;
+      if (typeof trimWs === 'boolean') trimWs = wsRegEx;
       const endIndex = this.idx(end);
       const [wsMatch] = this.source.slice(endIndex).match(trimWs) ?? [];
       this.source =
-        this.source.slice(0, endIndex) +
-        this.source.slice(endIndex + (wsMatch?.length ?? 0));
+        this.source.slice(0, endIndex) + this.source.slice(endIndex + (wsMatch?.length ?? 0));
       addOffset(this.offsetTable, end, -(wsMatch?.length ?? 0));
     }
   }
@@ -40,11 +33,7 @@ export class Replacer {
   }
 }
 
-function addOffset(
-  offsetTable: [number, number][],
-  idx: number,
-  offset: number
-) {
+function addOffset(offsetTable: [number, number][], idx: number, offset: number) {
   let i = offsetTable.length,
     eq = false;
   while (i-- > 0) {

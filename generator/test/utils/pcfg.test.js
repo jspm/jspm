@@ -1,5 +1,5 @@
-import { getPackageConfig } from "@jspm/generator";
-import assert from "assert";
+import { getPackageConfig } from '@jspm/generator';
+import assert from 'assert';
 
-const pcfg = await getPackageConfig("https://ga.jspm.io/npm:jquery@3.6.0/");
-assert.strictEqual(pcfg.name, "jquery");
+const pcfg = await getPackageConfig('https://ga.jspm.io/npm:jquery@3.6.0/');
+assert.strictEqual(pcfg.name, 'jquery');

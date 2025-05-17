@@ -1,18 +1,14 @@
-import {
-  ExactPackage,
-  LatestPackageTarget,
-  PackageConfig,
-} from "../install/package.js";
+import { ExactPackage, LatestPackageTarget, PackageConfig } from '../install/package.js';
 // @ts-ignore
-import { fetch } from "../common/fetch.js";
-import { JspmError } from "../common/err.js";
-import { fetchVersions } from "./jspm.js";
+import { fetch } from '../common/fetch.js';
+import { JspmError } from '../common/err.js';
+import { fetchVersions } from './jspm.js';
 // @ts-ignore
-import { SemverRange } from "sver";
-import { importedFrom } from "../common/url.js";
-import type { ProviderContext } from "./index.js";
+import { SemverRange } from 'sver';
+import { importedFrom } from '../common/url.js';
+import type { ProviderContext } from './index.js';
 
-const cdnUrl = "https://esm.sh/";
+const cdnUrl = 'https://esm.sh/';
 
 export async function pkgToUrl(pkg: ExactPackage): Promise<`${string}/`> {
   // The wildcard '*' at the end tells the esm.sh CDN to externalise all
@@ -21,14 +17,13 @@ export async function pkgToUrl(pkg: ExactPackage): Promise<`${string}/`> {
   return `${cdnUrl}*${pkg.name}@${pkg.version}/`;
 }
 
-const exactPkgRegEx =
-  /^(?:v\d+\/)?\*?((?:@[^/\\%@]+\/)?[^./\\%@][^/\\%@]*)@([^\/]+)(\/.*)?$/;
+const exactPkgRegEx = /^(?:v\d+\/)?\*?((?:@[^/\\%@]+\/)?[^./\\%@][^/\\%@]*)@([^\/]+)(\/.*)?$/;
 
 export function parseUrlPkg(url: string) {
   if (!url.startsWith(cdnUrl)) return;
   const [, name, version] = url.slice(cdnUrl.length).match(exactPkgRegEx) || [];
   if (!name || !version) return;
-  return { registry: "npm", name, version };
+  return { registry: 'npm', name, version };
 }
 
 export async function getPackageConfig(
@@ -65,14 +60,12 @@ export async function resolveLatestTarget(
 ): Promise<ExactPackage | null> {
   const { registry, name, range, unstable } = target;
   const versions = await fetchVersions.call(this, name);
-  const semverRange = new SemverRange(String(range) || "*", unstable);
+  const semverRange = new SemverRange(String(range) || '*', unstable);
   const version = semverRange.bestMatch(versions, unstable);
   if (version) {
     return { registry, name, version: version.toString() };
   }
   throw new JspmError(
-    `Unable to resolve ${registry}:${name}@${range} to a valid version${importedFrom(
-      parentUrl
-    )}`
+    `Unable to resolve ${registry}:${name}@${range} to a valid version${importedFrom(parentUrl)}`
   );
 }

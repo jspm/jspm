@@ -1,1 +1,1 @@
-import * as _ from "./a.js";
+import * as _ from './a.js';

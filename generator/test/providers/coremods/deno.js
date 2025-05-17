@@ -1,4 +1,4 @@
-import "deno:path";
-import "deno:testing/asserts";
-import "deno:version";
-import "npm:sver@1";
+import 'deno:path';
+import 'deno:testing/asserts';
+import 'deno:version';
+import 'npm:sver@1';

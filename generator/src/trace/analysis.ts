@@ -1,5 +1,5 @@
-import { JspmError } from "../common/err.js";
-import { getIntegrity } from "../common/integrity.js";
+import { JspmError } from '../common/err.js';
+import { getIntegrity } from '../common/integrity.js';
 
 export type Analysis =
   | AnalysisData
@@ -11,14 +11,7 @@ export interface AnalysisData {
   deps: string[];
   dynamicDeps: string[];
   cjsLazyDeps: string[] | null;
-  format:
-    | "esm"
-    | "commonjs"
-    | "system"
-    | "json"
-    | "typescript"
-    | "wasm"
-    | "css";
+  format: 'esm' | 'commonjs' | 'system' | 'json' | 'typescript' | 'wasm' | 'css';
   size: number;
 
   // for commonjs format, true iff the module uses a CJS-only global
@@ -26,8 +19,8 @@ export interface AnalysisData {
   integrity: `sha384-${string}`;
 }
 
-export { createTsAnalysis } from "./ts.js";
-export { createCjsAnalysis } from "./cjs.js";
+export { createTsAnalysis } from './ts.js';
+export { createCjsAnalysis } from './cjs.js';
 
 export async function createEsmAnalysis(
   imports: any[],
@@ -35,8 +28,7 @@ export async function createEsmAnalysis(
   url: string
 ): Promise<Analysis> {
   // Change the return type to Promise<Analysis>
-  if (!imports.length && systemMatch(source))
-    return createSystemAnalysis(source, imports, url);
+  if (!imports.length && systemMatch(source)) return createSystemAnalysis(source, imports, url);
   const deps: string[] = [];
   const dynamicDeps: string[] = [];
   for (const impt of imports) {
@@ -66,8 +58,8 @@ export async function createEsmAnalysis(
     dynamicDeps,
     cjsLazyDeps: null,
     size,
-    format: "esm",
-    integrity: await getIntegrity(source),
+    format: 'esm',
+    integrity: await getIntegrity(source)
   };
 }
 const leadingCommentRegex = /^\s*(\/\*[\s\S]*?\*\/|\s*\/\/[^\n]*)*/;
@@ -99,14 +91,12 @@ export async function createSystemAnalysis(
         const importEnd = source.indexOf(quote, i + dynamicImport.length + 1);
         if (importEnd !== -1) {
           try {
-            dynamicDeps.push(
-              JSON.parse('"' + source.slice(importStart, importEnd) + '"')
-            );
+            dynamicDeps.push(JSON.parse('"' + source.slice(importStart, importEnd) + '"'));
             continue;
           } catch (e) {}
         }
       }
-      console.warn("TODO: Dynamic import custom expression tracing.");
+      console.warn('TODO: Dynamic import custom expression tracing.');
     }
   }
   const size = source.length;
@@ -115,7 +105,7 @@ export async function createSystemAnalysis(
     dynamicDeps,
     cjsLazyDeps: null,
     size,
-    format: "system",
-    integrity: await getIntegrity(source),
+    format: 'system',
+    integrity: await getIntegrity(source)
   };
 }

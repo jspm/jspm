@@ -1,3 +1,3 @@
-const depProcess = require("process/");
+const depProcess = require('process/');
 
-console.log(depProcess === "process shim");
+console.log(depProcess === 'process shim');

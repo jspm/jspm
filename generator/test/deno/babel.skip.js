@@ -1,12 +1,12 @@
-import { Generator } from "@jspm/generator";
-import { denoExec } from "#test/deno";
+import { Generator } from '@jspm/generator';
+import { denoExec } from '#test/deno';
 
 const generator = new Generator({
-  env: ["node", "deno"],
+  env: ['node', 'deno']
 });
 
-await generator.install("@babel/core");
-await generator.install("assert");
+await generator.install('@babel/core');
+await generator.install('assert');
 
 const map = generator.getMap();
 

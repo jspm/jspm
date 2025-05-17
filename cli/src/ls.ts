@@ -14,19 +14,19 @@
  *    limitations under the License.
  */
 
-import { relative } from "node:path";
-import { getPackageConfig, lookup } from "@jspm/generator";
-import c from "picocolors";
+import { relative } from 'node:path';
+import { getPackageConfig, lookup } from '@jspm/generator';
+import c from 'picocolors';
 import {
   JspmError,
   getExportsEntries,
   getFilesRecursively,
   startSpinner,
-  stopSpinner,
-} from "./utils.ts";
-import { withType } from "./logger.ts";
-import type { LsFlags } from "./cli.ts";
-import { initProject } from "./init.ts";
+  stopSpinner
+} from './utils.ts';
+import { withType } from './logger.ts';
+import type { LsFlags } from './cli.ts';
+import { initProject } from './init.ts';
 
 /**
  * Lists the exports of the current project
@@ -37,19 +37,17 @@ async function listCurrentProjectExports(flags: LsFlags) {
     const projectDir = flags.dir || process.cwd();
     const projectConfig = await initProject({
       quiet: flags.quiet,
-      dir: projectDir,
+      dir: projectDir
     });
 
     !flags.quiet &&
-      startSpinner(
-        `Scanning exports for current project: ${c.bold(projectConfig.name)}...`
-      );
+      startSpinner(`Scanning exports for current project: ${c.bold(projectConfig.name)}...`);
 
     if (!projectConfig.exports) {
       stopSpinner();
       !flags.quiet &&
         console.log(
-          `\n${c.yellow("Warning:")} Project "${
+          `\n${c.yellow('Warning:')} Project "${
             projectConfig.name
           }" has no exports defined in package.json.`
         );
@@ -62,9 +60,7 @@ async function listCurrentProjectExports(flags: LsFlags) {
       projectConfig.ignore,
       projectConfig.files
     );
-    const fileList = files.map((file) =>
-      relative(projectConfig.projectPath, file)
-    );
+    const fileList = files.map(file => relative(projectConfig.projectPath, file));
 
     // Get the exports entries
     const entries = await getExportsEntries(
@@ -78,26 +74,23 @@ async function listCurrentProjectExports(flags: LsFlags) {
 
     // Format and display project information
     console.log(
-      `${c.bold("Package")}:\t${c.bold(projectConfig.name)}@${c.bold(
-        projectConfig.version || "local"
+      `${c.bold('Package')}:\t${c.bold(projectConfig.name)}@${c.bold(
+        projectConfig.version || 'local'
       )}`
     );
 
     if (!flags.quiet) {
       if (projectConfig.description) {
-        console.log(`${c.bold("Description:")}\t${projectConfig.description}`);
+        console.log(`${c.bold('Description:')}\t${projectConfig.description}`);
       }
 
       if (projectConfig.license) {
-        console.log(
-          `${c.bold("License:")}\t${c.yellow(projectConfig.license)}`
-        );
+        console.log(`${c.bold('License:')}\t${c.yellow(projectConfig.license)}`);
       }
     }
 
     // Print the exports
-    !flags.quiet &&
-      console.log(`\n${c.bold(c.black(`Current Project Exports`))}`);
+    !flags.quiet && console.log(`\n${c.bold(c.black(`Current Project Exports`))}`);
 
     // Get entries as an array for filtering
     const exportEntries = Object.entries(entries);
@@ -105,9 +98,7 @@ async function listCurrentProjectExports(flags: LsFlags) {
     let displayedEntries = 0;
     const limit = flags.limit ? parseInt(flags.limit.toString()) : 20;
     const filteredEntries = exportEntries.filter(
-      ([subpath]) =>
-        !flags.filter ||
-        subpath.toLowerCase().includes(flags.filter.toLowerCase())
+      ([subpath]) => !flags.filter || subpath.toLowerCase().includes(flags.filter.toLowerCase())
     );
 
     // Get the total count after filtering
@@ -120,7 +111,7 @@ async function listCurrentProjectExports(flags: LsFlags) {
       }
 
       const formattedSubpath = c.green(subpath);
-      const formattedTarget = c.cyan(filePaths.join(", "));
+      const formattedTarget = c.cyan(filePaths.join(', '));
 
       !flags.quiet && console.log(`${formattedSubpath} → ${formattedTarget}`);
       displayedEntries++;
@@ -131,28 +122,23 @@ async function listCurrentProjectExports(flags: LsFlags) {
       const remainingCount = totalFilteredCount - displayedEntries;
       !flags.quiet &&
         console.log(
-          `\n${c.yellow("...")}${c.bold(remainingCount)} more ${
-            remainingCount === 1 ? "item" : "items"
-          } (use ${c.cyan("--filter")} or ${c.cyan(
-            "--limit"
-          )} to extend listing)`
+          `\n${c.yellow('...')}${c.bold(remainingCount)} more ${
+            remainingCount === 1 ? 'item' : 'items'
+          } (use ${c.cyan('--filter')} or ${c.cyan('--limit')} to extend listing)`
         );
     } else if (flags.filter && displayedEntries === 0) {
-      !flags.quiet &&
-        console.log(
-          `${c.yellow("No exports match the filter:")} ${flags.filter}`
-        );
+      !flags.quiet && console.log(`${c.yellow('No exports match the filter:')} ${flags.filter}`);
     } else if (displayedEntries === 0) {
       !flags.quiet &&
         console.log(
           `${c.yellow(
-            "Note:"
+            'Note:'
           )} Project has exports defined but they may not match any files in the project or are not in the expected format.`
         );
     }
 
     // Add an extra newline at the end
-    !flags.quiet && console.log("");
+    !flags.quiet && console.log('');
   } catch (error) {
     stopSpinner();
     if (error instanceof JspmError) {
@@ -163,7 +149,7 @@ async function listCurrentProjectExports(flags: LsFlags) {
 }
 
 export default async function ls(packageSpec: string, flags: LsFlags) {
-  const log = withType("ls/ls");
+  const log = withType('ls/ls');
 
   if (!packageSpec) {
     // When no package is specified, list the current project's exports
@@ -173,8 +159,7 @@ export default async function ls(packageSpec: string, flags: LsFlags) {
   log(`Listing package exports for: ${packageSpec}`);
 
   try {
-    !flags.quiet &&
-      startSpinner(`Looking up package ${c.bold(packageSpec)}...`);
+    !flags.quiet && startSpinner(`Looking up package ${c.bold(packageSpec)}...`);
 
     // First, look up the package to get the exact resolved version
     const lookupOptions = flags.provider ? { provider: flags.provider } : {};
@@ -193,22 +178,18 @@ export default async function ls(packageSpec: string, flags: LsFlags) {
     stopSpinner();
 
     if (!pjson) {
-      throw new JspmError(
-        `Package "${packageSpec}" found but failed to fetch its configuration`
-      );
+      throw new JspmError(`Package "${packageSpec}" found but failed to fetch its configuration`);
     }
 
     // Format the resolved package for display
     console.log(
-      `${c.bold("Package")}:\t${c.bold(resolvedPackage.name)}@${c.bold(
-        resolvedPackage.version
-      )}`
+      `${c.bold('Package')}:\t${c.bold(resolvedPackage.name)}@${c.bold(resolvedPackage.version)}`
     );
 
     // Show package info
     if (!flags.quiet) {
       if (pjson.description) {
-        console.log(`${c.bold("Description:")}\t${pjson.description}`);
+        console.log(`${c.bold('Description:')}\t${pjson.description}`);
       }
 
       // Handle author information (could be string or object)
@@ -237,17 +218,17 @@ export default async function ls(packageSpec: string, flags: LsFlags) {
       // }
 
       if (pjson.license) {
-        console.log(`${c.bold("License:")}\t${c.yellow(pjson.license)}`);
+        console.log(`${c.bold('License:')}\t${c.yellow(pjson.license)}`);
       }
 
       if (pjson.homepage) {
-        console.log(`${c.bold("Homepage:")}\t${c.blue(pjson.homepage)}`);
+        console.log(`${c.bold('Homepage:')}\t${c.blue(pjson.homepage)}`);
       }
 
       // Display GitHub repo if available
       if (pjson.repository) {
-        let repoUrl = "";
-        if (typeof pjson.repository === "string") {
+        let repoUrl = '';
+        if (typeof pjson.repository === 'string') {
           repoUrl = pjson.repository;
         } else if (pjson.repository.url) {
           repoUrl = pjson.repository.url;
@@ -256,10 +237,10 @@ export default async function ls(packageSpec: string, flags: LsFlags) {
         // Format GitHub URLs nicely
         if (repoUrl) {
           repoUrl = repoUrl
-            .replace(/^git\+|\.git$/g, "")
-            .replace("git://", "https://")
-            .replace("git@github.com:", "https://github.com/");
-          console.log(`${c.bold("Repository:")}\t${c.blue(repoUrl)}`);
+            .replace(/^git\+|\.git$/g, '')
+            .replace('git://', 'https://')
+            .replace('git@github.com:', 'https://github.com/');
+          console.log(`${c.bold('Repository:')}\t${c.blue(repoUrl)}`);
         }
       }
     }
@@ -268,7 +249,7 @@ export default async function ls(packageSpec: string, flags: LsFlags) {
     if (!pjson.exports) {
       !flags.quiet &&
         console.log(
-          `\n${c.yellow("Warning:")} Package "${resolvedPackage.name}@${
+          `\n${c.yellow('Warning:')} Package "${resolvedPackage.name}@${
             resolvedPackage.version
           }" has no exports defined.`
         );
@@ -280,20 +261,19 @@ export default async function ls(packageSpec: string, flags: LsFlags) {
 
     // Format and display each export, applying filter and limit if provided
     const exportEntries =
-      typeof pjson.exports === "string" ||
-      (typeof pjson.exports === "object" &&
+      typeof pjson.exports === 'string' ||
+      (typeof pjson.exports === 'object' &&
         pjson.exports !== null &&
-        Object.keys(pjson.exports).every((expt) => !expt.startsWith(".")))
-        ? [".", pjson.exports as any]
+        Object.keys(pjson.exports).every(expt => !expt.startsWith('.')))
+        ? ['.', pjson.exports as any]
         : Object.entries(pjson.exports);
 
     let displayedEntries = 0;
     const limit = flags.limit ? parseInt(flags.limit.toString()) : 20;
     const filteredEntries = exportEntries.filter(
       ([subpath]) =>
-        (!flags.filter ||
-          subpath.toLowerCase().includes(flags.filter.toLowerCase())) &&
-        !subpath.endsWith("!cjs")
+        (!flags.filter || subpath.toLowerCase().includes(flags.filter.toLowerCase())) &&
+        !subpath.endsWith('!cjs')
     );
 
     // Get the total count after filtering
@@ -317,28 +297,23 @@ export default async function ls(packageSpec: string, flags: LsFlags) {
       const remainingCount = totalFilteredCount - displayedEntries;
       !flags.quiet &&
         console.log(
-          `\n${c.yellow("...")}${c.bold(remainingCount)} more ${
-            remainingCount === 1 ? "item" : "items"
-          } (use ${c.cyan("--filter")} or ${c.cyan(
-            "--limit"
-          )} to extend listing)`
+          `\n${c.yellow('...')}${c.bold(remainingCount)} more ${
+            remainingCount === 1 ? 'item' : 'items'
+          } (use ${c.cyan('--filter')} or ${c.cyan('--limit')} to extend listing)`
         );
     } else if (flags.filter && displayedEntries === 0) {
-      !flags.quiet &&
-        console.log(
-          `${c.yellow("No exports match the filter:")} ${flags.filter}`
-        );
+      !flags.quiet && console.log(`${c.yellow('No exports match the filter:')} ${flags.filter}`);
     } else if (displayedEntries === 0) {
       !flags.quiet &&
         console.log(
           `${c.yellow(
-            "Note:"
+            'Note:'
           )} Package has exports defined but they are not in the expected format.`
         );
     }
 
     // Add an extra newline at the end
-    !flags.quiet && console.log("");
+    !flags.quiet && console.log('');
   } catch (error) {
     stopSpinner();
     if (error instanceof JspmError) {

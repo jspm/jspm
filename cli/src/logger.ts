@@ -1,17 +1,13 @@
-import { createWriteStream } from "node:fs";
-import os from "os";
-import c from "picocolors";
+import { createWriteStream } from 'node:fs';
+import os from 'os';
+import c from 'picocolors';
 
 export type Log = (type: string, message: string) => void;
-export type LogStream = () => AsyncGenerator<
-  { type: string; message: string },
-  never,
-  unknown
->;
+export type LogStream = () => AsyncGenerator<{ type: string; message: string }, never, unknown>;
 
 // Switch for checking if debug logging is on:
 export const logEnabled = !!process.env.JSPM_CLI_LOG;
-export const logToStdout = process.env.JSPM_CLI_LOG === "1";
+export const logToStdout = process.env.JSPM_CLI_LOG === '1';
 
 // Actual debug logger implementation:
 let _log: Log, _logStream: LogStream;
@@ -28,21 +24,19 @@ if (logEnabled) {
     } else {
       // Otherwise, log to file
       if (
-        process.env.JSPM_CLI_LOG === "true" ||
-        process.env.JSPM_CLI_LOG?.toLowerCase() === "true"
+        process.env.JSPM_CLI_LOG === 'true' ||
+        process.env.JSPM_CLI_LOG?.toLowerCase() === 'true'
       ) {
-        logPath = `${os.tmpdir()}/jspm-${new Date()
-          .toISOString()
-          .slice(0, 19)}.log`;
+        logPath = `${os.tmpdir()}/jspm-${new Date().toISOString().slice(0, 19)}.log`;
       } else {
         logPath = process.env.JSPM_CLI_LOG;
       }
 
       // Use a write stream instead of fs.writeFile for better performance and auto-flushing
       logFileStream = createWriteStream(logPath, {
-        flags: "a",
-        encoding: "utf8",
-        mode: 0o666,
+        flags: 'a',
+        encoding: 'utf8',
+        mode: 0o666
       });
 
       console.log(c.red(`Debug logging enabled - writing to ${logPath}`));
@@ -51,9 +45,7 @@ if (logEnabled) {
     (async () => {
       if (logFileStream) {
         // Write header to the log file
-        logFileStream.write(
-          `JSPM CLI Log started at ${new Date().toISOString()}\n\n`
-        );
+        logFileStream.write(`JSPM CLI Log started at ${new Date().toISOString()}\n\n`);
       }
 
       for await (const { type, message } of _logStream()) {
@@ -86,7 +78,7 @@ export function withType(type: string) {
 // Actual logger implementation, ripped from the generator:
 function createLogger() {
   let resolveQueue: () => void;
-  let queuePromise = new Promise<void>((resolve) => (resolveQueue = resolve));
+  let queuePromise = new Promise<void>(resolve => (resolveQueue = resolve));
   let queue: { type: string; message: string }[] = [];
 
   const logStream = async function* () {
@@ -102,7 +94,7 @@ function createLogger() {
     } else {
       queue = [{ type, message }];
       const _resolveQueue = resolveQueue;
-      queuePromise = new Promise<void>((resolve) => (resolveQueue = resolve));
+      queuePromise = new Promise<void>(resolve => (resolveQueue = resolve));
       _resolveQueue();
     }
   }

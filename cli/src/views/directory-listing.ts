@@ -1,5 +1,5 @@
-import { readdir, stat } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { readdir, stat } from 'node:fs/promises';
+import { basename, dirname, join } from 'node:path';
 
 // Generate HTML directory listing
 export default async function generateDirectoryListing(
@@ -8,7 +8,7 @@ export default async function generateDirectoryListing(
   appBasePath: string
 ): Promise<string> {
   const files = await readdir(directoryPath, { withFileTypes: true });
-  const packageName = basename(appBasePath.replace(/^\//, ""));
+  const packageName = basename(appBasePath.replace(/^\//, ''));
 
   // Get file sizes
   const fileSizes = new Map<string, number>();
@@ -25,8 +25,8 @@ export default async function generateDirectoryListing(
 
   // Generate breadcrumb path parts
   const pathParts: string[] = [];
-  let currentPath = "";
-  const pathSegments = requestPath.split("/").filter((p) => p);
+  let currentPath = '';
+  const pathSegments = requestPath.split('/').filter(p => p);
 
   if (pathSegments.length > 0) {
     for (let i = 0; i < pathSegments.length; i++) {
@@ -37,9 +37,7 @@ export default async function generateDirectoryListing(
       if (isLast) {
         pathParts.push(`<span class="path-current">${segment}</span>`);
       } else {
-        pathParts.push(
-          `<a href="${appBasePath}${currentPath}/" class="path-link">${segment}</a>`
-        );
+        pathParts.push(`<a href="${appBasePath}${currentPath}/" class="path-link">${segment}</a>`);
       }
 
       if (!isLast) {
@@ -316,7 +314,7 @@ export default async function generateDirectoryListing(
                     <div class="path-parts">
                       ${
                         pathParts.length > 0
-                          ? pathParts.join("")
+                          ? pathParts.join('')
                           : '<span class="path-current">Root</span>'
                       }
                     </div>
@@ -327,7 +325,7 @@ export default async function generateDirectoryListing(
 `;
 
   // Add parent directory link if not at root
-  if (requestPath !== "/") {
+  if (requestPath !== '/') {
     const parentPath = dirname(requestPath);
     const parentUrl = `${appBasePath}${parentPath}`;
     html += `
@@ -354,7 +352,7 @@ export default async function generateDirectoryListing(
     const name = file.name;
     const filePath = join(requestPath, name);
     // Prepend the app base path for URLs
-    const href = `${appBasePath}${filePath}${file.isDirectory() ? "/" : ""}`;
+    const href = `${appBasePath}${filePath}${file.isDirectory() ? '/' : ''}`;
     const fileSize = fileSizes.get(name);
 
     if (file.isDirectory()) {

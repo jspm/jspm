@@ -1,6 +1,6 @@
-import { Generator } from "@jspm/generator";
-import assert from "assert";
-import { SemverRange } from "sver";
+import { Generator } from '@jspm/generator';
+import assert from 'assert';
+import { SemverRange } from 'sver';
 
 /*
  * Multi-HTML workflow example
@@ -36,13 +36,13 @@ const primaryHtml = `<!doctype html>
 
 const generator = new Generator({
   inputMap: primaryHtml,
-  mapUrl: new URL("./index.html", import.meta.url),
-  rootUrl: new URL("./local", import.meta.url),
-  env: ["production", "browser"],
+  mapUrl: new URL('./index.html', import.meta.url),
+  rootUrl: new URL('./local', import.meta.url),
+  env: ['production', 'browser']
 });
 
 const esmsPkg = await generator.traceMap.resolver.pm.resolveLatestTarget(
-  { name: "es-module-shims", registry: "npm", ranges: [new SemverRange("*")] },
+  { name: 'es-module-shims', registry: 'npm', ranges: [new SemverRange('*')] },
   generator.traceMap.installer.defaultProvider,
   undefined,
   generator.traceMap.resolver
@@ -52,9 +52,9 @@ const esmsUrl =
     esmsPkg,
     generator.traceMap.installer.defaultProvider.provider,
     generator.traceMap.installer.defaultProvider.layer
-  )) + "dist/es-module-shims.js";
+  )) + 'dist/es-module-shims.js';
 
-await generator.link("lit/html.js");
+await generator.link('lit/html.js');
 
 const primaryHtmlProcessed = await generator.htmlInject(primaryHtml);
 
@@ -91,12 +91,9 @@ assert.strictEqual(
   const generator = new Generator({
     inputMap: primaryHtmlProcessed,
     freeze: true,
-    env: ["production", "browser"],
+    env: ['production', 'browser']
   });
-  assert.strictEqual(
-    await generator.htmlInject(primaryHtmlProcessed),
-    primaryHtmlProcessed
-  );
+  assert.strictEqual(await generator.htmlInject(primaryHtmlProcessed), primaryHtmlProcessed);
 }
 
 // Sub-page extraction where sub-page has a specific import path to preload

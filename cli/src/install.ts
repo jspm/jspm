@@ -1,7 +1,7 @@
-import { pathToFileURL } from "node:url";
-import c from "picocolors";
-import { withType } from "./logger.ts";
-import type { GenerateOutputFlags } from "./cli.ts";
+import { pathToFileURL } from 'node:url';
+import c from 'picocolors';
+import { withType } from './logger.ts';
+import type { GenerateOutputFlags } from './cli.ts';
 import {
   JspmError,
   getEnv,
@@ -9,17 +9,17 @@ import {
   getInputMap,
   startSpinner,
   stopSpinner,
-  writeOutput,
-} from "./utils.ts";
-import type { IImportMap } from "./types.ts";
-import { initProject } from "./init.ts";
+  writeOutput
+} from './utils.ts';
+import type { IImportMap } from './types.ts';
+import { initProject } from './init.ts';
 
 export default async function install(flags: GenerateOutputFlags): Promise<{
   staticDeps: string[];
   dynamicDeps: string[];
   map: IImportMap | undefined;
 } | null> {
-  const log = withType("install/install");
+  const log = withType('install/install');
   log(`Flags: ${JSON.stringify(flags)}`);
 
   const env = await getEnv(flags);
@@ -39,8 +39,7 @@ export default async function install(flags: GenerateOutputFlags): Promise<{
     for (const key of Object.keys((input.imports = input.imports || {}))) {
       if (
         key === projectConfig.name ||
-        (key.startsWith(projectConfig.name) &&
-          key[projectConfig.name.length] === "/")
+        (key.startsWith(projectConfig.name) && key[projectConfig.name.length] === '/')
       ) {
         delete input.imports[key];
       }
@@ -56,13 +55,13 @@ export default async function install(flags: GenerateOutputFlags): Promise<{
       {
         alias: projectConfig.name,
         target: `${packageUrl}/`,
-        subpaths: true,
+        subpaths: true
       },
-      "freeze"
+      'freeze'
     ));
   } catch (e) {
     if (e instanceof JspmError && !flags.quiet) {
-      console.warn(`${c.red("Warning:")} ${e.message}`);
+      console.warn(`${c.red('Warning:')} ${e.message}`);
     } else {
       throw e;
     }

@@ -1,28 +1,28 @@
-import { JspmError } from "../common/err.js";
-import { importedFrom } from "../common/url.js";
-import type { LatestPackageTarget } from "../install/package.js";
-import { pkgToStr } from "../install/package.js";
-import type { ExactPackage } from "../install/package.js";
-import type { ImportMap } from "@jspm/import-map";
+import { JspmError } from '../common/err.js';
+import { importedFrom } from '../common/url.js';
+import type { LatestPackageTarget } from '../install/package.js';
+import { pkgToStr } from '../install/package.js';
+import type { ExactPackage } from '../install/package.js';
+import type { ImportMap } from '@jspm/import-map';
 // @ts-ignore
-import { SemverRange } from "sver";
+import { SemverRange } from 'sver';
 // @ts-ignore
-import { fetch } from "../common/fetch.js";
+import { fetch } from '../common/fetch.js';
 // @ts-ignore
-import * as tar from "tar-stream";
-import pako from "pako";
-import type { DeployOutput, ProviderContext } from "./index.js";
-import type { Resolver } from "../trace/resolver.js";
+import * as tar from 'tar-stream';
+import pako from 'pako';
+import type { DeployOutput, ProviderContext } from './index.js';
+import type { Resolver } from '../trace/resolver.js';
 
-let cdnUrl = "https://ga.jspm.io/";
-const systemCdnUrl = "https://ga.system.jspm.io/";
-let apiUrl = "https://api.jspm.io/";
+let cdnUrl = 'https://ga.jspm.io/';
+const systemCdnUrl = 'https://ga.system.jspm.io/';
+let apiUrl = 'https://api.jspm.io/';
 
 // the URL we PUT the deployment to
-let deployUrl = "https://dev.qitkao.com/";
+let deployUrl = 'https://dev.qitkao.com/';
 
 // the URL the deployment can be seen
-let publicDeployUrl = "https://jspm.io/";
+let publicDeployUrl = 'https://jspm.io/';
 
 let authToken;
 
@@ -46,51 +46,38 @@ interface JspmCache {
   buildRequested: Map<string, Promise<void>>;
 }
 
-export const supportedLayers = ["default", "system"];
+export const supportedLayers = ['default', 'system'];
 
 function withTrailer(url: string) {
-  return url.endsWith("/") ? url : url + "/";
+  return url.endsWith('/') ? url : url + '/';
 }
 
-export async function pkgToUrl(
-  pkg: ExactPackage,
-  layer: string
-): Promise<`${string}/`> {
-  return `${layer === "system" ? systemCdnUrl : cdnUrl}${pkgToStr(pkg)}/`;
+export async function pkgToUrl(pkg: ExactPackage, layer: string): Promise<`${string}/`> {
+  return `${layer === 'system' ? systemCdnUrl : cdnUrl}${pkgToStr(pkg)}/`;
 }
 
 export function configure(config: any) {
   if (config.authToken) authToken = config.authToken;
   if (config.cdnUrl) cdnUrl = withTrailer(config.cdnUrl);
   if (config.deployUrl) deployUrl = withTrailer(config.deployUrl);
-  if (config.publicDeployUrl)
-    publicDeployUrl = withTrailer(config.publicDeployUrl);
+  if (config.publicDeployUrl) publicDeployUrl = withTrailer(config.publicDeployUrl);
   if (config.apiUrl) apiUrl = withTrailer(config.apiUrl);
 }
 
-const exactPkgRegEx =
-  /^(([a-z]+):)?((?:@[^/\\%@]+\/)?[^./\\%@][^/\\%@]*)@([^\/]+)(\/.*)?$/;
+const exactPkgRegEx = /^(([a-z]+):)?((?:@[^/\\%@]+\/)?[^./\\%@][^/\\%@]*)@([^\/]+)(\/.*)?$/;
 
 export function parseUrlPkg(url: string) {
   let subpath = null;
   let layer: string;
-  if (url.startsWith(cdnUrl)) layer = "default";
-  else if (url.startsWith(systemCdnUrl)) layer = "system";
+  if (url.startsWith(cdnUrl)) layer = 'default';
+  else if (url.startsWith(systemCdnUrl)) layer = 'system';
   else return;
   const [, , registry, name, version] =
-    url
-      .slice((layer === "default" ? cdnUrl : systemCdnUrl).length)
-      .match(exactPkgRegEx) || [];
+    url.slice((layer === 'default' ? cdnUrl : systemCdnUrl).length).match(exactPkgRegEx) || [];
   if (registry && name && version) {
-    if (
-      registry === "npm" &&
-      name === "@jspm/core" &&
-      url.includes("/nodelibs/")
-    ) {
-      subpath = `./nodelibs/${
-        url.slice(url.indexOf("/nodelibs/") + 10).split("/")[1]
-      }`;
-      if (subpath && subpath.endsWith(".js")) subpath = subpath.slice(0, -3);
+    if (registry === 'npm' && name === '@jspm/core' && url.includes('/nodelibs/')) {
+      subpath = `./nodelibs/${url.slice(url.indexOf('/nodelibs/') + 10).split('/')[1]}`;
+      if (subpath && subpath.endsWith('.js')) subpath = subpath.slice(0, -3);
       else subpath = null;
     }
     return { pkg: { registry, name, version }, layer, subpath };
@@ -105,7 +92,7 @@ function getJspmCache(context: ProviderContext): JspmCache {
       versionsCacheMap: new Map(),
       resolveCache: {},
       cachedErrors: new Map(),
-      buildRequested: new Map(),
+      buildRequested: new Map()
     });
   }
   return jspmCache;
@@ -119,9 +106,7 @@ async function checkBuildOrError(
 ): Promise<boolean> {
   // For backward compatibility, assuming we have an outer resolver that can handle this
   // In a fully refactored system, this would likely come from a different method
-  const pcfg =
-    (await resolver?.getPackageConfig(pkgUrl)) ||
-    (await fetch(pkgUrl + "package.json"));
+  const pcfg = (await resolver?.getPackageConfig(pkgUrl)) || (await fetch(pkgUrl + 'package.json'));
   if (pcfg) {
     return true;
   }
@@ -151,15 +136,7 @@ async function ensureBuild(
   fetchOpts: any,
   resolver: Resolver | null
 ) {
-  if (
-    await checkBuildOrError(
-      context,
-      await pkgToUrl(pkg, "default"),
-      fetchOpts,
-      resolver
-    )
-  )
-    return;
+  if (await checkBuildOrError(context, await pkgToUrl(pkg, 'default'), fetchOpts, resolver)) return;
 
   const fullName = `${pkg.name}@${pkg.version}`;
 
@@ -180,16 +157,9 @@ async function ensureBuild(
     // build requested -> poll on that
     let startTime = Date.now();
     while (true) {
-      await new Promise((resolve) => setTimeout(resolve, BUILD_POLL_INTERVAL));
+      await new Promise(resolve => setTimeout(resolve, BUILD_POLL_INTERVAL));
 
-      if (
-        await checkBuildOrError(
-          context,
-          await pkgToUrl(pkg, "default"),
-          fetchOpts,
-          resolver
-        )
-      )
+      if (await checkBuildOrError(context, await pkgToUrl(pkg, 'default'), fetchOpts, resolver))
         return;
 
       if (Date.now() - startTime >= BUILD_POLL_TIME)
@@ -220,32 +190,26 @@ export async function resolveLatestTarget(
 
   const { resolveCache } = getJspmCache(this);
 
-  const cache = (resolveCache[target.registry + ":" + target.name] =
-    resolveCache[target.registry + ":" + target.name] || {
-      latest: null,
-      majors: Object.create(null),
-      minors: Object.create(null),
-      tags: Object.create(null),
-    });
+  const cache = (resolveCache[target.registry + ':' + target.name] = resolveCache[
+    target.registry + ':' + target.name
+  ] || {
+    latest: null,
+    majors: Object.create(null),
+    minors: Object.create(null),
+    tags: Object.create(null)
+  });
 
-  if (range.isWildcard || (range.isExact && range.version.tag === "latest")) {
+  if (range.isWildcard || (range.isExact && range.version.tag === 'latest')) {
     let lookup = await (cache.latest ||
-      (cache.latest = lookupRange.call(
-        this,
-        registry,
-        name,
-        "",
-        unstable,
-        parentUrl
-      )));
+      (cache.latest = lookupRange.call(this, registry, name, '', unstable, parentUrl)));
     // Deno wat?
     if (lookup instanceof Promise) lookup = await lookup;
     if (!lookup) return null;
     this.log(
-      "jspm/resolveLatestTarget",
-      `${target.registry}:${target.name}@${range} -> WILDCARD ${
-        lookup.version
-      }${parentUrl ? " [" + parentUrl + "]" : ""}`
+      'jspm/resolveLatestTarget',
+      `${target.registry}:${target.name}@${range} -> WILDCARD ${lookup.version}${
+        parentUrl ? ' [' + parentUrl + ']' : ''
+      }`
     );
     await ensureBuild(this, lookup, this.fetchOpts, resolver);
     return lookup;
@@ -253,21 +217,14 @@ export async function resolveLatestTarget(
   if (range.isExact && range.version.tag) {
     const tag = range.version.tag;
     let lookup = await (cache.tags[tag] ||
-      (cache.tags[tag] = lookupRange.call(
-        this,
-        registry,
-        name,
-        tag,
-        unstable,
-        parentUrl
-      )));
+      (cache.tags[tag] = lookupRange.call(this, registry, name, tag, unstable, parentUrl)));
     // Deno wat?
     if (lookup instanceof Promise) lookup = await lookup;
     if (!lookup) return null;
     this.log(
-      "jspm/resolveLatestTarget",
+      'jspm/resolveLatestTarget',
       `${target.registry}:${target.name}@${range} -> TAG ${tag}${
-        parentUrl ? " [" + parentUrl + "]" : ""
+        parentUrl ? ' [' + parentUrl + ']' : ''
       }`
     );
     await ensureBuild(this, lookup, this.fetchOpts, resolver);
@@ -277,14 +234,7 @@ export async function resolveLatestTarget(
   if (range.isMajor) {
     const major = range.version.major;
     let lookup = await (cache.majors[major] ||
-      (cache.majors[major] = lookupRange.call(
-        this,
-        registry,
-        name,
-        major,
-        unstable,
-        parentUrl
-      )));
+      (cache.majors[major] = lookupRange.call(this, registry, name, major, unstable, parentUrl)));
     // Deno wat?
     if (lookup instanceof Promise) lookup = await lookup;
     if (!lookup) return null;
@@ -294,9 +244,9 @@ export async function resolveLatestTarget(
       stableFallback = true;
     } else {
       this.log(
-        "jspm/resolveLatestTarget",
+        'jspm/resolveLatestTarget',
         `${target.registry}:${target.name}@${range} -> MAJOR ${lookup.version}${
-          parentUrl ? " [" + parentUrl + "]" : ""
+          parentUrl ? ' [' + parentUrl + ']' : ''
         }`
       );
       await ensureBuild(this, lookup, this.fetchOpts, resolver);
@@ -306,23 +256,16 @@ export async function resolveLatestTarget(
   if (stableFallback || range.isStable) {
     const minor = `${range.version.major}.${range.version.minor}`;
     let lookup = await (cache.minors[minor] ||
-      (cache.minors[minor] = lookupRange.call(
-        this,
-        registry,
-        name,
-        minor,
-        unstable,
-        parentUrl
-      )));
+      (cache.minors[minor] = lookupRange.call(this, registry, name, minor, unstable, parentUrl)));
     // in theory a similar downgrade to the above can happen for stable prerelease ranges ~1.2.3-pre being downgraded to 1.2.2
     // this will be solved by the pkg@X.Y@ unstable minor lookup
     // Deno wat?
     if (lookup instanceof Promise) lookup = await lookup;
     if (!lookup) return null;
     this.log(
-      "jspm/resolveLatestTarget",
+      'jspm/resolveLatestTarget',
       `${target.registry}:${target.name}@${range} -> MINOR ${lookup.version}${
-        parentUrl ? " [" + parentUrl + "]" : ""
+        parentUrl ? ' [' + parentUrl + ']' : ''
       }`
     );
     await ensureBuild(this, lookup, this.fetchOpts, resolver);
@@ -332,9 +275,7 @@ export async function resolveLatestTarget(
 }
 
 function pkgToLookupUrl(pkg: ExactPackage, edge = false) {
-  return `${cdnUrl}${pkg.registry}:${pkg.name}${
-    pkg.version ? "@" + pkg.version : edge ? "@" : ""
-  }`;
+  return `${cdnUrl}${pkg.registry}:${pkg.name}${pkg.version ? '@' + pkg.version : edge ? '@' : ''}`;
 }
 
 async function lookupRange(
@@ -355,7 +296,7 @@ async function lookupRange(
     } else {
       // not found
       const versions = await fetchVersions.call(this, name);
-      const semverRange = new SemverRange(String(range) || "*", unstable);
+      const semverRange = new SemverRange(String(range) || '*', unstable);
       const version = semverRange.bestMatch(versions, unstable);
 
       if (version) {
@@ -386,32 +327,23 @@ async function getTextIfOk(url, fetchOpts): Promise<string | null> {
   }
 }
 
-export async function fetchVersions(
-  this: ProviderContext,
-  name: string
-): Promise<string[]> {
+export async function fetchVersions(this: ProviderContext, name: string): Promise<string[]> {
   const { versionsCacheMap } = getJspmCache(this);
   if (versionsCacheMap.has(name)) {
     return versionsCacheMap.get(name);
   }
   const registryLookup =
-    JSON.parse(
-      await getTextIfOk(`https://npmlookup.jspm.io/${encodeURI(name)}`, {})
-    ) || {};
+    JSON.parse(await getTextIfOk(`https://npmlookup.jspm.io/${encodeURI(name)}`, {})) || {};
   const versions = Object.keys(registryLookup.versions || {});
   versionsCacheMap.set(name, versions);
 
   return versions;
 }
 
-export function getDeploymentUrl(
-  this: ProviderContext,
-  name: string,
-  version: string
-) {
+export function getDeploymentUrl(this: ProviderContext, name: string, version: string) {
   return {
     packageUrl: `${publicDeployUrl}app:${name}@${version}/` as `${string}/`,
-    mapUrl: `${publicDeployUrl}app:${name}@${version}/importmap.json`,
+    mapUrl: `${publicDeployUrl}app:${name}@${version}/importmap.json`
   };
 }
 
@@ -422,9 +354,7 @@ export async function downloadDeployment(
 ): Promise<Record<string, ArrayBuffer>> {
   let tarball: ArrayBuffer;
   try {
-    const tarballRes = await fetch(
-      `${publicDeployUrl}tarball/app:${name}@${version}`
-    );
+    const tarballRes = await fetch(`${publicDeployUrl}tarball/app:${name}@${version}`);
     if (tarballRes.ok) {
       tarball = await tarballRes.arrayBuffer();
     } else {
@@ -444,14 +374,14 @@ export async function downloadDeployment(
   const fileData: Record<string, ArrayBuffer> = {};
 
   await new Promise((resolve, reject) => {
-    extract.on("entry", async function (header, stream, next) {
+    extract.on('entry', async function (header, stream, next) {
       try {
-        if (header.type === "file") {
-          if (header.name.indexOf("/") === -1) {
+        if (header.type === 'file') {
+          if (header.name.indexOf('/') === -1) {
             next();
             return;
           }
-          const name = header.name.slice(header.name.indexOf("/") + 1);
+          const name = header.name.slice(header.name.indexOf('/') + 1);
           const target = new Uint8Array(header.size!);
           let offset = 0;
           for await (const chunk of stream) {
@@ -460,15 +390,15 @@ export async function downloadDeployment(
           }
           fileData[name] = target;
         }
-        stream.once("end", next);
+        stream.once('end', next);
         stream.resume();
         next();
       } catch (e) {
-        extract.emit("error", e);
+        extract.emit('error', e);
       }
     });
-    extract.once("error", reject);
-    extract.once("finish", resolve);
+    extract.once('error', reject);
+    extract.once('finish', resolve);
     extract.end(output);
   });
   return fileData;
@@ -501,15 +431,15 @@ export async function deploy(
 
   // Upload the package
   const response = await fetch(packageUrl, {
-    method: "PUT",
+    method: 'PUT',
     headers: {
-      "Content-Type": "application/gzip",
-      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/gzip',
+      Authorization: `Bearer ${token}`
       // for mutable packages, we retain the no-cache status for 30 seconds (for testing)
       // 'x-no-cache-duration': 30
     },
     body: tarball,
-    timeout,
+    timeout
   });
 
   if (!response.ok) {
@@ -524,9 +454,7 @@ export async function deploy(
     try {
       const errorJson = await response.json();
       errorMessage =
-        errorJson.message ||
-        errorJson.error ||
-        `Deployment failed with status ${response.status}`;
+        errorJson.message || errorJson.error || `Deployment failed with status ${response.status}`;
     } catch {}
     throw new JspmError(errorMessage);
   }
@@ -534,14 +462,10 @@ export async function deploy(
   const result = await response.json();
 
   if (!result.success) {
-    throw new JspmError(result.message || "Deployment failed");
+    throw new JspmError(result.message || 'Deployment failed');
   }
 
-  const { packageUrl: publicPackageUrl, mapUrl } = getDeploymentUrl.call(
-    this,
-    name,
-    version
-  );
+  const { packageUrl: publicPackageUrl, mapUrl } = getDeploymentUrl.call(this, name, version);
 
   return {
     packageUrl: publicPackageUrl,
@@ -556,24 +480,22 @@ export async function deploy(
 ${
   imports.length
     ? `
-<!-- Import entrypoint${imports.length > 1 ? "s" : ""} -->
-<script type="module" crossorigin="anonymous">${
-        imports.length > 1 ? "\n" : ""
-      }${imports
+<!-- Import entrypoint${imports.length > 1 ? 's' : ''} -->
+<script type="module" crossorigin="anonymous">${imports.length > 1 ? '\n' : ''}${imports
         .map(
           (impt, idx) =>
             `${
               idx === 0
-                ? ""
+                ? ''
                 : idx === 1
-                ? "// Further available import map entrypoints - import as needed:\n// "
-                : "// "
+                ? '// Further available import map entrypoints - import as needed:\n// '
+                : '// '
             }import '${impt}';`
         )
-        .join("\n")}${imports.length > 1 ? "\n" : ""}</script>`
-    : ""
+        .join('\n')}${imports.length > 1 ? '\n' : ''}</script>`
+    : ''
 }
-`,
+`
   };
 }
 
@@ -582,18 +504,16 @@ async function latestEsms(this: ProviderContext, forUrl: string) {
   const esmsPkg = await resolveLatestTarget.call(
     this,
     {
-      name: "es-module-shims",
-      registry: "npm",
-      range: new SemverRange("*"),
-      unstable: false,
+      name: 'es-module-shims',
+      registry: 'npm',
+      range: new SemverRange('*'),
+      unstable: false
     },
-    "default",
+    'default',
     forUrl,
     null
   );
-  return (
-    (await pkgToUrl.call(this, esmsPkg, "default")) + "dist/es-module-shims.js"
-  );
+  return (await pkgToUrl.call(this, esmsPkg, 'default')) + 'dist/es-module-shims.js';
 }
 
 /**
@@ -611,12 +531,12 @@ export async function auth(
 ): Promise<{ token: string }> {
   // Start token request
   const deviceCodeResponse = await globalThis.fetch(`${apiUrl}v1/auth/cli`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      client_id: "jspm-cli",
-      scope: "deployments",
-    }),
+      client_id: 'jspm-cli',
+      scope: 'deployments'
+    })
   });
 
   if (!deviceCodeResponse.ok) {
@@ -630,7 +550,7 @@ export async function auth(
     device_code: deviceCode,
     user_code: userCode,
     verification_uri_complete: verificationUri,
-    interval = 5,
+    interval = 5
   } = deviceCodeData;
 
   // Prepare instructions for the user
@@ -641,36 +561,31 @@ export async function auth(
 
   while (true) {
     // Wait for the polling interval
-    await new Promise((resolve) => setTimeout(resolve, AUTH_POLL_INTERVAL));
+    await new Promise(resolve => setTimeout(resolve, AUTH_POLL_INTERVAL));
 
     try {
       // Poll the token endpoint
-      const tokenResponse = await globalThis.fetch(
-        `${apiUrl}v1/auth/cli/token`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-            device_code: deviceCode,
-            client_id: "jspm-cli",
-          }),
-        }
-      );
+      const tokenResponse = await globalThis.fetch(`${apiUrl}v1/auth/cli/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          device_code: deviceCode,
+          client_id: 'jspm-cli'
+        })
+      });
 
       const tokenData = await tokenResponse.json();
 
       // Check for errors
       if (tokenResponse.status !== 200) {
         // If authorization is pending, continue polling
-        if (tokenData.error === "authorization_pending") {
+        if (tokenData.error === 'authorization_pending') {
           continue;
         }
 
         // If another error occurred, stop polling
-        throw new JspmError(
-          tokenData.error_description || "Authentication failed"
-        );
+        throw new JspmError(tokenData.error_description || 'Authentication failed');
       }
 
       // Success! Store and return the token
@@ -678,7 +593,7 @@ export async function auth(
       return { token: authToken };
     } catch (error) {
       // Handle network errors, continue polling
-      if (error.name === "FetchError") {
+      if (error.name === 'FetchError') {
         continue;
       }
 
@@ -694,10 +609,7 @@ export async function auth(
  * @param packageVersion Version of the package
  * @returns JWT token for deployment authorization
  */
-async function createDeployToken(
-  packageName: string,
-  packageVersion: string
-): Promise<string> {
+async function createDeployToken(packageName: string, packageVersion: string): Promise<string> {
   if (!authToken) {
     throw new JspmError(
       `No auth token has been generated for jspm.io. Either set providers['jspm.io'].authToken, or first run "jspm auth jspm.io"`
@@ -705,15 +617,15 @@ async function createDeployToken(
   }
   try {
     const response = await globalThis.fetch(`${apiUrl}v1/package/token`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
       },
       body: JSON.stringify({
         package_name: packageName,
-        package_version: packageVersion,
-      }),
+        package_version: packageVersion
+      })
     });
 
     if (!response.ok) {
@@ -723,16 +635,14 @@ async function createDeployToken(
       } catch {
         throw new Error(response.status.toString());
       }
-      throw new Error(
-        errJson.error ? errJson.error : JSON.stringify(errJson, null, 2)
-      );
+      throw new Error(errJson.error ? errJson.error : JSON.stringify(errJson, null, 2));
     }
 
     const data = await response.json();
     return data.token;
   } catch (error) {
     // Fall back to the placeholder token if there's an error
-    if (error.message.includes("Invalid or expired token"))
+    if (error.message.includes('Invalid or expired token'))
       throw new JspmError(
         `Invalid or expired token, run "jspm provider auth jspm.io" to regenerate an authentication token.`
       );
@@ -758,28 +668,28 @@ async function createTarball(
   const deflator = new pako.Deflate({ gzip: true });
 
   const result: Promise<Uint8Array> = new Promise((resolve, reject) => {
-    pack.on("data", (chunk: Buffer) => {
+    pack.on('data', (chunk: Buffer) => {
       deflator.push(chunk, false);
     });
 
-    pack.on("finish", () => {
-      console.log("wat");
+    pack.on('finish', () => {
+      console.log('wat');
     });
 
-    pack.on("end", async () => {
+    pack.on('end', async () => {
       deflator.push(new Uint8Array([]), true);
       if (deflator.err) reject(deflator.err);
       else resolve(deflator.result);
     });
 
-    pack.on("error", (err: Error) => {
+    pack.on('error', (err: Error) => {
       reject(err);
     });
   });
 
   if (map) {
     pack.entry(
-      { name: "package/importmap.json" },
+      { name: 'package/importmap.json' },
       new TextEncoder().encode(JSON.stringify(map.toJSON()))
     );
   }
@@ -790,7 +700,7 @@ async function createTarball(
     for (const [path, content] of Object.entries(files)) {
       let contentBuffer: Uint8Array;
 
-      if (typeof content === "string") {
+      if (typeof content === 'string') {
         contentBuffer = new TextEncoder().encode(content);
       } else {
         contentBuffer = new Uint8Array(content);

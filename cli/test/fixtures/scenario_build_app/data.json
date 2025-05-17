@@ -1,0 +1,26 @@
+{
+  "title": "Test Component Data",
+  "version": "1.0.0",
+  "items": [
+    {
+      "id": 1,
+      "name": "First Item",
+      "description": "This is the first test item"
+    },
+    {
+      "id": 2,
+      "name": "Second Item",
+      "description": "This is the second test item"
+    },
+    {
+      "id": 3,
+      "name": "Third Item",
+      "description": "This is the third test item"
+    }
+  ],
+  "settings": {
+    "theme": "light",
+    "animation": true,
+    "debug": false
+  }
+}

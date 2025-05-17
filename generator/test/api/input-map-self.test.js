@@ -1,21 +1,20 @@
-import { Generator } from "@jspm/generator";
-import assert from "assert";
+import { Generator } from '@jspm/generator';
+import assert from 'assert';
 
 const generator = new Generator({
-  mapUrl: "about:blank",
+  mapUrl: 'about:blank',
   inputMap: {
     imports: {
-      "@babel/core":
-        "https://ga.jspm.io/npm:@jspm/core@2.0.0-beta.8/nodelibs/@empty.js",
-      "@babel/preset-typescript":
-        "https://ga.jspm.io/npm:@jspm/core@2.0.0-beta.8/nodelibs/@empty.js",
-    },
+      '@babel/core': 'https://ga.jspm.io/npm:@jspm/core@2.0.0-beta.8/nodelibs/@empty.js',
+      '@babel/preset-typescript':
+        'https://ga.jspm.io/npm:@jspm/core@2.0.0-beta.8/nodelibs/@empty.js'
+    }
   },
-  ignore: ["@babel/core", "@babel/preset-typescript"],
-  env: ["source"],
+  ignore: ['@babel/core', '@babel/preset-typescript'],
+  env: ['source']
 });
 
-await generator.install(new URL("../../", import.meta.url).href);
+await generator.install(new URL('../../', import.meta.url).href);
 
 const json = generator.getMap();
 

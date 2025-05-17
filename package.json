@@ -1,7 +1,8 @@
 {
   "workspaces": [
-    "import-map",
+    "cli",
     "generator",
-    "cli"
+    "import-map",
+    "rollup-plugin-jspm"
   ]
 }

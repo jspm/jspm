@@ -1,5 +1,5 @@
-import { getIntegrity } from "../common/integrity.js";
-import { Analysis } from "./analysis";
+import { getIntegrity } from '../common/integrity.js';
+import { Analysis } from './analysis';
 
 let babel, babelPresetTs, babelPluginImportAttributes;
 
@@ -32,23 +32,17 @@ const dummyConsole = {
   timeEnd() {},
   timeLog() {},
   timeStamp() {},
-  trace() {},
+  trace() {}
 };
 
-export async function createTsAnalysis(
-  source: string,
-  url: string
-): Promise<Analysis> {
+export async function createTsAnalysis(source: string, url: string): Promise<Analysis> {
   if (!babel)
-    [
-      babel,
-      { default: babelPresetTs },
-      { default: babelPluginImportAttributes },
-    ] = await Promise.all([
-      import("@babel/core"),
-      import("@babel/preset-typescript"),
-      import("@babel/plugin-syntax-import-attributes"),
-    ]);
+    [babel, { default: babelPresetTs }, { default: babelPluginImportAttributes }] =
+      await Promise.all([
+        import('@babel/core'),
+        import('@babel/preset-typescript'),
+        import('@babel/plugin-syntax-import-attributes')
+      ]);
 
   const imports = new Set<string>();
   const dynamicImports = new Set<string>();
@@ -57,7 +51,7 @@ export async function createTsAnalysis(
   globalThis.console = dummyConsole;
   try {
     babel.transform(source, {
-      filename: "/" + url,
+      filename: '/' + url,
       ast: false,
       sourceMaps: false,
       inputSourceMap: false,
@@ -66,18 +60,18 @@ export async function createTsAnalysis(
       configFile: false,
       highlightCode: false,
       compact: false,
-      sourceType: "module",
+      sourceType: 'module',
       parserOpts: {
-        plugins: ["jsx"],
-        errorRecovery: true,
+        plugins: ['jsx'],
+        errorRecovery: true
       },
       presets: [
         [
           babelPresetTs,
           {
-            onlyRemoveTypeImports: true,
-          },
-        ],
+            onlyRemoveTypeImports: true
+          }
+        ]
       ],
       plugins: [
         babelPluginImportAttributes,
@@ -85,29 +79,23 @@ export async function createTsAnalysis(
           return {
             visitor: {
               ExportAllDeclaration(path) {
-                if (path.node.exportKind !== "type")
-                  imports.add(path.node.source.value);
+                if (path.node.exportKind !== 'type') imports.add(path.node.source.value);
               },
               ExportNamedDeclaration(path) {
                 if (path.node.source) imports.add(path.node.source.value);
               },
               ImportDeclaration(path) {
-                if (path.node.exportKind !== "type")
-                  imports.add(path.node.source.value);
+                if (path.node.exportKind !== 'type') imports.add(path.node.source.value);
               },
               Import(path) {
                 dynamicImports.add(
-                  buildDynamicString(
-                    path.parentPath.get("arguments.0").node,
-                    url,
-                    true
-                  )
+                  buildDynamicString(path.parentPath.get('arguments.0').node, url, true)
                 );
-              },
-            },
+              }
+            }
           };
-        },
-      ],
+        }
+      ]
     });
   } finally {
     globalThis.console = globalConsole;
@@ -118,23 +106,18 @@ export async function createTsAnalysis(
     dynamicDeps: [...dynamicImports],
     cjsLazyDeps: null,
     size: source.length,
-    format: "typescript",
-    integrity: await getIntegrity(source),
+    format: 'typescript',
+    integrity: await getIntegrity(source)
   };
 }
 
 // We use the special character \x10 as a "wildcard symbol"
-function buildDynamicString(
-  node,
-  fileName,
-  isEsm = false,
-  lastIsWildcard = false
-): string {
-  if (node.type === "StringLiteral") {
+function buildDynamicString(node, fileName, isEsm = false, lastIsWildcard = false): string {
+  if (node.type === 'StringLiteral') {
     return node.value;
   }
-  if (node.type === "TemplateLiteral") {
-    let str = "";
+  if (node.type === 'TemplateLiteral') {
+    let str = '';
     for (let i = 0; i < node.quasis.length; i++) {
       const quasiStr = node.quasis[i].value.cooked;
       if (quasiStr.length) {
@@ -143,39 +126,24 @@ function buildDynamicString(
       }
       const nextNode = node.expressions[i];
       if (nextNode) {
-        const nextStr = buildDynamicString(
-          nextNode,
-          fileName,
-          isEsm,
-          lastIsWildcard
-        );
+        const nextStr = buildDynamicString(nextNode, fileName, isEsm, lastIsWildcard);
         if (nextStr.length) {
-          lastIsWildcard = nextStr.endsWith("\x10");
+          lastIsWildcard = nextStr.endsWith('\x10');
           str += nextStr;
         }
       }
     }
     return str;
   }
-  if (node.type === "BinaryExpression" && node.operator === "+") {
-    const leftResolved = buildDynamicString(
-      node.left,
-      fileName,
-      isEsm,
-      lastIsWildcard
-    );
-    if (leftResolved.length) lastIsWildcard = leftResolved.endsWith("\x10");
-    const rightResolved = buildDynamicString(
-      node.right,
-      fileName,
-      isEsm,
-      lastIsWildcard
-    );
+  if (node.type === 'BinaryExpression' && node.operator === '+') {
+    const leftResolved = buildDynamicString(node.left, fileName, isEsm, lastIsWildcard);
+    if (leftResolved.length) lastIsWildcard = leftResolved.endsWith('\x10');
+    const rightResolved = buildDynamicString(node.right, fileName, isEsm, lastIsWildcard);
     return leftResolved + rightResolved;
   }
-  if (isEsm && node.type === "Identifier") {
-    if (node.name === "__dirname") return ".";
-    if (node.name === "__filename") return "./" + fileName;
+  if (isEsm && node.type === 'Identifier') {
+    if (node.name === '__dirname') return '.';
+    if (node.name === '__filename') return './' + fileName;
   }
   // TODO: proper expression support
   // new URL('...', import.meta.url).href | new URL('...', import.meta.url).toString() | new URL('...', import.meta.url).pathname
@@ -187,5 +155,5 @@ function buildDynamicString(
       return './' + fileName;
     }
   }*/
-  return lastIsWildcard ? "" : "\x10";
+  return lastIsWildcard ? '' : '\x10';
 }

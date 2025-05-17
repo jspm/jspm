@@ -1,23 +1,49 @@
-import { test } from "node:test";
-import assert from "assert";
-import { mapDirectory, run } from "./scenarios.ts";
+import { test } from 'node:test';
+import { strictEqual, ok } from 'node:assert';
+import { mapDirectory, run } from './scenarios.ts';
 
-// Windows tests are disabled
-test(
-  "build with rollup config",
-  { skip: process.platform === "win32" },
-  async () => {
-    const filesOwnName = await mapDirectory("fixtures/scenario_build_app");
+test('build with rollup config', async () => {
+  const filesBuild = await mapDirectory('fixtures/scenario_build_app');
+  await run({
+    files: filesBuild,
+    commands: ['jspm build --out dist'],
+    validationFn: async (files: Map<string, string>) => {
+      // Verify main entry point is built
+      ok(files.has('dist/app.js'), 'Entry point app.js should be built');
+      
+      // Verify source maps are generated
+      ok(files.has('dist/app.js.map'), 'Source map for app.js should be generated');
+      
+      // Verify utils file is in the output
+      ok(files.has('dist/utils.js'), 'Utils.js should be in the output directory');
+      
+      // Verify import statements are correctly handled (check for lit-element import)
+      const appJs = files.get('dist/app.js');
+      ok(appJs && appJs.includes('3.2.1'), 'Built app.js should include lit-element 3.2.1 inlined');
+      
+      // Verify the code was correctly bundled (check for a function from utils.js)
+      ok(appJs && appJs.includes('litElementVersions'), 'Built app.js should include function from utils.js');
+      
+      // Verify CSS imports are correctly handled
+      ok(appJs && appJs.includes('padding:16px'), 'Built app.js should include CSS styles from styles.css');
+      ok(appJs && appJs.includes('font-family:sans-serif'), 'Built app.js should include inline CSS styles');
+      
+      // Verify JSON data imports are correctly handled
+      ok(appJs && appJs.includes('"Test Component Data"'), 'Built app.js should include imported JSON data');
+      ok(appJs && appJs.includes('"theme": "light"'), 'Built app.js should include settings from JSON data');
+      
+      // Verify TypeScript compilation
+      ok(appJs && appJs.includes('UserManager'), 'Built app.js should include the UserManager class from TypeScript');
+      ok(appJs && appJs.includes('getActiveUsers'), 'Built app.js should include TypeScript class methods');
+      ok(appJs && appJs.includes('TYPESCRIPT_VERSION'), 'Built app.js should include TypeScript constants');
+      ok(appJs && appJs.includes('getAllUsers'), 'Built app.js should include correctly compiled TypeScript code');
+      ok(appJs && appJs.includes('filter(user => user.isActive)'), 'Built app.js should include TypeScript arrow functions');
+      
+      // Verify the utils export point is handled correctly
+      const utilsJs = files.get('dist/utils.js');
+      ok(utilsJs && utilsJs.includes('export { add }'), 'Utils.js should be correctly built with exports');
 
-    await run({
-      files: filesOwnName,
-      commands: ["jspm build --config rollup-config.mjs"],
-      validationFn: async (files) => {
-        const build = files.get("build.js");
-        assert(!!build);
-        assert(!build.includes('import { add } from "./utils.js"'));
-        assert(build.includes("const add = (num1, num2) => num1 + num2"));
-      },
-    });
-  }
-);
+      ok(utilsJs && utilsJs.includes('import \'react\''), 'Utils.js should have react external');
+    }
+  });
+});

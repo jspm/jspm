@@ -1,5 +1,5 @@
-import { Generator } from "@jspm/generator";
-import assert from "assert";
+import { Generator } from '@jspm/generator';
+import assert from 'assert';
 
 // Test validation errors during deployment
 
@@ -9,17 +9,17 @@ try {
   const generator = new Generator();
   await generator.deploy({
     package: {
-      "package.json": JSON.stringify({ name: "", version: "1.0.0" }),
-      "index.js": "export default {}",
-    },
+      'package.json': JSON.stringify({ name: '', version: '1.0.0' }),
+      'index.js': 'export default {}'
+    }
   });
-  assert.fail("Should have thrown an error for missing package name");
+  assert.fail('Should have thrown an error for missing package name');
 } catch (e) {
   error = e;
 }
 assert.ok(
-  error.message.includes("Package name is required"),
-  "Should throw specific error for missing package name"
+  error.message.includes('Package name is required'),
+  'Should throw specific error for missing package name'
 );
 
 // Missing package version
@@ -28,17 +28,17 @@ try {
   const generator = new Generator();
   await generator.deploy({
     package: {
-      "package.json": JSON.stringify({ name: "test-package", version: "" }),
-      "index.js": "export default {}",
-    },
+      'package.json': JSON.stringify({ name: 'test-package', version: '' }),
+      'index.js': 'export default {}'
+    }
   });
-  assert.fail("Should have thrown an error for missing package version");
+  assert.fail('Should have thrown an error for missing package version');
 } catch (e) {
   error = e;
 }
 assert.ok(
-  error.message.includes("Package version is required"),
-  "Should throw specific error for missing package version"
+  error.message.includes('Package version is required'),
+  'Should throw specific error for missing package version'
 );
 
 // No files provided
@@ -47,15 +47,15 @@ try {
   const generator = new Generator();
   await generator.deploy({
     package: {},
-    importMap: false,
+    importMap: false
   });
-  assert.fail("Should have thrown an error for empty files");
+  assert.fail('Should have thrown an error for empty files');
 } catch (e) {
   error = e;
 }
 assert.ok(
-  error.message.includes("At least one file or importMap is required"),
-  "Should throw specific error for no files, got " + error.message
+  error.message.includes('At least one file or importMap is required'),
+  'Should throw specific error for no files, got ' + error.message
 );
 
 // Invalid package.json
@@ -64,15 +64,15 @@ try {
   const generator = new Generator();
   await generator.deploy({
     package: {
-      "package.json": "{ invalid: json",
-      "index.js": "export default {}",
-    },
+      'package.json': '{ invalid: json',
+      'index.js': 'export default {}'
+    }
   });
-  assert.fail("Should have thrown an error for invalid package.json");
+  assert.fail('Should have thrown an error for invalid package.json');
 } catch (e) {
   error = e;
 }
 assert.ok(
-  error.message.includes("Invalid package.json"),
-  "Should throw specific error for invalid package.json"
+  error.message.includes('Invalid package.json'),
+  'Should throw specific error for invalid package.json'
 );

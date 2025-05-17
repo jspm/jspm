@@ -22,6 +22,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^0.34.2",
     "@babel/core": "^7.24.7",
+    "@rollup/pluginutils": "^5.1.0",
     "@types/node": "^18.15.11",
     "amaro": "^0.5.3",
     "cac": "^6.7.14",

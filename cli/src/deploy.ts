@@ -14,11 +14,11 @@
  *    limitations under the License.
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
-import c from "picocolors";
-import open from "open";
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import c from 'picocolors';
+import open from 'open';
 import {
   JspmError,
   cliHtmlHighlight,
@@ -30,36 +30,28 @@ import {
   runPackageScript,
   startSpinner,
   stopSpinner,
-  writeOutput,
-} from "./utils.ts";
-import type { DeployFlags, EjectFlags } from "./cli.ts";
-import { withType } from "./logger.ts";
-import { loadConfig } from "./config.ts";
+  writeOutput
+} from './utils.ts';
+import type { DeployFlags, EjectFlags } from './cli.ts';
+import { withType } from './logger.ts';
+import { loadConfig } from './config.ts';
 
 function showShortcuts(directory?: string) {
-  console.log(`${c.magenta(c.bold("\nKeyboard shortcuts:"))}
- → ${c.bold(c.bgBlueBright(c.whiteBright(" o ")))} ${c.dim(
-    "Open package URL in the browser"
+  console.log(`${c.magenta(c.bold('\nKeyboard shortcuts:'))}
+ → ${c.bold(c.bgBlueBright(c.whiteBright(' o ')))} ${c.dim('Open package URL in the browser')}
+ → ${c.bold(c.bgBlueBright(c.whiteBright(' l ')))} ${c.dim(
+    'Open package listing page in the browser'
   )}
- → ${c.bold(c.bgBlueBright(c.whiteBright(" l ")))} ${c.dim(
-    "Open package listing page in the browser"
+ → ${c.bold(c.bgBlueBright(c.whiteBright(' c ')))} ${c.dim(
+    'Copy HTML usage script code snippet to clipboard'
   )}
- → ${c.bold(c.bgBlueBright(c.whiteBright(" c ")))} ${c.dim(
-    "Copy HTML usage script code snippet to clipboard"
+ → ${c.bold(c.bgBlueBright(c.whiteBright(' p ')))} ${c.dim(
+    'Open self-contained preview URL in the browser'
   )}
- → ${c.bold(c.bgBlueBright(c.whiteBright(" p ")))} ${c.dim(
-    "Open self-contained preview URL in the browser"
-  )}
- → ${c.bold(c.bgBlueBright(c.whiteBright(" r ")))} ${c.dim(
-    "Force redeployment"
-  )}
- → ${c.bold(c.bgBlueBright(c.whiteBright(" q ")))} ${c.dim(
-    "Stop (or Ctrl+C)"
-  )}`);
+ → ${c.bold(c.bgBlueBright(c.whiteBright(' r ')))} ${c.dim('Force redeployment')}
+ → ${c.bold(c.bgBlueBright(c.whiteBright(' q ')))} ${c.dim('Stop (or Ctrl+C)')}`);
 
-  console.log(
-    `${c.blue("Info:")} Watching for changes in ${c.cyan(directory)}...`
-  );
+  console.log(`${c.blue('Info:')} Watching for changes in ${c.cyan(directory)}...`);
 
   process.stdin.setRawMode?.(true);
   process.stdin.resume();
@@ -67,33 +59,27 @@ function showShortcuts(directory?: string) {
 
 function hideShortcuts() {
   process.stdin.setRawMode?.(false);
-  console.log(`${"\x1b[1A\x1b[2K".repeat(8)}\x1b[1A\x1b[2K\x1b[1A`);
+  console.log(`${'\x1b[1A\x1b[2K'.repeat(8)}\x1b[1A\x1b[2K\x1b[1A`);
 }
 
 async function readJsonFile(filePath: string, defaultValue: any = {}) {
   try {
     if (exists(filePath)) {
-      const content = await fs.readFile(filePath, "utf-8");
+      const content = await fs.readFile(filePath, 'utf-8');
       return JSON.parse(content);
     }
   } catch (err) {
-    throw new JspmError(
-      `Unable to read package.json file ${filePath} - ${err.message}`
-    );
+    throw new JspmError(`Unable to read package.json file ${filePath} - ${err.message}`);
   }
   return defaultValue;
 }
 
-export async function eject(pkg: string, flags: EjectFlags = {}) {
-  if (!flags.out) {
-    throw new JspmError(
-      `A --out ejection flag for the output directory must be provided`
-    );
-  }
+export async function eject(flags: EjectFlags) {
+  const log = withType('deploy/eject');
 
-  const log = withType("deploy/eject");
+  const pkg = flags.eject;
 
-  if (!pkg.startsWith("app:")) {
+  if (!pkg.startsWith('app:')) {
     throw new JspmError(
       `Only the app: JSPM deployment registry is currently supported for ejection.`
     );
@@ -106,14 +92,14 @@ export async function eject(pkg: string, flags: EjectFlags = {}) {
     } provider configurations`
   );
 
-  const provider = flags.provider || config.defaultDeployProvider || "jspm.io";
+  const provider = flags.provider || config.defaultDeployProvider || 'jspm.io';
 
   const generator = await getGenerator(flags);
 
   let name = pkg.slice(4);
-  if (name[0] !== "@") name = name.split("/")[0];
-  else name = name.split("/").slice(0, 2).join("/");
-  if (name.includes("@")) name = name.slice(0, name.indexOf("@"));
+  if (name[0] !== '@') name = name.split('/')[0];
+  else name = name.split('/').slice(0, 2).join('/');
+  if (name.includes('@')) name = name.slice(0, name.indexOf('@'));
 
   const version = pkg.slice(4 + name.length + 1);
 
@@ -126,28 +112,19 @@ export async function eject(pkg: string, flags: EjectFlags = {}) {
   await writeOutput(generator, null, env, flags, flags.quiet);
   stopSpinner();
 
-  console.log(
-    `${c.green("Ok:")} Package ${c.green(pkg)} ejected into ${c.bold(
-      flags.out
-    )}`
-  );
+  console.log(`${c.green('Ok:')} Package ${c.green(pkg)} ejected into ${c.bold(flags.dir)}`);
 }
 
-export async function publish(
-  dir: string | undefined,
-  flags: DeployFlags = {}
-) {
-  const directory = dir || process.cwd();
-  const log = withType("deploy/publish");
+export async function publish(flags: DeployFlags = {}) {
+  const log = withType('deploy/publish');
 
   // Use initProject to get validated project configuration
-  const { initProject } = await import("./init.ts");
+  const { initProject } = await import('./init.ts');
 
   try {
     // Initialize project configuration with the specified directory
     const projectConfig = await initProject({
-      quiet: flags.quiet,
-      dir: directory,
+      quiet: flags.quiet
     });
     log(`Project initialized: ${projectConfig.name}`);
 
@@ -156,7 +133,7 @@ export async function publish(
     const include = projectConfig.files || [];
 
     // Get package.json for prepare script
-    const packageJsonPath = path.join(directory, "package.json");
+    const packageJsonPath = path.join(projectConfig.projectPath, 'package.json');
     const packageJson = await readJsonFile(packageJsonPath);
     const prepareScript = packageJson.scripts?.prepare;
 
@@ -166,13 +143,11 @@ export async function publish(
 
     if (!version) {
       throw new JspmError(
-        "No version specified. Please provide a version in package.json or use the --version flag."
+        'No version specified. Please provide a version in package.json or use the --version flag.'
       );
     }
 
-    const semverVersion = version.match(
-      /^\d+\.\d+\.\d+(\-[a-zA-Z0-9_\-\.]+)?$/
-    );
+    const semverVersion = version.match(/^\d+\.\d+\.\d+(\-[a-zA-Z0-9_\-\.]+)?$/);
 
     if (flags.watch) {
       if (semverVersion || !version.match(/^[a-zA-Z0-9_\-]+$/)) {
@@ -183,7 +158,7 @@ export async function publish(
       return startWatchMode(
         name,
         version,
-        directory,
+        projectConfig.projectPath,
         ignore,
         include,
         flags,
@@ -194,7 +169,7 @@ export async function publish(
     return deployOnce(
       name,
       version,
-      directory,
+      projectConfig.projectPath,
       flags,
       flags.usage ?? true,
       prepareScript
@@ -215,7 +190,7 @@ async function deployOnce(
   logSnippet: boolean,
   prepareScript: string
 ) {
-  const log = withType("deploy");
+  const log = withType('deploy');
 
   const config = await loadConfig();
   log(
@@ -233,17 +208,15 @@ async function deployOnce(
   }
 
   if (prepareScript) {
-    console.log(`${c.blue("Info:")} Running ${c.bold("prepare")} script...`);
+    console.log(`${c.blue('Info:')} Running ${c.bold('prepare')} script...`);
     await runPackageScript(prepareScript, directory);
-    console.log(`${c.blue("Info:")} ${c.bold("prepare")} script completed`);
+    console.log(`${c.blue('Info:')} ${c.bold('prepare')} script completed`);
   }
 
-  startSpinner(
-    `Deploying ${c.bold(`${name}@${version}`)} to ${deployProvider}...`
-  );
+  startSpinner(`Deploying ${c.bold(`${name}@${version}`)} to ${deployProvider}...`);
 
   const generator = await getGenerator(flags, {
-    mapUrl: pathToFileURL(`${directory}/`),
+    mapUrl: pathToFileURL(`${directory}/`)
   });
 
   try {
@@ -253,20 +226,20 @@ async function deployOnce(
       version,
       provider: deployProvider,
       importMap: true,
-      install: true,
+      install: true
     });
 
     stopSpinner();
 
     console.log(
-      `${c.green("Ok:")} Package deployed to ${c.green(
-        packageUrl
-      )} with import map ${c.green(mapUrl)}`
+      `${c.green('Ok:')} Package deployed to ${c.green(packageUrl)} with import map ${c.green(
+        mapUrl
+      )}`
     );
 
     if (codeSnippet && logSnippet) {
       console.log(
-        `\n${c.magentaBright(c.bold("HTML Usage:"))}\n\n${c.greenBright(
+        `\n${c.magentaBright(c.bold('HTML Usage:'))}\n\n${c.greenBright(
           cliHtmlHighlight(codeSnippet)
         )}`
       );
@@ -314,43 +287,41 @@ async function startWatchMode(
     if (waiting && !lastRunWasError) {
       hideShortcuts();
     }
-    console.log(`\n${c.blue("Info:")} Watch mode stopped`);
+    console.log(`\n${c.blue('Info:')} Watch mode stopped`);
     process.exit(0);
   }
 
-  process.on("SIGINT", stopWatch);
+  process.on('SIGINT', stopWatch);
 
-  process.stdin.on("data", (key) => {
+  process.stdin.on('data', key => {
     switch (String(key)) {
-      case "\u0003":
-      case "q":
+      case '\u0003':
+      case 'q':
         stopWatch();
         break;
-      case "o":
-        if (packageUrl)
-          open(packageUrl.endsWith("/") ? packageUrl.slice(0, -1) : packageUrl);
+      case 'o':
+        if (packageUrl) open(packageUrl.endsWith('/') ? packageUrl.slice(0, -1) : packageUrl);
         break;
-      case "l":
-        if (packageUrl)
-          open(packageUrl.endsWith("/") ? packageUrl : `${packageUrl  }/`);
+      case 'l':
+        if (packageUrl) open(packageUrl.endsWith('/') ? packageUrl : `${packageUrl}/`);
         break;
-      case "r":
+      case 'r':
         forcedRedeploy = true;
         break;
-      case "c":
+      case 'c':
         if (codeSnippet) copyToClipboard(codeSnippet);
         break;
-      case "p":
+      case 'p':
         if (codeSnippet)
           open(
             `data:text/html;base64,${Buffer.from(
               `<!doctype html>\n<body></body>\n${codeSnippet
-                .split("\n")
-                .filter((l) => !l.startsWith("<!--") || !l.endsWith("-->"))
-                .join("\n")
-                .replace(".js", ".hot.js")}`
-            ).toString("base64")}`,
-            { app: { name: "chrome" } }
+                .split('\n')
+                .filter(l => !l.startsWith('<!--') || !l.endsWith('-->'))
+                .join('\n')
+                .replace('.js', '.hot.js')}`
+            ).toString('base64')}`,
+            { app: { name: 'chrome' } }
           );
     }
   });
@@ -363,11 +334,7 @@ async function startWatchMode(
       }
 
       const changes: string[] = [];
-      const currentFileList = await getFilesRecursively(
-        directory,
-        ignore,
-        include
-      );
+      const currentFileList = await getFilesRecursively(directory, ignore, include);
 
       // Check for new or modified files
       for (const filePath of currentFileList) {
@@ -398,14 +365,12 @@ async function startWatchMode(
           if (lastRunWasError) stopSpinner();
           else hideShortcuts();
           console.log(
-            `${c.blue("Info:")} ${
+            `${c.blue('Info:')} ${
               forcedRedeploy
-                ? "Requesting redeploy"
+                ? 'Requesting redeploy'
                 : changes.length > 1
-                ? "Multiple changes detected"
-                : `${path
-                    .relative(directory, changes[0])
-                    .replace(/\\/g, "/")} changed`
+                ? 'Multiple changes detected'
+                : `${path.relative(directory, changes[0]).replace(/\\/g, '/')} changed`
             }, redeploying...`
           );
         }
@@ -426,9 +391,9 @@ async function startWatchMode(
       }
     } catch (error) {
       lastRunWasError = true;
-      console.error(`${c.red("Error:")} Watch mode error`);
+      console.error(`${c.red('Error:')} Watch mode error`);
       console.error(error);
-      startSpinner("Waiting for update to fix the error...");
+      startSpinner('Waiting for update to fix the error...');
       waiting = true;
     }
   }

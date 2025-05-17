@@ -1,16 +1,16 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, dirname, join, relative } from "node:path";
-import { createInterface } from "node:readline/promises";
-import c from "picocolors";
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { basename, dirname, join, relative } from 'node:path';
+import { createInterface } from 'node:readline/promises';
+import c from 'picocolors';
 import {
   JspmError,
   exists,
   getGenerator,
   getLatestEsms,
   getPackageJson,
-  isDirectory,
-} from "./utils.ts";
-import type { BaseFlags } from "./cli.ts";
+  isDirectory
+} from './utils.ts';
+import type { BaseFlags } from './cli.ts';
 
 /**
  * ProjectConfig interface representing validated package.json contents
@@ -27,6 +27,9 @@ export interface ProjectConfig {
   ignore?: string[];
   description?: string;
   license?: string;
+  dependencies: Record<string, string>;
+  peerDependencies: Record<string, string>;
+  devDependencies: Record<string, string>;
 
   // Path to the project root directory
   projectPath: string;
@@ -53,23 +56,23 @@ export async function initCreate(
   await mkdir(projectDir, { recursive: true });
 
   // Check if package.json already exists
-  const packageJsonPath = join(projectDir, "package.json");
+  const packageJsonPath = join(projectDir, 'package.json');
   let existingPackageJson: any = null;
-  let mode = "Creating";
+  let mode = 'Creating';
 
   try {
-    const content = await readFile(packageJsonPath, "utf8");
+    const content = await readFile(packageJsonPath, 'utf8');
     existingPackageJson = JSON.parse(content);
-    mode = "Updating";
+    mode = 'Updating';
   } catch (e) {}
 
   // Use readline for interactive prompts
   const readline = createInterface({
     input: process.stdin,
     output: process.stdout,
-    terminal: true, // This helps prevent character echo issues on Windows
+    terminal: true // This helps prevent character echo issues on Windows
   });
-  readline.on("SIGINT", () => {
+  readline.on('SIGINT', () => {
     process.exit(0);
   });
 
@@ -81,21 +84,20 @@ export async function initCreate(
     // Set default values based on existing package.json or directory name
     // Use basename to extract just the directory name, not the full path
     const defaultName =
-      existingPackageJson?.name ||
-      basename(projectDir).replace(/[^a-zA-Z0-9-_]/g, "-");
-    const defaultVersion = existingPackageJson?.version || "0.1.0";
-    const defaultDescription = existingPackageJson?.description || "";
+      existingPackageJson?.name || basename(projectDir).replace(/[^a-zA-Z0-9-_]/g, '-');
+    const defaultVersion = existingPackageJson?.version || '0.1.0';
+    const defaultDescription = existingPackageJson?.description || '';
 
     // Handle exports/main for default entry point
-    let defaultExport: string | false = "src/index.js";
+    let defaultExport: string | false = 'src/index.js';
     if (existingPackageJson?.exports) {
-      if (typeof existingPackageJson.exports === "string") {
-        defaultExport = existingPackageJson.exports.replace(/^\.\//, "");
+      if (typeof existingPackageJson.exports === 'string') {
+        defaultExport = existingPackageJson.exports.replace(/^\.\//, '');
       } else if (
-        existingPackageJson.exports["."] &&
-        typeof existingPackageJson.exports["."] === "string"
+        existingPackageJson.exports['.'] &&
+        typeof existingPackageJson.exports['.'] === 'string'
       ) {
-        defaultExport = existingPackageJson.exports["."].replace(/^\.\//, "");
+        defaultExport = existingPackageJson.exports['.'].replace(/^\.\//, '');
       } else {
         defaultExport = false;
       }
@@ -106,17 +108,15 @@ export async function initCreate(
     // Gather information from the user with existing values as defaults
     // Format defaults with bold but no highlight
     const name = await readline.question(
-      `${c.cyan("Package Name: ")}${c.bold(`(${defaultName})`)} `
+      `${c.cyan('Package Name: ')}${c.bold(`(${defaultName})`)} `
     );
 
     const version = await readline.question(
-      `${c.cyan("Version: ")}${c.bold(`(${defaultVersion})`)} `
+      `${c.cyan('Version: ')}${c.bold(`(${defaultVersion})`)} `
     );
 
     const description = await readline.question(
-      `${c.cyan("Description: ")}${
-        defaultDescription ? c.bold(`(${defaultDescription})`) : ""
-      } `
+      `${c.cyan('Description: ')}${defaultDescription ? c.bold(`(${defaultDescription})`) : ''} `
     );
 
     // Initialize variables for optional features
@@ -126,72 +126,64 @@ export async function initCreate(
     let shouldCreateGitignore = false;
 
     // Only ask about TypeScript, claude.md, and HTML example for new projects
-    if (mode === "Creating") {
+    if (mode === 'Creating') {
       // Ask if TypeScript should be enabled
       const enableTypeScript = await readline.question(
-        `${c.cyan("Enable TypeScript with type stripping? ")}${c.bold(
-          "(y/n)"
-        )} `
+        `${c.cyan('Enable TypeScript with type stripping? ')}${c.bold('(y/n)')} `
       );
       useTypeScript =
-        enableTypeScript.toLowerCase() === "y" ||
-        enableTypeScript.toLowerCase() === "yes" ||
-        enableTypeScript === "";
+        enableTypeScript.toLowerCase() === 'y' ||
+        enableTypeScript.toLowerCase() === 'yes' ||
+        enableTypeScript === '';
     }
 
     // Ask for exports entry point - always asked regardless of new/existing project
     // Default should be "src/index.js" for JavaScript or "src/index.ts" for TypeScript
     const defaultEntryPoint = useTypeScript
-      ? "src/index.ts"
-      : mode === "Creating"
-      ? "src/index.js"
+      ? 'src/index.ts'
+      : mode === 'Creating'
+      ? 'src/index.js'
       : defaultExport;
 
     const exportPath =
       defaultExport !== false
         ? await readline.question(
-            `${c.cyan("Exports Entry Point: ")}${c.bold(
-              `(${defaultEntryPoint})`
-            )} `
+            `${c.cyan('Exports Entry Point: ')}${c.bold(`(${defaultEntryPoint})`)} `
           )
         : undefined;
 
     // Continue with the rest of the optional features for new projects
-    if (mode === "Creating") {
+    if (mode === 'Creating') {
       // Ask about creating .gitignore file
       const createGitignore = await readline.question(
-        `${c.cyan(
-          "Create a .gitignore file with JavaScript defaults? "
-        )}${c.bold("(y/n)")} `
+        `${c.cyan('Create a .gitignore file with JavaScript defaults? ')}${c.bold('(y/n)')} `
       );
       shouldCreateGitignore =
-        createGitignore.toLowerCase() === "y" ||
-        createGitignore.toLowerCase() === "yes" ||
-        createGitignore === "";
+        createGitignore.toLowerCase() === 'y' ||
+        createGitignore.toLowerCase() === 'yes' ||
+        createGitignore === '';
 
       // Ask about creating claude.md file
       const createClaudeMd = await readline.question(
-        `${c.cyan("Create a claude.md file? ")}${c.bold("(y/n)")} `
+        `${c.cyan('Create a claude.md file? ')}${c.bold('(y/n)')} `
       );
       shouldCreateClaudeMd =
-        createClaudeMd.toLowerCase() === "y" ||
-        createClaudeMd.toLowerCase() === "yes" ||
-        createClaudeMd === "";
+        createClaudeMd.toLowerCase() === 'y' ||
+        createClaudeMd.toLowerCase() === 'yes' ||
+        createClaudeMd === '';
     }
 
     // Ask about creating index.html example app
-    const htmlPath = join(projectDir, "index.html");
+    const htmlPath = join(projectDir, 'index.html');
     const htmlExists = exists(htmlPath);
-    if (mode === "Creating" || !htmlExists) {
+    if (mode === 'Creating' || !htmlExists) {
       const createHtmlExample = await readline.question(
-        `${c.cyan("Create an index.html example app file? ")}${c.bold(
-          "(y/n)"
-        )} `
+        `${c.cyan('Create an index.html example app file? ')}${c.bold('(y/n)')} `
       );
       shouldCreateHtml =
-        createHtmlExample.toLowerCase() === "y" ||
-        createHtmlExample.toLowerCase() === "yes" ||
-        createHtmlExample === "";
+        createHtmlExample.toLowerCase() === 'y' ||
+        createHtmlExample.toLowerCase() === 'yes' ||
+        createHtmlExample === '';
     }
 
     // Create the package.json content, preserving other fields
@@ -200,7 +192,7 @@ export async function initCreate(
       name: name || defaultName,
       version: version || defaultVersion,
       description: description || defaultDescription,
-      type: "module",
+      type: 'module'
     };
 
     // Track which files are newly created
@@ -214,27 +206,26 @@ export async function initCreate(
     // Add exports if the user wants them
     let exportsValue: string | undefined;
     if (defaultExport !== false) {
-      exportsValue =
-        exportPath || (useTypeScript ? "src/index.ts" : defaultExport);
-      packageJson.exports = { ".": `./${exportsValue}` };
+      exportsValue = exportPath || (useTypeScript ? 'src/index.ts' : defaultExport);
+      packageJson.exports = { '.': `./${exportsValue}` };
     }
 
     // Create tsconfig.json if TypeScript is enabled
     if (useTypeScript) {
-      const tsconfigPath = join(projectDir, "tsconfig.json");
+      const tsconfigPath = join(projectDir, 'tsconfig.json');
       const tsconfigExists = exists(tsconfigPath);
 
       if (!tsconfigExists) {
         const tsconfigContent = JSON.stringify(
           {
             compilerOptions: {
-              target: "esnext",
-              module: "nodenext",
-              lib: ["esnext", "DOM", "DOM.Iterable"],
+              target: 'esnext',
+              module: 'nodenext',
+              lib: ['esnext', 'DOM', 'DOM.Iterable'],
               rewriteRelativeImportExtensions: true,
               erasableSyntaxOnly: true,
-              verbatimModuleSyntax: true,
-            },
+              verbatimModuleSyntax: true
+            }
           },
           null,
           2
@@ -247,7 +238,7 @@ export async function initCreate(
 
     // Create claude.md if requested
     if (shouldCreateClaudeMd) {
-      const claudeMdPath = join(projectDir, "claude.md");
+      const claudeMdPath = join(projectDir, 'claude.md');
       const claudeMdExists = exists(claudeMdPath);
 
       if (!claudeMdExists) {
@@ -259,7 +250,7 @@ export async function initCreate(
 
     // Create .gitignore file if requested
     if (shouldCreateGitignore) {
-      const gitignorePath = join(projectDir, ".gitignore");
+      const gitignorePath = join(projectDir, '.gitignore');
       const gitignoreExists = exists(gitignorePath);
 
       if (!gitignoreExists) {
@@ -271,10 +262,7 @@ export async function initCreate(
 
     // Create index.html example if requested
     if (shouldCreateHtml) {
-      const htmlContent = await createExampleHtml(
-        packageJson,
-        exportsValue !== undefined
-      );
+      const htmlContent = await createExampleHtml(packageJson, exportsValue !== undefined);
 
       await writeFile(htmlPath, htmlContent);
       htmlCreated = true;
@@ -282,42 +270,30 @@ export async function initCreate(
       // Check if entry point file exists, create it if not
       if (exportsValue) {
         const entrypointPath = join(projectDir, exportsValue);
-        const lastSlashIndex = entrypointPath.lastIndexOf("/");
-        const lastBackslashIndex = entrypointPath.lastIndexOf("\\");
+        const lastSlashIndex = entrypointPath.lastIndexOf('/');
+        const lastBackslashIndex = entrypointPath.lastIndexOf('\\');
         const lastSeparatorIndex = Math.max(lastSlashIndex, lastBackslashIndex);
 
         // Only extract directory if path contains a separator
         const entrypointDir =
-          lastSeparatorIndex > 0
-            ? entrypointPath.substring(0, lastSeparatorIndex)
-            : null;
+          lastSeparatorIndex > 0 ? entrypointPath.substring(0, lastSeparatorIndex) : null;
 
         const entrypointExists = exists(entrypointPath);
 
         // Create the directory for the entry point if it doesn't exist
-        if (
-          entrypointDir &&
-          entrypointDir !== projectDir &&
-          !exists(entrypointDir)
-        ) {
+        if (entrypointDir && entrypointDir !== projectDir && !exists(entrypointDir)) {
           await mkdir(entrypointDir, { recursive: true });
         }
 
-        if (!entrypointExists && mode === "Creating") {
+        if (!entrypointExists && mode === 'Creating') {
           // Create a basic entry point file
           const fileContent = exampleEntry();
           await writeFile(entrypointPath, fileContent);
           entrypointCreated = true;
 
           // Also write the example landing component
-          await writeFile(
-            join(dirname(entrypointPath), "landing.js"),
-            exampleLandingJs
-          );
-          await writeFile(
-            join(dirname(entrypointPath), "landing.css"),
-            exampleLandingCss
-          );
+          await writeFile(join(dirname(entrypointPath), 'landing.js'), exampleLandingJs);
+          await writeFile(join(dirname(entrypointPath), 'landing.css'), exampleLandingCss);
           landingCreated = true;
         }
       }
@@ -325,92 +301,71 @@ export async function initCreate(
 
     // Write the package.json file
     await writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2), {
-      encoding: "utf8",
+      encoding: 'utf8'
     });
 
     // Display a summary of created files if not in quiet mode
-    const projectDirRel = relative(process.cwd(), projectDir).replace(
-      /\\/g,
-      "/"
-    );
+    const projectDirRel = relative(process.cwd(), projectDir).replace(/\\/g, '/');
     if (!flags.quiet) {
-      console.log("");
+      console.log('');
       console.log(
-        `${c.green("✓")}  ${c.cyan(
-          `${projectDirRel || "."}/package.json`
-        )} ${mode.toLowerCase().replace("ing", "ed")}`
+        `${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/package.json`)} ${mode
+          .toLowerCase()
+          .replace('ing', 'ed')}`
       );
 
       // Show only files that were actually created
       if (defaultExport !== false && exportsValue && entrypointCreated) {
         console.log(
-          `${c.green("✓")}  ${c.cyan(
-            `${projectDirRel || "."}/${exportsValue}`
+          `${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/${exportsValue}`)} created`
+        );
+      }
+
+      if (defaultExport !== false && exportsValue && landingCreated) {
+        console.log(
+          `${c.green('✓')}  ${c.cyan(
+            `${projectDirRel || '.'}/${join(dirname(exportsValue), 'landing.js').replace(
+              /\\/g,
+              '/'
+            )}`
           )} created`
         );
       }
 
       if (defaultExport !== false && exportsValue && landingCreated) {
         console.log(
-          `${c.green("✓")}  ${c.cyan(
-            `${projectDirRel || "."}/${join(
-              dirname(exportsValue),
-              "landing.js"
-            ).replace(/\\/g, "/")}`
-          )} created`
-        );
-      }
-
-      if (defaultExport !== false && exportsValue && landingCreated) {
-        console.log(
-          `${c.green("✓")}  ${c.cyan(
-            `${projectDirRel || "."}/${join(
-              dirname(exportsValue),
-              "landing.css"
-            ).replace(/\\/g, "/")}`
+          `${c.green('✓')}  ${c.cyan(
+            `${projectDirRel || '.'}/${join(dirname(exportsValue), 'landing.css').replace(
+              /\\/g,
+              '/'
+            )}`
           )} created`
         );
       }
 
       if (shouldCreateGitignore && gitignoreCreated) {
-        console.log(
-          `${c.green("✓")}  ${c.cyan(
-            `${projectDirRel || "."}/.gitignore`
-          )} created`
-        );
+        console.log(`${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/.gitignore`)} created`);
       }
 
       if (useTypeScript && tsconfigCreated) {
-        console.log(
-          `${c.green("✓")}  ${c.cyan(
-            `${projectDirRel || "."}/tsconfig.json`
-          )} created`
-        );
+        console.log(`${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/tsconfig.json`)} created`);
       }
 
       if (shouldCreateClaudeMd && claudeMdCreated) {
-        console.log(
-          `${c.green("✓")}  ${c.cyan(
-            `${projectDirRel || "."}/claude.md`
-          )} created`
-        );
+        console.log(`${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/claude.md`)} created`);
       }
 
       if (shouldCreateHtml && htmlCreated) {
-        console.log(
-          `${c.green("✓")}  ${c.cyan(
-            `${projectDirRel || "."}/index.html`
-          )} created`
-        );
+        console.log(`${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/index.html`)} created`);
       }
 
       console.log(); // Add empty line at the end
     }
-    console.log(`${c.green("Ok:")} Initialization complete.`);
+    console.log(`${c.green('Ok:')} Initialization complete.`);
     console.log(
-      `${c.blue("Info:")} Next, run ${
-        projectDirRel ? `${c.bold(`cd ${projectDirRel}`)} and ` : ""
-      }${c.bold("jspm serve")} to start a local server.\n`
+      `${c.blue('Info:')} Next, run ${
+        projectDirRel ? `${c.bold(`cd ${projectDirRel}`)} and ` : ''
+      }${c.bold('jspm serve')} to start a local server.\n`
     );
 
     // Return the project config
@@ -420,6 +375,9 @@ export async function initCreate(
       exports: packageJson.exports,
       main: packageJson.main,
       projectPath: projectDir,
+      dependencies: packageJson.dependencies,
+      devDependencies: packageJson.devDependencies,
+      peerDependencies: packageJson.peerDependencies
     };
 
     return config;
@@ -451,27 +409,25 @@ export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
     if (flags.quiet) {
       throw new JspmError(
         `No package.json found${
-          flags.dir ? ` in ${flags.dir}` : ""
+          flags.dir ? ` in ${flags.dir}` : ''
         }. Please create a package.json file in your project directory.`
       );
     }
 
     const readline = createInterface({
       input: process.stdin,
-      output: process.stdout,
+      output: process.stdout
     });
 
     try {
       const answer = await readline.question(
-        `${c.cyan(
-          "No package.json found. Would you like to create one?"
-        )} ${c.bold("(y)")} `
+        `${c.cyan('No package.json found. Would you like to create one?')} ${c.bold('(y)')} `
       );
 
       if (
-        answer.toLowerCase() === "y" ||
-        answer.toLowerCase() === "yes" ||
-        answer.toLowerCase() === ""
+        answer.toLowerCase() === 'y' ||
+        answer.toLowerCase() === 'yes' ||
+        answer.toLowerCase() === ''
       ) {
         return await initCreate(directory, { quiet: flags.quiet });
       } else {
@@ -501,14 +457,15 @@ export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
     files: packageJson.files || undefined,
     registry: packageJson.repository?.url || undefined,
     projectPath: packagePath,
+    dependencies: packageJson.dependencies,
+    devDependencies: packageJson.devDependencies,
+    peerDependencies: packageJson.peerDependencies
   };
 
   // Override with jspm field if present
   if (packageJson.jspm) {
-    if (typeof packageJson.jspm !== "object") {
-      throw new JspmError(
-        "Invalid 'jspm' field in package.json. Expected an object."
-      );
+    if (typeof packageJson.jspm !== 'object') {
+      throw new JspmError("Invalid 'jspm' field in package.json. Expected an object.");
     }
 
     // Extract JSPM-specific settings
@@ -522,11 +479,11 @@ export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
 
   // @ts-expect-error exports types
   config.exports =
-    typeof config.exports === "string" ||
-    (typeof config.exports === "object" &&
+    typeof config.exports === 'string' ||
+    (typeof config.exports === 'object' &&
       config.exports !== null &&
-      !Object.keys(config.exports).every((key) => key.startsWith(".")))
-      ? { ".": config.exports }
+      !Object.keys(config.exports).every(key => key.startsWith('.')))
+      ? { '.': config.exports }
       : config.exports || {};
 
   return config;
@@ -535,14 +492,14 @@ export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
 const createExampleHtml = async (packageJson, hasEntry: boolean) => {
   let esmsUrl;
   try {
-    esmsUrl = await getLatestEsms(await getGenerator({}), "jspm.io");
+    esmsUrl = await getLatestEsms(await getGenerator({}), 'jspm.io');
   } catch {
     console.log(
-      `${c.yellow("Warning:")} ${c.red(
-        "Offline"
+      `${c.yellow('Warning:')} ${c.red(
+        'Offline'
       )} - unable to locate es-module-shims for HTML generation, try again or install it manually via npm install es-module-shims.`
     );
-    esmsUrl = "es-module-shims.js";
+    esmsUrl = 'es-module-shims.js';
   }
   return `<!DOCTYPE html>
 <html lang="en">
@@ -555,7 +512,7 @@ const createExampleHtml = async (packageJson, hasEntry: boolean) => {
     hasEntry
       ? `
 <script type="module">import '${packageJson.name}';</script>`
-      : ""
+      : ''
   }
 </head>
 <body></body>
@@ -623,7 +580,7 @@ TypeStripping is used which comes with the limitations of not supporting feature
 
 The \`import type\` or \`import { type T }\` import type forms should be used whenever possible.
 `
-    : ""
+    : ''
 }
 ### Assets
 

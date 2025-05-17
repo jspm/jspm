@@ -1,0 +1,22 @@
+/* Styles for the test element */
+:host {
+  display: block;
+  padding: 16px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  margin: 16px;
+  font-family: sans-serif;
+}
+
+ul {
+  padding-left: 20px;
+}
+
+li {
+  margin: 8px 0;
+  color: #0066cc;
+}
+
+p {
+  line-height: 1.5;
+}

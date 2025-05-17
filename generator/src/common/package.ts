@@ -1,4 +1,4 @@
-import type { ExportsTarget } from "../install/package";
+import type { ExportsTarget } from '../install/package';
 
 export function getMapMatch<T = any>(
   specifier: string,
@@ -7,9 +7,9 @@ export function getMapMatch<T = any>(
   if (specifier in map) return specifier;
   let bestMatch;
   for (const match of Object.keys(map)) {
-    const wildcardIndex = match.indexOf("*");
-    if (!match.endsWith("/") && wildcardIndex === -1) continue;
-    if (match.endsWith("/")) {
+    const wildcardIndex = match.indexOf('*');
+    if (!match.endsWith('/') && wildcardIndex === -1) continue;
+    if (match.endsWith('/')) {
       if (specifier.startsWith(match)) {
         if (!bestMatch || match.length > bestMatch.length) bestMatch = match;
       }
@@ -21,11 +21,7 @@ export function getMapMatch<T = any>(
         specifier.endsWith(suffix) &&
         specifier.length > prefix.length + suffix.length
       ) {
-        if (
-          !bestMatch ||
-          !bestMatch.startsWith(prefix) ||
-          !bestMatch.endsWith(suffix)
-        )
+        if (!bestMatch || !bestMatch.startsWith(prefix) || !bestMatch.endsWith(suffix))
           bestMatch = match;
       }
     }
@@ -35,7 +31,7 @@ export function getMapMatch<T = any>(
 
 export function allDotKeys(exports: Record<string, any>) {
   for (let p in exports) {
-    if (p[0] !== ".") return false;
+    if (p[0] !== '.') return false;
   }
   return true;
 }
@@ -50,27 +46,19 @@ export function expandExportsResolutions(
   files?: Set<string> | undefined,
   exportsResolutions: Map<string, string> = new Map()
 ) {
-  if (typeof exports !== "object" || exports === null || !allDotKeys(exports)) {
+  if (typeof exports !== 'object' || exports === null || !allDotKeys(exports)) {
     let targetList = new Set<string>();
     expandTargetResolutions(exports, files, env, targetList, [], true);
     for (const target of targetList) {
-      if (target.startsWith("./")) {
+      if (target.startsWith('./')) {
         const targetFile = target.slice(2);
-        if (!files || files.has(targetFile))
-          exportsResolutions.set(".", targetFile);
+        if (!files || files.has(targetFile)) exportsResolutions.set('.', targetFile);
       }
     }
   } else {
     for (const subpath of Object.keys(exports)) {
       let targetList = new Set<string>();
-      expandTargetResolutions(
-        exports[subpath],
-        files,
-        env,
-        targetList,
-        [],
-        true
-      );
+      expandTargetResolutions(exports[subpath], files, env, targetList, [], true);
       for (const target of targetList) {
         expandExportsTarget(
           exports as Record<string, ExportsTarget>,
@@ -94,11 +82,11 @@ export function expandExportsEntries(
   files?: Set<string> | undefined,
   entriesList: Set<string> = new Set()
 ) {
-  if (typeof exports !== "object" || exports === null || !allDotKeys(exports)) {
+  if (typeof exports !== 'object' || exports === null || !allDotKeys(exports)) {
     let targetList = new Set<string>();
     expandTargetResolutions(exports, files, env, targetList, [], false);
     for (const target of targetList) {
-      if (target.startsWith("./")) {
+      if (target.startsWith('./')) {
         const targetFile = target.slice(2);
         if (!files || files.has(targetFile)) entriesList.add(targetFile);
       }
@@ -106,23 +94,10 @@ export function expandExportsEntries(
   } else {
     for (const subpath of Object.keys(exports)) {
       let targetList = new Set<string>();
-      expandTargetResolutions(
-        exports[subpath],
-        files,
-        env,
-        targetList,
-        [],
-        false
-      );
+      expandTargetResolutions(exports[subpath], files, env, targetList, [], false);
       for (const target of targetList) {
         let map = new Map();
-        expandExportsTarget(
-          exports as Record<string, ExportsTarget>,
-          subpath,
-          target,
-          files,
-          map
-        );
+        expandExportsTarget(exports as Record<string, ExportsTarget>, subpath, target, files, map);
         for (const entry of map.values()) {
           entriesList.add(entry);
         }
@@ -140,36 +115,25 @@ export function expandExportsEntries(
  * will be excluded on that walk of the branch further.
  */
 const conditionMutualExclusions = {
-  production: "development",
-  development: "production",
-  import: "require",
-  require: "import",
+  production: 'development',
+  development: 'production',
+  import: 'require',
+  require: 'import'
 };
 function expandTargetResolutions(
   exports: ExportsTarget,
   files: Set<string> | undefined,
   env: string[],
   targetList: Set<string>,
-  envExclusions = env
-    .map((condition) => conditionMutualExclusions[condition])
-    .filter((c) => c),
+  envExclusions = env.map(condition => conditionMutualExclusions[condition]).filter(c => c),
   firstOnly: boolean
 ): boolean {
-  if (typeof exports === "string") {
-    if (exports.startsWith("./")) targetList.add(exports);
+  if (typeof exports === 'string') {
+    if (exports.startsWith('./')) targetList.add(exports);
     return true;
   } else if (Array.isArray(exports)) {
     for (const item of exports) {
-      if (
-        expandTargetResolutions(
-          item,
-          files,
-          env,
-          targetList,
-          envExclusions,
-          firstOnly
-        )
-      )
+      if (expandTargetResolutions(item, files, env, targetList, envExclusions, firstOnly))
         return true;
     }
     return false;
@@ -179,8 +143,8 @@ function expandTargetResolutions(
   } else {
     let hasSomeResolution = false;
     for (const condition of Object.keys(exports)) {
-      if (condition.startsWith(".")) continue;
-      if (condition === "default" || env.includes(condition)) {
+      if (condition.startsWith('.')) continue;
+      if (condition === 'default' || env.includes(condition)) {
         if (
           expandTargetResolutions(
             exports[condition],
@@ -231,30 +195,21 @@ function expandExportsTarget(
   files: Set<string> | undefined,
   entriesMap: Map<string, string>
 ) {
-  if (
-    !target.startsWith("./") ||
-    !(subpath.startsWith("./") || subpath === ".")
-  )
-    return;
-  if (target.indexOf("*") === -1 || subpath.indexOf("*") === -1) {
+  if (!target.startsWith('./') || !(subpath.startsWith('./') || subpath === '.')) return;
+  if (target.indexOf('*') === -1 || subpath.indexOf('*') === -1) {
     const targetFile = target.slice(2);
-    if (!files || files.has(targetFile))
-      entriesMap.set(subpath, target.slice(2));
+    if (!files || files.has(targetFile)) entriesMap.set(subpath, target.slice(2));
     return;
   }
   if (!files) return;
 
   // First determine the list of files that could match the target glob
-  const lhs = target.slice(2, target.indexOf("*"));
-  const rhs = target.slice(target.indexOf("*") + 1);
+  const lhs = target.slice(2, target.indexOf('*'));
+  const rhs = target.slice(target.indexOf('*') + 1);
 
   const fileMatches = new Set<string>();
   for (const file of files) {
-    if (
-      file.startsWith(lhs) &&
-      file.endsWith(rhs) &&
-      file.length > lhs.length + rhs.length
-    ) {
+    if (file.startsWith(lhs) && file.endsWith(rhs) && file.length > lhs.length + rhs.length) {
       fileMatches.add(file);
     }
   }
@@ -264,7 +219,7 @@ function expandExportsTarget(
   // since they could be shadowed by other subpath resolutions
   for (const fileMatch of fileMatches) {
     const pattern = fileMatch.slice(lhs.length, fileMatch.length - rhs.length);
-    const originalSubpath = subpath.replace("*", pattern);
+    const originalSubpath = subpath.replace('*', pattern);
     const matchedSubpath = getMapMatch(originalSubpath, exports);
     if (matchedSubpath === subpath) entriesMap.set(originalSubpath, fileMatch);
   }

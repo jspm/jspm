@@ -19,20 +19,15 @@
  * @module generator.ts
  */
 
-import {
-  baseUrl as _baseUrl,
-  isURL,
-  relativeUrl,
-  resolveUrl,
-} from "./common/url.js";
+import { baseUrl as _baseUrl, isURL, relativeUrl, resolveUrl } from './common/url.js';
 import {
   ExactModule,
   ExactPackage,
   PackageConfig,
   parseTarget,
-  validatePkgName,
-} from "./install/package.js";
-import TraceMap from "./trace/tracemap.js";
+  validatePkgName
+} from './install/package.js';
+import TraceMap from './trace/tracemap.js';
 // @ts-ignore
 import {
   clearCache as clearFetchCache,
@@ -40,35 +35,35 @@ import {
   setFetch,
   setRetryCount,
   setVirtualSourceData,
-  SourceData,
-} from "./common/fetch.js";
-import { IImportMap, ImportMap } from "@jspm/import-map";
-import { SemverRange } from "sver";
-import { JspmError } from "./common/err.js";
-import { getIntegrity } from "./common/integrity.js";
-import { createLogger, Log, LogStream } from "./common/log.js";
-import { Replacer } from "./common/str.js";
-import { analyzeHtml } from "./html/analyze.js";
-import { InstallTarget, type InstallMode } from "./install/installer.js";
-import { LockResolutions } from "./install/lock.js";
+  SourceData
+} from './common/fetch.js';
+import { IImportMap, ImportMap } from '@jspm/import-map';
+import { SemverRange } from 'sver';
+import { JspmError } from './common/err.js';
+import { getIntegrity } from './common/integrity.js';
+import { createLogger, Log, LogStream } from './common/log.js';
+import { Replacer } from './common/str.js';
+import { analyzeHtml } from './html/analyze.js';
+import { InstallTarget, type InstallMode } from './install/installer.js';
+import { LockResolutions } from './install/lock.js';
 import {
   DeployOutput,
   getDefaultProviderStrings,
   ProviderManager,
-  type Provider,
-} from "./providers/index.js";
-import * as nodemodules from "./providers/nodemodules.js";
-import { Resolver } from "./trace/resolver.js";
-import { getMaybeWrapperUrl } from "./common/wrapper.js";
-import { expandExportsResolutions } from "./common/package.js";
-import { isNode } from "./common/env.js";
-import { minimatch } from "minimatch";
+  type Provider
+} from './providers/index.js';
+import * as nodemodules from './providers/nodemodules.js';
+import { Resolver } from './trace/resolver.js';
+import { getMaybeWrapperUrl } from './common/wrapper.js';
+import { expandExportsResolutions } from './common/package.js';
+import { isNode } from './common/env.js';
+import { minimatch } from 'minimatch';
 
 export {
   // utility export
   analyzeHtml,
   // hook export
-  setFetch,
+  setFetch
 };
 
 export type { Provider };
@@ -177,7 +172,7 @@ export interface GeneratorOptions {
    * When running offline, setting `cache: 'offline'` will only use the local cache and not touch the network at all,
    * making fully offline workflows possible provided the modules have been seen before.
    */
-  cache?: "offline" | boolean;
+  cache?: 'offline' | boolean;
 
   /**
    * User-provided fetch options for fetching modules, eg check https://github.com/npm/make-fetch-happen#extra-options for Node.js fetch
@@ -473,14 +468,7 @@ export interface Deployment {
 }
 
 export interface ModuleAnalysis {
-  format:
-    | "commonjs"
-    | "esm"
-    | "system"
-    | "json"
-    | "css"
-    | "typescript"
-    | "wasm";
+  format: 'commonjs' | 'esm' | 'system' | 'json' | 'css' | 'typescript' | 'wasm';
   staticDeps: string[];
   dynamicDeps: string[];
   cjsLazyDeps: string[] | null;
@@ -489,8 +477,8 @@ export interface ModuleAnalysis {
 export interface Install {
   target: string | InstallTarget;
   alias?: string;
-  subpath?: "." | `./${string}`;
-  subpaths?: ("." | `./${string}`)[] | true;
+  subpath?: '.' | `./${string}`;
+  subpaths?: ('.' | `./${string}`)[] | true;
 }
 
 /**
@@ -507,18 +495,15 @@ export function clearCache() {
   clearFetchCache();
 }
 
-function createFetchOptions(
-  cache: "offline" | boolean = true,
-  fetchOptions = {}
-) {
+function createFetchOptions(cache: 'offline' | boolean = true, fetchOptions = {}) {
   let fetchOpts: Record<string, any> = {
     retry: 1,
     timeout: 10000,
     ...fetchOptions,
-    headers: { "Accept-Encoding": "gzip, br" },
+    headers: { 'Accept-Encoding': 'gzip, br' }
   };
-  if (cache === "offline") fetchOpts.cache = "force-cache";
-  else if (!cache) fetchOpts.cache = "no-store";
+  if (cache === 'offline') fetchOpts.cache = 'force-cache';
+  else if (!cache) fetchOpts.cache = 'no-store';
   return fetchOptions;
 }
 
@@ -567,9 +552,9 @@ export class Generator {
     mapUrl,
     rootUrl = undefined,
     inputMap = undefined,
-    env = ["browser", "development", "module", "import"],
+    env = ['browser', 'development', 'module', 'import'],
     defaultProvider,
-    defaultRegistry = "npm",
+    defaultRegistry = 'npm',
     customProviders = undefined,
     providers,
     resolutions = {},
@@ -584,42 +569,36 @@ export class Generator {
     providerConfig = {},
     preserveSymlinks,
     flattenScopes = true,
-    combineSubpaths = true,
+    combineSubpaths = true
   }: GeneratorOptions = {}) {
-    if (typeof preserveSymlinks !== "boolean") preserveSymlinks = isNode;
+    if (typeof preserveSymlinks !== 'boolean') preserveSymlinks = isNode;
 
     // Default logic for the mapUrl, baseUrl and rootUrl:
     if (mapUrl && !baseUrl) {
-      mapUrl = typeof mapUrl === "string" ? new URL(mapUrl, _baseUrl) : mapUrl;
+      mapUrl = typeof mapUrl === 'string' ? new URL(mapUrl, _baseUrl) : mapUrl;
       try {
-        baseUrl = new URL("./", mapUrl);
+        baseUrl = new URL('./', mapUrl);
       } catch {
-        baseUrl = new URL(mapUrl + "/");
+        baseUrl = new URL(mapUrl + '/');
       }
     } else if (baseUrl && !mapUrl) {
       mapUrl = baseUrl;
     } else if (!mapUrl && !baseUrl) {
       baseUrl = mapUrl = _baseUrl;
     }
-    this.baseUrl =
-      typeof baseUrl === "string" ? new URL(baseUrl, _baseUrl) : baseUrl;
-    if (!this.baseUrl.pathname.endsWith("/")) {
+    this.baseUrl = typeof baseUrl === 'string' ? new URL(baseUrl, _baseUrl) : baseUrl;
+    if (!this.baseUrl.pathname.endsWith('/')) {
       this.baseUrl = new URL(this.baseUrl.href);
-      this.baseUrl.pathname += "/";
+      this.baseUrl.pathname += '/';
     }
-    this.mapUrl =
-      typeof mapUrl === "string" ? new URL(mapUrl, this.baseUrl) : mapUrl;
-    this.rootUrl =
-      typeof rootUrl === "string"
-        ? new URL(rootUrl, this.baseUrl)
-        : rootUrl || null;
-    if (this.rootUrl && !this.rootUrl.pathname.endsWith("/"))
-      this.rootUrl.pathname += "/";
-    if (!this.mapUrl.pathname.endsWith("/")) {
+    this.mapUrl = typeof mapUrl === 'string' ? new URL(mapUrl, this.baseUrl) : mapUrl;
+    this.rootUrl = typeof rootUrl === 'string' ? new URL(rootUrl, this.baseUrl) : rootUrl || null;
+    if (this.rootUrl && !this.rootUrl.pathname.endsWith('/')) this.rootUrl.pathname += '/';
+    if (!this.mapUrl.pathname.endsWith('/')) {
       try {
-        this.mapUrl = new URL("./", this.mapUrl);
+        this.mapUrl = new URL('./', this.mapUrl);
       } catch {
-        this.mapUrl = new URL(this.mapUrl.href + "/");
+        this.mapUrl = new URL(this.mapUrl.href + '/');
       }
     }
 
@@ -634,11 +613,11 @@ export class Generator {
     // perform resolutions against the local node_modules directory:
     const nmProvider = nodemodules.createProvider(
       this.baseUrl.href,
-      defaultProvider === "nodemodules"
+      defaultProvider === 'nodemodules'
     );
     const pm = new ProviderManager(log, fetchOpts, providerConfig, {
       ...customProviders,
-      nodemodules: nmProvider,
+      nodemodules: nmProvider
     });
 
     // We make an attempt to auto-detect the default provider from the input
@@ -653,7 +632,7 @@ export class Generator {
       preserveSymlinks,
       traceCjs: commonJS,
       traceTs: typeScript,
-      traceSystem: system,
+      traceSystem: system
     });
 
     // Initialise the tracer:
@@ -667,7 +646,7 @@ export class Generator {
         providers,
         ignore,
         resolutions,
-        commonJS,
+        commonJS
       },
       log,
       resolver
@@ -681,7 +660,7 @@ export class Generator {
     this.combineSubpaths = combineSubpaths;
 
     // Set the fetch retry count
-    if (typeof fetchRetries === "number") setRetryCount(fetchRetries);
+    if (typeof fetchRetries === 'number') setRetryCount(fetchRetries);
   }
 
   /**
@@ -699,23 +678,19 @@ export class Generator {
     rootUrl: string | URL = this.rootUrl,
     preloads?: string[]
   ): Promise<string[]> {
-    if (typeof mapUrl === "string") mapUrl = new URL(mapUrl, this.baseUrl);
-    if (typeof rootUrl === "string") rootUrl = new URL(rootUrl, this.baseUrl);
+    if (typeof mapUrl === 'string') mapUrl = new URL(mapUrl, this.baseUrl);
+    if (typeof rootUrl === 'string') rootUrl = new URL(rootUrl, this.baseUrl);
     let htmlModules: string[] | undefined;
-    if (typeof jsonOrHtml === "string") {
+    if (typeof jsonOrHtml === 'string') {
       try {
         jsonOrHtml = JSON.parse(jsonOrHtml) as IImportMap;
       } catch {
         const analysis = analyzeHtml(jsonOrHtml as string, mapUrl);
         jsonOrHtml = (analysis.map.json || {}) as IImportMap;
         preloads = (preloads || []).concat(
-          analysis.preloads
-            .map((preload) => preload.attrs.href?.value)
-            .filter((x) => x)
+          analysis.preloads.map(preload => preload.attrs.href?.value).filter(x => x)
         );
-        htmlModules = [
-          ...new Set([...analysis.staticImports, ...analysis.dynamicImports]),
-        ];
+        htmlModules = [...new Set([...analysis.staticImports, ...analysis.dynamicImports])];
       }
     }
     await this.traceMap.addInputMap(jsonOrHtml, mapUrl, rootUrl, preloads);
@@ -759,17 +734,17 @@ export class Generator {
     specifier: string | string[],
     parentUrl?: string
   ): Promise<{ staticDeps: string[]; dynamicDeps: string[] }> {
-    if (typeof specifier === "string") specifier = [specifier];
+    if (typeof specifier === 'string') specifier = [specifier];
     let error = false;
     await this.traceMap.processInputMap;
     try {
       await Promise.all(
-        specifier.map((specifier) =>
+        specifier.map(specifier =>
           this.traceMap.visit(
             specifier,
             {
-              installMode: "freeze",
-              toplevel: true,
+              installMode: 'freeze',
+              toplevel: true
             },
             parentUrl || this.baseUrl.href
           )
@@ -798,20 +773,15 @@ export class Generator {
    * @param html HTML to link
    * @param htmlUrl URL of the given HTML
    */
-  async linkHtml(
-    html: string | string[],
-    htmlUrl?: string | URL
-  ): Promise<string[]> {
+  async linkHtml(html: string | string[], htmlUrl?: string | URL): Promise<string[]> {
     if (Array.isArray(html)) {
-      const impts = await Promise.all(
-        html.map((h) => this.linkHtml(h, htmlUrl))
-      );
+      const impts = await Promise.all(html.map(h => this.linkHtml(h, htmlUrl)));
       return [...new Set(impts)].reduce((a, b) => a.concat(b), []);
     }
 
     let resolvedUrl: URL;
     if (htmlUrl) {
-      if (typeof htmlUrl === "string") {
+      if (typeof htmlUrl === 'string') {
         resolvedUrl = new URL(resolveUrl(htmlUrl, this.mapUrl, this.rootUrl));
       } else {
         resolvedUrl = htmlUrl;
@@ -819,10 +789,8 @@ export class Generator {
     }
 
     const analysis = analyzeHtml(html, resolvedUrl);
-    const impts = [
-      ...new Set([...analysis.staticImports, ...analysis.dynamicImports]),
-    ];
-    await Promise.all(impts.map((impt) => this.link(impt, resolvedUrl?.href)));
+    const impts = [...new Set([...analysis.staticImports, ...analysis.dynamicImports])];
+    await Promise.all(impts.map(impt => this.link(impt, resolvedUrl?.href)));
     return impts;
   }
 
@@ -844,13 +812,13 @@ export class Generator {
       integrity = false,
       whitespace = true,
       esModuleShims = true,
-      comment = true,
+      comment = true
     }: {
       pins?: string[] | boolean;
       trace?: string[] | boolean;
       htmlUrl?: string | URL;
       rootUrl?: string | URL | null;
-      preload?: boolean | "all" | "static";
+      preload?: boolean | 'all' | 'static';
       integrity?: boolean;
       whitespace?: boolean;
       esModuleShims?: string | boolean;
@@ -858,14 +826,12 @@ export class Generator {
     } = {}
   ): Promise<string> {
     if (comment === true)
-      comment =
-        " Generated by @jspm/generator - https://github.com/jspm/generator ";
-    if (typeof htmlUrl === "string") htmlUrl = new URL(htmlUrl);
+      comment = ' Generated by @jspm/generator - https://github.com/jspm/generator ';
+    if (typeof htmlUrl === 'string') htmlUrl = new URL(htmlUrl);
 
     const analysis = analyzeHtml(html, htmlUrl);
 
-    let modules =
-      pins === true ? this.traceMap.pins : Array.isArray(pins) ? pins : [];
+    let modules = pins === true ? this.traceMap.pins : Array.isArray(pins) ? pins : [];
     if (trace) {
       const impts = await this.linkHtml(html, htmlUrl);
       modules = [...new Set([...modules, ...impts])];
@@ -881,32 +847,30 @@ export class Generator {
     } catch (err) {
       // Most likely cause of a generation failure:
       err.message +=
-        "\n\nIf you are linking locally against your node_modules folder, make sure that you have all the necessary dependencies installed.";
+        '\n\nIf you are linking locally against your node_modules folder, make sure that you have all the necessary dependencies installed.';
     }
 
     const preloadDeps =
-      preload === "all"
-        ? [...new Set([...staticDeps, ...dynamicDeps])]
-        : staticDeps;
+      preload === 'all' ? [...new Set([...staticDeps, ...dynamicDeps])] : staticDeps;
 
     const newlineTab = !whitespace
       ? analysis.newlineTab
-      : analysis.newlineTab.includes("\n")
+      : analysis.newlineTab.includes('\n')
       ? analysis.newlineTab
-      : "\n" + analysis.newlineTab;
+      : '\n' + analysis.newlineTab;
 
     const replacer = new Replacer(html);
 
-    let esms = "";
+    let esms = '';
     if (esModuleShims) {
       let esmsPkg: ExactPackage;
       try {
         esmsPkg = await this.traceMap.resolver.pm.resolveLatestTarget(
           {
-            name: "es-module-shims",
-            registry: "npm",
-            ranges: [new SemverRange("*")],
-            unstable: false,
+            name: 'es-module-shims',
+            registry: 'npm',
+            ranges: [new SemverRange('*')],
+            unstable: false
           },
           this.traceMap.installer.defaultProvider,
           this.baseUrl.href,
@@ -916,9 +880,7 @@ export class Generator {
         // This usually happens because the user is trying to use their
         // node_modules as the provider but has not installed the shim:
         let errMsg = `Unable to resolve "es-module-shims@*" under current provider "${this.traceMap.installer.defaultProvider.provider}".`;
-        if (
-          this.traceMap.installer.defaultProvider.provider === "nodemodules"
-        ) {
+        if (this.traceMap.installer.defaultProvider.provider === 'nodemodules') {
           errMsg += `\n\nJspm automatically injects a shim so that the import map in your HTML file will be usable by older browsers.\nYou may need to run "npm install es-module-shims" to install the shim if you want to link against your local node_modules folder.`;
         }
         errMsg += `\nTo disable the import maps polyfill injection, set esModuleShims: false.`;
@@ -930,46 +892,33 @@ export class Generator {
           esmsPkg,
           this.traceMap.installer.defaultProvider.provider,
           this.traceMap.installer.defaultProvider.layer
-        )) + "dist/es-module-shims.js";
+        )) + 'dist/es-module-shims.js';
 
       // detect esmsUrl as a wrapper URL
-      esmsUrl = await getMaybeWrapperUrl(
-        esmsUrl,
-        this.traceMap.resolver.fetchOpts
-      );
+      esmsUrl = await getMaybeWrapperUrl(esmsUrl, this.traceMap.resolver.fetchOpts);
 
       if (htmlUrl || rootUrl)
-        esmsUrl = relativeUrl(
-          new URL(esmsUrl),
-          new URL(rootUrl ?? htmlUrl),
-          !!rootUrl
-        );
+        esmsUrl = relativeUrl(new URL(esmsUrl), new URL(rootUrl ?? htmlUrl), !!rootUrl);
 
       esms = `<script async src="${esmsUrl}" crossorigin="anonymous"${
         integrity
           ? ` integrity="${await getIntegrity(
               new Uint8Array(
-                await (
-                  await fetch(esmsUrl, this.traceMap.resolver.fetchOpts)
-                ).arrayBuffer()
+                await (await fetch(esmsUrl, this.traceMap.resolver.fetchOpts)).arrayBuffer()
               )
             )}"`
-          : ""
+          : ''
       }></script>${newlineTab}`;
 
       if (analysis.esModuleShims)
-        replacer.remove(
-          analysis.esModuleShims.start,
-          analysis.esModuleShims.end,
-          true
-        );
+        replacer.remove(analysis.esModuleShims.start, analysis.esModuleShims.end, true);
     }
 
     for (const preload of analysis.preloads) {
       replacer.remove(preload.start, preload.end, true);
     }
 
-    let preloads = "";
+    let preloads = '';
     if (preload && preloadDeps.length) {
       let first = true;
       for (let dep of preloadDeps.sort()) {
@@ -983,18 +932,16 @@ export class Generator {
           integrity
             ? ` integrity="${await getIntegrity(
                 new Uint8Array(
-                  await (
-                    await fetch(dep, this.traceMap.resolver.fetchOpts)
-                  ).arrayBuffer()
+                  await (await fetch(dep, this.traceMap.resolver.fetchOpts)).arrayBuffer()
                 )
               )}"`
-            : ""
+            : ''
         } />`;
       }
     }
 
     if (comment) {
-      const existingComment = analysis.comments.find((c) =>
+      const existingComment = analysis.comments.find(c =>
         replacer.source
           .slice(replacer.idx(c.start), replacer.idx(c.end))
           .includes(comment as string)
@@ -1007,18 +954,15 @@ export class Generator {
     replacer.replace(
       analysis.map.start,
       analysis.map.end,
-      (comment ? "<!--" + comment + "-->" + newlineTab : "") +
+      (comment ? '<!--' + comment + '-->' + newlineTab : '') +
         esms +
         '<script type="importmap">' +
-        (whitespace ? newlineTab : "") +
-        JSON.stringify(map, null, whitespace ? 2 : 0).replace(
-          /\n/g,
-          newlineTab
-        ) +
-        (whitespace ? newlineTab : "") +
-        "</script>" +
+        (whitespace ? newlineTab : '') +
+        JSON.stringify(map, null, whitespace ? 2 : 0).replace(/\n/g, newlineTab) +
+        (whitespace ? newlineTab : '') +
+        '</script>' +
         preloads +
-        (analysis.map.newScript ? newlineTab : "")
+        (analysis.map.newScript ? newlineTab : '')
     );
 
     return replacer.source;
@@ -1055,20 +999,17 @@ export class Generator {
    * await generator.install({ alias: 'mypkg', target: './packages/local-pkg', subpaths: true });
    * ```
    */
-  async install(
-    install: string | Install | (string | Install)[],
-    mode?: InstallMode
-  );
+  async install(install: string | Install | (string | Install)[], mode?: InstallMode);
   async install(mode?: InstallMode);
   async install(
     install?: string | Install | (string | Install)[] | InstallMode,
     mode?: InstallMode
   ): Promise<void | { staticDeps: string[]; dynamicDeps: string[] }> {
     if (
-      install === "default" ||
-      install === "latest-primaries" ||
-      install === "latest-all" ||
-      install === "freeze"
+      install === 'default' ||
+      install === 'latest-primaries' ||
+      install === 'latest-all' ||
+      install === 'freeze'
     ) {
       mode = install;
       install = [];
@@ -1086,33 +1027,30 @@ export class Generator {
 
       // To match the behaviour of an argumentless `npm install`, we use
       // existing resolutions for everything unless it's out-of-range:
-      mode ??= "default";
+      mode ??= 'default';
 
       return this._install(
-        Object.entries(this.traceMap.installer.installs.primary).map(
-          ([alias, target]) => {
-            const pkgTarget =
-              this.traceMap.installer.constraints.primary[alias];
+        Object.entries(this.traceMap.installer.installs.primary).map(([alias, target]) => {
+          const pkgTarget = this.traceMap.installer.constraints.primary[alias];
 
-            // Try to reinstall lock against constraints if possible, otherwise
-            // reinstall it as a URL directly (which has the downside that it
-            // won't have NPM versioning semantics):
-            let newTarget: string | InstallTarget = target.installUrl;
-            if (pkgTarget) {
-              if (pkgTarget instanceof URL) {
-                newTarget = pkgTarget.href;
-              } else {
-                newTarget = `${pkgTarget.registry}:${pkgTarget.name}`;
-              }
+          // Try to reinstall lock against constraints if possible, otherwise
+          // reinstall it as a URL directly (which has the downside that it
+          // won't have NPM versioning semantics):
+          let newTarget: string | InstallTarget = target.installUrl;
+          if (pkgTarget) {
+            if (pkgTarget instanceof URL) {
+              newTarget = pkgTarget.href;
+            } else {
+              newTarget = `${pkgTarget.registry}:${pkgTarget.name}`;
             }
-
-            return {
-              alias,
-              target: newTarget,
-              subpath: target.installSubpath ?? undefined,
-            } as Install;
           }
-        ),
+
+          return {
+            alias,
+            target: newTarget,
+            subpath: target.installSubpath ?? undefined
+          } as Install;
+        }),
         mode
       );
     }
@@ -1123,59 +1061,45 @@ export class Generator {
 
     const imports = (
       await Promise.all(
-        install.map(async (install) => {
+        install.map(async install => {
           // Resolve input information to a target package:
-          let alias,
-            target: InstallTarget,
-            subpath,
-            subpaths: string[] | true | undefined;
-          if (
-            typeof install === "string" ||
-            typeof install.target === "string"
-          ) {
+          let alias, target: InstallTarget, subpath, subpaths: string[] | true | undefined;
+          if (typeof install === 'string' || typeof install.target === 'string') {
             ({ alias, target, subpath } = (await installToTarget.call(
               this,
               install,
               this.traceMap.installer.defaultRegistry
             )) as any);
-            if ((install as Install)?.subpaths)
-              subpaths = (install as Install).subpaths;
+            if ((install as Install)?.subpaths) subpaths = (install as Install).subpaths;
           } else {
             ({ alias, target, subpath, subpaths } = install);
             validatePkgName(alias);
           }
 
           this.log(
-            "generator/install",
+            'generator/install',
             `Adding primary constraint for ${alias}: ${JSON.stringify(target)}`
           );
 
           // By default, an install takes the latest compatible version for primary
           // dependencies, and existing in-range versions for secondaries:
-          mode ??= "latest-primaries";
+          mode ??= 'latest-primaries';
 
           const installed = await this.traceMap.add(alias, target, mode);
 
           // expand all package subpaths
           if (subpaths === true) {
-            const pcfg = await this.traceMap.resolver.getPackageConfig(
-              installed.installUrl
-            );
+            const pcfg = await this.traceMap.resolver.getPackageConfig(installed.installUrl);
             // no entry point case
             if (!pcfg.exports && !pcfg.main) {
               return [];
             }
             // main only
-            if (
-              !pcfg.exports ||
-              !Object.keys(pcfg.exports).every((expt) => expt[0] === ".")
-            ) {
+            if (!pcfg.exports || !Object.keys(pcfg.exports).every(expt => expt[0] === '.')) {
               return alias;
             }
             // If the provider supports it, get a file listing for the package to assist with glob expansions
-            const fileList = await this.traceMap.resolver.pm.getFileList(
-              installed.installUrl
-            );
+            const fileList = await this.traceMap.resolver.pm.getFileList(installed.installUrl);
             // Expand exports into entry point list
             const resolutionMap = new Map<string, string>();
             await expandExportsResolutions(
@@ -1184,34 +1108,29 @@ export class Generator {
               fileList,
               resolutionMap
             );
-            return [...resolutionMap].map(
-              ([subpath, _entry]) => alias + subpath.slice(1)
-            );
+            return [...resolutionMap].map(([subpath, _entry]) => alias + subpath.slice(1));
           } else if (subpaths) {
-            subpaths.every((subpath) => {
-              if (
-                typeof subpath !== "string" ||
-                (subpath !== "." && !subpath.startsWith("./"))
-              )
+            subpaths.every(subpath => {
+              if (typeof subpath !== 'string' || (subpath !== '.' && !subpath.startsWith('./')))
                 throw new Error(
                   `Install subpath "${subpath}" must be equal to "." or start with "./".`
                 );
             });
-            return subpaths.map((subpath) => alias + subpath.slice(1));
+            return subpaths.map(subpath => alias + subpath.slice(1));
           } else {
-            return alias + (subpath ? subpath.slice(1) : "");
+            return alias + (subpath ? subpath.slice(1) : '');
           }
         })
       )
-    ).flatMap((i) => i);
+    ).flatMap(i => i);
 
     await Promise.all(
-      imports.map(async (impt) => {
+      imports.map(async impt => {
         await this.traceMap.visit(
           impt,
           {
             installMode: mode,
-            toplevel: true,
+            toplevel: true
           },
           this.mapUrl.href
         );
@@ -1236,7 +1155,7 @@ export class Generator {
    * @deprecated use generator.install('freeze') instead.
    */
   async reinstall() {
-    return await this.install("freeze");
+    return await this.install('freeze');
   }
 
   /**
@@ -1248,17 +1167,17 @@ export class Generator {
    * @param {string | string[]} pkgNames Package name or list of package names to update.
    */
   async update(pkgNames?: string | string[]) {
-    if (typeof pkgNames === "string") pkgNames = [pkgNames];
+    if (typeof pkgNames === 'string') pkgNames = [pkgNames];
     await this.traceMap.processInputMap;
 
     const primaryResolutions = this.traceMap.installer.installs.primary;
     const primaryConstraints = this.traceMap.installer.constraints.primary;
 
     // Matching the behaviour of "npm update":
-    let mode: InstallMode = "latest-primaries";
+    let mode: InstallMode = 'latest-primaries';
     if (!pkgNames) {
       pkgNames = Object.keys(primaryResolutions);
-      mode = "latest-all";
+      mode = 'latest-all';
     }
 
     const installs: Install[] = [];
@@ -1271,17 +1190,14 @@ export class Generator {
       }
       const { installUrl, installSubpath } = resolution;
       const subpaths = this.traceMap.pins
-        .filter(
-          (pin) =>
-            pin === name || (pin.startsWith(name) && pin[name.length] === "/")
-        )
-        .map((pin) => `.${pin.slice(name.length)}` as "." | `./${string}`);
+        .filter(pin => pin === name || (pin.startsWith(name) && pin[name.length] === '/'))
+        .map(pin => `.${pin.slice(name.length)}` as '.' | `./${string}`);
       // use package.json range if present
       if (primaryConstraints[name]) {
         installs.push({
           alias: name,
           subpaths,
-          target: { pkgTarget: primaryConstraints[name], installSubpath },
+          target: { pkgTarget: primaryConstraints[name], installSubpath }
         });
       }
       // otherwise synthetize a range from the current package version
@@ -1295,10 +1211,10 @@ export class Generator {
           pkgTarget: {
             registry: pkg.pkg.registry,
             name: pkg.pkg.name,
-            ranges: [new SemverRange("^" + pkg.pkg.version)],
-            unstable: false,
+            ranges: [new SemverRange('^' + pkg.pkg.version)],
+            unstable: false
           },
-          installSubpath,
+          installSubpath
         };
         installs.push({ alias: name, subpaths, target });
       }
@@ -1314,14 +1230,14 @@ export class Generator {
   }
 
   async uninstall(names: string | string[]) {
-    if (typeof names === "string") names = [names];
+    if (typeof names === 'string') names = [names];
     await this.traceMap.processInputMap;
     let pins = this.traceMap.pins;
     const unusedNames = new Set([...names]);
     for (let i = 0; i < pins.length; i++) {
       const pin = pins[i];
       const pinNames = names.filter(
-        (name) => name === pin || (name.endsWith("/") && pin.startsWith(name))
+        name => name === pin || (name.endsWith('/') && pin.startsWith(name))
       );
       if (pinNames.length) {
         pins.splice(i--, 1);
@@ -1329,9 +1245,7 @@ export class Generator {
       }
     }
     if (unusedNames.size) {
-      throw new JspmError(
-        `No "imports" entry for "${[...unusedNames][0]}" to uninstall.`
-      );
+      throw new JspmError(`No "imports" entry for "${[...unusedNames][0]}" to uninstall.`);
     }
     this.traceMap.pins = pins;
     const { staticDeps, dynamicDeps, map } = await this.traceMap.extractMap(
@@ -1405,32 +1319,30 @@ export class Generator {
     install = importMap === true,
     version,
     name,
-    provider = "jspm.io",
+    provider = 'jspm.io'
   }: Deployment): Promise<DeployOutput> {
-    if (typeof pkg === "object") {
-      const virtualUrl = `https://virtual/${name ?? "deploy"}@${
+    if (typeof pkg === 'object') {
+      const virtualUrl = `https://virtual/${name ?? 'deploy'}@${
         version ?? Math.round(Math.random() * 10_000)
       }`;
       this.setVirtualSourceData(virtualUrl, pkg);
       pkg = virtualUrl;
     }
-    if (typeof pkg !== "string" || !isURL(pkg) || pkg.match(/^\w\:/)) {
+    if (typeof pkg !== 'string' || !isURL(pkg) || pkg.match(/^\w\:/)) {
       throw new JspmError(`Package must be a URL string, received "${pkg}"`);
     }
 
-    if (!pkg.endsWith("/")) pkg += "/";
+    if (!pkg.endsWith('/')) pkg += '/';
 
     // Get the file list from the package and read all the file data
     const fileList = await this.traceMap.resolver.pm.getFileList(pkg);
     const fileData: SourceData = {};
     await Promise.all(
-      [...fileList].map(async (file) => {
+      [...fileList].map(async file => {
         const res = await fetch(pkg + file, this.traceMap.resolver.fetchOpts);
         if (!res.ok) {
           throw new JspmError(
-            `Unable to read file ${file} in ${pkg} - got ${
-              res.statusText || res.status
-            }`
+            `Unable to read file ${file} in ${pkg} - got ${res.statusText || res.status}`
           );
         }
         fileData[file] = await res.arrayBuffer();
@@ -1438,11 +1350,11 @@ export class Generator {
     );
 
     // Ensure package.json exists and has correct name and version
-    const pkgJson = fileData["package.json"] || "{}";
+    const pkgJson = fileData['package.json'] || '{}';
     // Parse package.json if it's a string
     let pjson;
     try {
-      if (typeof pkgJson === "string") {
+      if (typeof pkgJson === 'string') {
         pjson = JSON.parse(pkgJson);
       } else {
         // Convert ArrayBuffer to string and parse
@@ -1450,7 +1362,7 @@ export class Generator {
         pjson = JSON.parse(decoder.decode(pkgJson));
       }
     } catch (err) {
-      throw new JspmError("Invalid package.json: " + err.message);
+      throw new JspmError('Invalid package.json: ' + err.message);
     }
 
     if (pjson.jspm) {
@@ -1469,11 +1381,11 @@ export class Generator {
           continue;
         }
       }
-      const parts = file.split("/");
+      const parts = file.split('/');
       if (
-        parts.includes("node_modules") ||
-        parts.some((part) => part.startsWith(".")) ||
-        parts.includes("package-lock.json")
+        parts.includes('node_modules') ||
+        parts.some(part => part.startsWith('.')) ||
+        parts.includes('package-lock.json')
       )
         continue;
       if (files.length) {
@@ -1492,9 +1404,7 @@ export class Generator {
     }
 
     if (filteredFileList.length === 0 && !importMap)
-      throw new JspmError(
-        "At least one file or importMap is required for deployment"
-      );
+      throw new JspmError('At least one file or importMap is required for deployment');
 
     if (!name) {
       name = pjson.name;
@@ -1513,11 +1423,7 @@ export class Generator {
         );
     }
 
-    const { packageUrl } = this.traceMap.resolver.pm.getDeploymentUrl(
-      provider,
-      name,
-      version
-    );
+    const { packageUrl } = this.traceMap.resolver.pm.getDeploymentUrl(provider, name, version);
 
     if (install) {
       await this.install({ alias: name, target: pkg, subpaths: true });
@@ -1543,10 +1449,8 @@ export class Generator {
       version,
       provider,
       this.traceMap.pins.sort((a, b) => {
-        const aIsDeployAlias =
-          a === name || (a.startsWith(name) && a[name.length] === "/");
-        const bIsDeployAlias =
-          b === name || (b.startsWith(name) && b[name.length] === "/");
+        const aIsDeployAlias = a === name || (a.startsWith(name) && a[name.length] === '/');
+        const bIsDeployAlias = b === name || (b.startsWith(name) && b[name.length] === '/');
         if (aIsDeployAlias && !bIsDeployAlias) return -1;
         else if (bIsDeployAlias && !aIsDeployAlias) return 1;
         return a > b ? 1 : -1;
@@ -1569,11 +1473,11 @@ export class Generator {
       verify?: (url: string, instructions: string) => void;
     } = {}
   ): Promise<{ token: string }> {
-    const providerName = options.provider || "jspm.io";
+    const providerName = options.provider || 'jspm.io';
 
     return this.traceMap.resolver.pm.auth(providerName, {
       username: options.username,
-      verify: options.verify,
+      verify: options.verify
     });
   }
 
@@ -1582,17 +1486,11 @@ export class Generator {
    * and stitching its import map into the generator import map.
    */
   async eject(
-    {
-      name,
-      version,
-      provider = "jspm.io",
-    }: { name: string; version: string; provider?: string },
+    { name, version, provider = 'jspm.io' }: { name: string; version: string; provider?: string },
     outDir: string
   ) {
     if (!isNode) {
-      throw new JspmError(
-        `Eject functionality is currently only available on a filesystem`
-      );
+      throw new JspmError(`Eject functionality is currently only available on a filesystem`);
     }
     const { packageUrl, mapUrl } = this.traceMap.resolver.pm.getDeploymentUrl(
       provider,
@@ -1619,15 +1517,12 @@ export class Generator {
       version
     );
 
-    const [
-      { writeFileSync, mkdirSync },
-      { resolve, dirname },
-      { fileURLToPath, pathToFileURL },
-    ] = await Promise.all([
-      import(eval('"node:fs"')),
-      import(eval('"node:path"')),
-      import(eval('"node:url"')),
-    ]);
+    const [{ writeFileSync, mkdirSync }, { resolve, dirname }, { fileURLToPath, pathToFileURL }] =
+      await Promise.all([
+        import(eval('"node:fs"')),
+        import(eval('"node:path"')),
+        import(eval('"node:url"'))
+      ]);
     outDir = resolve(fileURLToPath(this.baseUrl), outDir);
     for (const [path, source] of Object.entries(packageFiles)) {
       const resolved = resolve(outDir, path);
@@ -1636,10 +1531,10 @@ export class Generator {
     }
 
     if (deploymentMap) {
-      await this.mergeMap(deploymentMap, "about:blank");
+      await this.mergeMap(deploymentMap, 'about:blank');
     }
 
-    this.map.replace(packageUrl, pathToFileURL(outDir).href + "/");
+    this.map.replace(packageUrl, pathToFileURL(outDir).href + '/');
     this.map.rebase(this.mapUrl, this.rootUrl);
   }
 
@@ -1654,11 +1549,9 @@ export class Generator {
     const mergeGenerator = this.clone();
     mergeGenerator.flattenScopes = false;
     await mergeGenerator.addMappings(map, mapUrl);
-    await mergeGenerator.install("freeze");
-    await this.addMappings(
-      mergeGenerator.getMap(mergeGenerator.mapUrl, mergeGenerator.rootUrl)
-    );
-    await this.install("freeze");
+    await mergeGenerator.install('freeze');
+    await this.addMappings(mergeGenerator.getMap(mergeGenerator.mapUrl, mergeGenerator.rootUrl));
+    await this.install('freeze');
   }
 
   /**
@@ -1674,7 +1567,7 @@ export class Generator {
       env: this.traceMap.resolver.env,
       defaultProvider:
         this.traceMap.installer.defaultProvider.provider +
-        "#" +
+        '#' +
         this.traceMap.installer.defaultProvider.layer,
       defaultRegistry: this.traceMap.installer.defaultRegistry,
       resolutions: this.traceMap.installer.resolutions,
@@ -1685,10 +1578,10 @@ export class Generator {
       integrity: this.integrity,
       preserveSymlinks: this.traceMap.resolver.preserveSymlinks,
       flattenScopes: this.flattenScopes,
-      combineSubpaths: this.combineSubpaths,
+      combineSubpaths: this.combineSubpaths
     });
     cloned.traceMap.resolver.pm.providers = {
-      ...this.traceMap.resolver.pm.providers,
+      ...this.traceMap.resolver.pm.providers
     };
     return cloned;
   }
@@ -1711,15 +1604,12 @@ export class Generator {
     rootUrl?: URL | string | null,
     integrity?: boolean
   ) {
-    if (typeof mapUrl === "string") mapUrl = new URL(mapUrl, this.baseUrl);
-    if (typeof rootUrl === "string") rootUrl = new URL(rootUrl, this.baseUrl);
+    if (typeof mapUrl === 'string') mapUrl = new URL(mapUrl, this.baseUrl);
+    if (typeof rootUrl === 'string') rootUrl = new URL(rootUrl, this.baseUrl);
     if (!Array.isArray(pins)) pins = [pins];
-    if (typeof integrity !== "boolean") integrity = this.integrity;
+    if (typeof integrity !== 'boolean') integrity = this.integrity;
     await this.traceMap.processInputMap;
-    const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
-      pins,
-      integrity
-    );
+    const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(pins, integrity);
     map.rebase(mapUrl, rootUrl);
     if (this.flattenScopes) map.flatten();
     map.sort();
@@ -1735,13 +1625,12 @@ export class Generator {
    * @returns Resolved URL string
    */
   resolve(specifier: string, parentUrl: URL | string = this.baseUrl) {
-    if (typeof parentUrl === "string")
-      parentUrl = new URL(parentUrl, this.baseUrl);
+    if (typeof parentUrl === 'string') parentUrl = new URL(parentUrl, this.baseUrl);
     const resolved = this.map.resolve(specifier, parentUrl);
     if (resolved === null)
       throw new JspmError(
         `Unable to resolve "${specifier}" from ${parentUrl.href}`,
-        "MODULE_NOT_FOUND"
+        'MODULE_NOT_FOUND'
       );
     return resolved;
   }
@@ -1751,17 +1640,14 @@ export class Generator {
   }
 
   getAnalysis(url: string | URL): ModuleAnalysis {
-    if (typeof url !== "string") url = url.href;
+    if (typeof url !== 'string') url = url.href;
     const trace = this.traceMap.resolver.getAnalysis(url);
-    if (!trace)
-      throw new Error(
-        `The URL ${url} has not been traced by this generator instance.`
-      );
+    if (!trace) throw new Error(`The URL ${url} has not been traced by this generator instance.`);
     return {
       format: trace.format,
       staticDeps: trace.deps,
       dynamicDeps: trace.dynamicDeps,
-      cjsLazyDeps: trace.cjsLazyDeps || [],
+      cjsLazyDeps: trace.cjsLazyDeps || []
     };
   }
 
@@ -1789,7 +1675,7 @@ export class Generator {
 
 export interface LookupOptions {
   provider?: string;
-  cache?: "offline" | boolean;
+  cache?: 'offline' | boolean;
 }
 
 /**
@@ -1816,23 +1702,20 @@ export async function fetch(url: string, opts: any = {}) {
  * @param lookupOptions Provider and cache defaults for lookup
  * @returns The resolved install and exact package \{ install, resolved \}
  */
-export async function lookup(
-  install: string | Install,
-  { provider, cache }: LookupOptions = {}
-) {
+export async function lookup(install: string | Install, { provider, cache }: LookupOptions = {}) {
   const generator = new Generator({ cache: !cache, defaultProvider: provider });
   const { target, subpath, alias } = await installToTarget.call(
     generator,
     install,
     generator.traceMap.installer.defaultRegistry
   );
-  if (typeof target === "string")
+  if (typeof target === 'string')
     throw new Error(
       `Resolved install "${install}" to package specifier ${target}, but expected a fully qualified install target.`
     );
 
   const { pkgTarget, installSubpath } = target;
-  if (pkgTarget instanceof URL) throw new Error("URL lookups not supported");
+  if (pkgTarget instanceof URL) throw new Error('URL lookups not supported');
   const resolved = await generator.traceMap.resolver.pm.resolveLatestTarget(
     pkgTarget,
     generator.traceMap.installer.getProvider(pkgTarget),
@@ -1844,13 +1727,13 @@ export async function lookup(
       target: {
         registry: pkgTarget.registry,
         name: pkgTarget.name,
-        range: pkgTarget.ranges.map((range) => range.toString()).join(" || "),
+        range: pkgTarget.ranges.map(range => range.toString()).join(' || ')
       },
       installSubpath,
       subpath,
-      alias,
+      alias
     },
-    resolved: resolved,
+    resolved: resolved
   };
 }
 
@@ -1881,13 +1764,13 @@ export async function getPackageConfig(
   { provider, cache }: LookupOptions = {}
 ): Promise<PackageConfig | null> {
   const generator = new Generator({ cache: !cache, defaultProvider: provider });
-  if (typeof pkg === "object" && "name" in pkg)
+  if (typeof pkg === 'object' && 'name' in pkg)
     pkg = await generator.traceMap.resolver.pm.pkgToUrl(
       pkg,
       generator.traceMap.installer.defaultProvider.provider,
       generator.traceMap.installer.defaultProvider.layer
     );
-  else if (typeof pkg === "string") pkg = new URL(pkg).href;
+  else if (typeof pkg === 'string') pkg = new URL(pkg).href;
   else pkg = pkg.href;
   return generator.traceMap.resolver.getPackageConfig(pkg);
 }
@@ -1932,9 +1815,7 @@ export async function getPackageBase(
   { provider, cache }: LookupOptions = {}
 ): Promise<string> {
   const generator = new Generator({ cache: !cache, defaultProvider: provider });
-  return generator.traceMap.resolver.getPackageBase(
-    typeof url === "string" ? url : url.href
-  );
+  return generator.traceMap.resolver.getPackageBase(typeof url === 'string' ? url : url.href);
 }
 
 /**
@@ -1954,9 +1835,7 @@ export async function parseUrlPkg(
   { provider, cache }: LookupOptions = {}
 ): Promise<ExactModule | null> {
   const generator = new Generator({ cache: !cache, defaultProvider: provider });
-  return generator.traceMap.resolver.pm.parseUrlPkg(
-    typeof url === "string" ? url : url.href
-  );
+  return generator.traceMap.resolver.pm.parseUrlPkg(typeof url === 'string' ? url : url.href);
 }
 
 /**
@@ -1976,21 +1855,19 @@ async function installToTarget(
   install: Install | string,
   defaultRegistry: string
 ): Promise<Install> {
-  if (typeof install === "string") install = { target: install };
-  if (typeof install.target !== "string")
+  if (typeof install === 'string') install = { target: install };
+  if (typeof install.target !== 'string')
     throw new Error('All installs require a "target" string.');
   if (
     install.subpath !== undefined &&
-    (typeof install.subpath !== "string" ||
-      (install.subpath !== "." && !install.subpath.startsWith("./")))
+    (typeof install.subpath !== 'string' ||
+      (install.subpath !== '.' && !install.subpath.startsWith('./')))
   )
     throw new Error(
-      `Install subpath "${
-        install.subpath
-      }" must be a string equal to "." or starting with "./".${
-        typeof install.subpath === "string"
+      `Install subpath "${install.subpath}" must be a string equal to "." or starting with "./".${
+        typeof install.subpath === 'string'
           ? `\nTry setting the subpath to "./${install.subpath}"`
-          : ""
+          : ''
       }`
     );
 
@@ -2004,7 +1881,7 @@ async function installToTarget(
   return {
     target,
     alias: install.alias || alias,
-    subpath: install.subpath || subpath,
+    subpath: install.subpath || subpath
   };
 }
 
@@ -2037,5 +1914,5 @@ function detectDefaultProvider(
   // 'providers' field can be used for hard-overriding this:
   // return winner || defaultProvider || "jspm.io";
 
-  return defaultProvider || winner || "jspm.io";
+  return defaultProvider || winner || 'jspm.io';
 }

@@ -7,7 +7,7 @@ export class Pool {
   }
   async queue() {
     if (++this.#opCnt > this.#POOL_SIZE)
-      await new Promise((resolve) => this.#cbs.push(resolve as () => {}));
+      await new Promise(resolve => this.#cbs.push(resolve as () => {}));
   }
   pop() {
     this.#opCnt--;

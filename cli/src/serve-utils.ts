@@ -1,13 +1,13 @@
-import { stat } from "node:fs/promises";
-import c from "picocolors";
-import open from "open";
+import { stat } from 'node:fs/promises';
+import c from 'picocolors';
+import open from 'open';
 import {
   cliHtmlHighlight,
   copyToClipboard,
   getFilesRecursively,
   getGenerator,
-  getLatestEsms,
-} from "./utils.ts";
+  getLatestEsms
+} from './utils.ts';
 
 // Function to display keyboard shortcuts
 let showingShortcuts = false;
@@ -19,7 +19,7 @@ let currentKeyHandler: ((key: Buffer) => void) | null = null;
 export function showShortcuts(serverUrl: string, isWatchMode = false) {
   // Clean up existing handler first if we're setting up shortcuts again
   if (currentKeyHandler) {
-    process.stdin.removeListener("data", currentKeyHandler);
+    process.stdin.removeListener('data', currentKeyHandler);
     currentKeyHandler = null;
   }
 
@@ -31,7 +31,7 @@ export function showShortcuts(serverUrl: string, isWatchMode = false) {
 
   if (isWatchMode) {
     showingShortcutsWatch = true;
-    console.log(`${c.blue("Info:")} Watching for file changes...`);
+    console.log(`${c.blue('Info:')} Watching for file changes...`);
   }
 
   process.stdin.setRawMode?.(true);
@@ -43,30 +43,30 @@ export function showShortcuts(serverUrl: string, isWatchMode = false) {
 
 function setupKeyHandler(serverUrl: string) {
   // Create a new handler
-  currentKeyHandler = (key) => {
+  currentKeyHandler = key => {
     // Convert the key buffer to a string for comparison
     const keyStr = String(key);
 
     switch (keyStr) {
-      case "\u0003": // Ctrl+C
-      case "q":
+      case '\u0003': // Ctrl+C
+      case 'q':
         hideShortcuts();
-        console.log(`\n${c.blue("Info:")} Server stopped`);
+        console.log(`\n${c.blue('Info:')} Server stopped`);
         process.exit(0);
         break;
-      case "o":
-        console.log(`${c.blue("Info:")} Opening ${serverUrl} in browser`);
+      case 'o':
+        console.log(`${c.blue('Info:')} Opening ${serverUrl} in browser`);
         open(serverUrl);
         break;
-      case "c":
-        console.log(`${c.blue("Info:")} Copied server URL to clipboard`);
+      case 'c':
+        console.log(`${c.blue('Info:')} Copied server URL to clipboard`);
         copyToClipboard(serverUrl);
         break;
     }
   };
 
   // Attach the new handler
-  process.stdin.on("data", currentKeyHandler);
+  process.stdin.on('data', currentKeyHandler);
 }
 
 // Function to hide keyboard shortcuts
@@ -75,7 +75,7 @@ export function hideShortcuts() {
 
   // Remove the event listener if it exists
   if (currentKeyHandler) {
-    process.stdin.removeListener("data", currentKeyHandler);
+    process.stdin.removeListener('data', currentKeyHandler);
     currentKeyHandler = null;
   }
 
@@ -93,9 +93,9 @@ export function hideShortcuts() {
 let esModuleShimsUrl: string | null = null;
 export async function esmsCodeSnippet(importMapSrc?: string) {
   if (!esModuleShimsUrl) {
-    esModuleShimsUrl = await getLatestEsms(await getGenerator({}), "jspm.io");
+    esModuleShimsUrl = await getLatestEsms(await getGenerator({}), 'jspm.io');
   }
-  return `<script src="${importMapSrc || "importmap.js"}"></script>
+  return `<script src="${importMapSrc || 'importmap.js'}"></script>
 <script async crossorigin="anonymous" src="${esModuleShimsUrl}"></script>`;
 }
 
@@ -103,20 +103,16 @@ export function lintMessage({
   file,
   name,
   description,
-  code,
+  code
 }: {
   file: string;
   name: string;
   description?: string;
-  code?: { title?: string; type?: "html"; snippet: string };
+  code?: { title?: string; type?: 'html'; snippet: string };
 }) {
   hideShortcuts();
-  console.log(`${c.yellow("Warning:")} Problem in HTML file ${c.bold(file)}:`);
-  console.log(
-    `${c.yellow(` → ${name}`)}${
-      description ? `\n   ${c.dim(description)}` : ""
-    }`
-  );
+  console.log(`${c.yellow('Warning:')} Problem in HTML file ${c.bold(file)}:`);
+  console.log(`${c.yellow(` → ${name}`)}${description ? `\n   ${c.dim(description)}` : ''}`);
   if (code) {
     if (code.title) console.log(`\n${c.magenta(code.title)}`);
     console.log(`\n${cliHtmlHighlight(code.snippet)}\n`);
@@ -130,11 +126,7 @@ export async function getFileMtimes(
 ) {
   const fileMTimes = new Map<string, number>();
   // Initialize the file MTimes map
-  const initialFileList = await getFilesRecursively(
-    directory,
-    watchIgnore,
-    watchInclude
-  );
+  const initialFileList = await getFilesRecursively(directory, watchIgnore, watchInclude);
   for (const filePath of initialFileList) {
     try {
       const stats = await stat(filePath);

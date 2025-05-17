@@ -19,7 +19,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jspm/import-map.git"
+    "url": "git+https://github.com/jspm/jspm.git"
   },
   "keywords": [
     "jspm",
@@ -28,13 +28,13 @@
   ],
   "author": "Guy Bedford",
   "bugs": {
-    "url": "https://github.com/jspm/import-map/issues"
+    "url": "https://github.com/jspm/jspm/issues"
   },
   "scripts": {
     "build": "chomp build",
     "test": "chomp test"
   },
-  "homepage": "https://github.com/jspm/import-map#readme",
+  "homepage": "https://github.com/jspm/jspm/tree/main/import-map#readme",
   "devDependencies": {
     "@swc/cli": "^0.1.65",
     "@swc/core": "^1.11.18",

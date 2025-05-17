@@ -21,8 +21,6 @@ By default, JSPM operates on `importmap.json` which is automatically created if 
 
 ## init
 
-Γûú  JSPM  -  Import Map Package Management
-
 ### Usage
   
 ```
@@ -52,8 +50,6 @@ jspm init ./my-project
 Initialize a project in the ./my-project directory.
 
 ## ls
-
-Γûú  JSPM  -  Import Map Package Management
 
 ### Usage
   
@@ -119,8 +115,6 @@ List exports for the Lit package using the unpkg provider explicitly.
 
 ## install
 
-Γûú  JSPM  -  Import Map Package Management
-
 ### Usage
   
 ```
@@ -169,8 +163,6 @@ Install packages into the import map tracing the package.json "exports" entry po
 jspm install
 ```
 ## serve
-
-Γûú  JSPM  -  Import Map Package Management
 
 ### Usage
   
@@ -256,8 +248,6 @@ Start a server that does not generate the import map on startup, perform type st
 
 ## build
 
-Γûú  JSPM  -  Import Map Package Management
-
 ### Usage
   
 ```
@@ -283,8 +273,6 @@ A custom Rollup configuration can be provided with --config for advanced build s
 * `-h, --help`                      Display this help (add --all for extended command list) 
 ## deploy
 
-Γûú  JSPM  -  Import Map Package Management
-
 ### Usage
   
 ```
@@ -301,10 +289,10 @@ For publishing (default):
   Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
 
 For ejecting a published package:
-  jspm deploy _&lt;package&gt;_ --eject --out _&lt;directory&gt;_
+  jspm deploy _&lt;package&gt;_ --eject --dir _&lt;directory&gt;_
 
   Ejects a deployed package into a local directory, stitching its deployment import map into the current import map.
-  The --out flag is required to specify the output directory when using --eject.
+  The --dir flag is required to specify the output directory when using --eject.
 
 
 ### Options
@@ -362,13 +350,11 @@ Download the application package foo@bar into the folder foo, merging its import
 
 
 ```
-jspm deploy app:foo@bar --eject --out foo -o test.html
+jspm deploy app:foo@bar --eject --dir foo -o test.html
 ```
 Download the application package foo@bar into the folder foo, merging its import map into the provided HTML file.
 
 ## auth
-
-Γûú  JSPM  -  Import Map Package Management
 
 ### Usage
   
@@ -405,8 +391,6 @@ jspm auth
 List all available providers and their authentication status.
 
 ## clear-cache
-
-Γûú  JSPM  -  Import Map Package Management
 
 ### Usage
   
@@ -503,7 +487,7 @@ When a resolution is set, _all_ dependencies on that package will take the given
 ### Examples
 
 ```
-  jspm install react@latest -r react=npm:preact@10.13.2
+  jspm install -r react=npm:preact@10.13.2
 ```
 
 Installs `npm:preact@10.13.2` into the import map under the name `react`. Note that this will happen even though we have specified a particular version for `react`. The resulting import map looks like this:

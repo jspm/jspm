@@ -433,11 +433,7 @@ export interface Deployment {
   package: string | SourceData;
 
   /**
-   * Optional import map to include for the deployment, deployed as a separate artifact from the package file contents.
-   * Providers that do not support separate import map deployments may throw if unsupported.
-   *
-   * Deployments are defined as modules along with their import map, where this import map is generated
-   * at deployment time.
+   * Optional import map to include for the deployment, deployed as the importmap.json file in the package.
    *
    * @default true
    *
@@ -446,9 +442,7 @@ export interface Deployment {
    * package being deployed will automatically be updated to reflect the deployed URLs.
    *
    * The benefit of defining the import map separately is that this provides a strong definition of the deployment
-   * execution model. In addition, even for immutable package deployments, their import maps may under special
-   * circumstances be treated as mutable when emergency dependency updates are required. For example, in the
-   * JSPM app registry, caching rules for import maps have a three day cache expiry to allow for such security fixes.
+   * execution model.
    */
   importMap?: IImportMap | boolean;
 
@@ -1242,7 +1236,7 @@ export class Generator {
    * @deprecated use generator.install('freeze') instead.
    */
   async reinstall() {
-    return this.install("freeze");
+    return await this.install("freeze");
   }
 
   /**
@@ -1433,7 +1427,6 @@ export class Generator {
       [...fileList].map(async (file) => {
         const res = await fetch(pkg + file, this.traceMap.resolver.fetchOpts);
         if (!res.ok) {
-          console.log(res);
           throw new JspmError(
             `Unable to read file ${file} in ${pkg} - got ${
               res.statusText || res.status
@@ -1620,10 +1613,6 @@ export class Generator {
       throw new JspmError(`Unable to load import map ${mapUrl}: ${e}`);
     }
 
-    if (deploymentMap) {
-      await this.mergeMap(deploymentMap, mapUrl);
-    }
-
     const packageFiles = await this.traceMap.resolver.pm.downloadDeployment(
       provider,
       name,
@@ -1646,6 +1635,10 @@ export class Generator {
       writeFileSync(resolved, source);
     }
 
+    if (deploymentMap) {
+      await this.mergeMap(deploymentMap, "about:blank");
+    }
+
     this.map.replace(packageUrl, pathToFileURL(outDir).href + "/");
     this.map.rebase(this.mapUrl, this.rootUrl);
   }
@@ -1660,7 +1653,7 @@ export class Generator {
   async mergeMap(map: IImportMap, mapUrl?: string) {
     const mergeGenerator = this.clone();
     mergeGenerator.flattenScopes = false;
-    mergeGenerator.addMappings(map, mapUrl);
+    await mergeGenerator.addMappings(map, mapUrl);
     await mergeGenerator.install("freeze");
     await this.addMappings(
       mergeGenerator.getMap(mergeGenerator.mapUrl, mergeGenerator.rootUrl)

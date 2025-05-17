@@ -118,7 +118,7 @@ export async function eject(pkg: string, flags: EjectFlags = {}) {
   const version = pkg.slice(4 + name.length + 1);
 
   startSpinner(`Ejecting ${c.bold(pkg)}...`);
-  await generator.eject({ name, version, provider }, flags.out);
+  await generator.eject({ name, version, provider }, flags.dir);
   stopSpinner();
 
   startSpinner(`Merging deployment import map for ${c.bold(pkg)}...`);

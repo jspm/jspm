@@ -24,16 +24,29 @@ export default async function install(flags: GenerateOutputFlags): Promise<{
 
   const env = await getEnv(flags);
   const input = await getInputMap(flags);
-  const generator = await getGenerator(flags);
 
   log(`Input map parsed: ${input}`);
 
-  let staticDeps, dynamicDeps;
+  let generator, staticDeps, dynamicDeps;
 
   // Install the local package with exports
   try {
     // Initialize using the specified package directory or current directory
     const projectConfig = await initProject(flags);
+
+    // Remove all top-level own-name imports as we use the package.json as the authoritiative source
+    // for these
+    for (const key of Object.keys((input.imports = input.imports || {}))) {
+      if (
+        key === projectConfig.name ||
+        (key.startsWith(projectConfig.name) &&
+          key[projectConfig.name.length] === "/")
+      ) {
+        delete input.imports[key];
+      }
+    }
+
+    generator = await getGenerator(flags, null, input);
 
     if (!flags.quiet) startSpinner(`Installing local package.json exports...`);
 
@@ -57,6 +70,8 @@ export default async function install(flags: GenerateOutputFlags): Promise<{
   } finally {
     stopSpinner();
   }
+
+  generator = generator || (await getGenerator(flags, null, input));
 
   // Installs always behave additively, and write all top-level pins:
   const map = await writeOutput(generator, null, env, flags, flags.quiet);

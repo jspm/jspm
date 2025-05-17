@@ -362,13 +362,9 @@ outputOpts(
         "Disable TypeScript type stripping (serve .ts files as is)",
         { default: true }
       )
-      .option(
-        "-s, --static",
-        "Static server only, do not watch for file changes or trigger hot reloads",
-        {
-          default: false,
-        }
-      )
+      .option("--no-watch", "Disable watcher hot reloading", {
+        default: true,
+      })
       .option(
         "--no-install",
         "Disable automatic import map installs in watch mode",
@@ -399,7 +395,7 @@ Start a server that uses importmap.json as the import map.
   )
   .example(
     (name) => `
-$ ${name} serve --static --no-install --no-type-stripping
+$ ${name} serve --no-watch --no-install --no-type-stripping
     
 Start a server that does not generate the import map on startup, perform type stripping or provide a hot reload watcher
 `
@@ -538,7 +534,7 @@ Download the application package foo@bar into the folder foo, merging its import
   )
   .example(
     (name) => `
-$ ${name} deploy app:foo@bar --eject --out foo -o test.html
+$ ${name} deploy app:foo@bar --eject --dir foo -o test.html
 
 Download the application package foo@bar into the folder foo, merging its import map into the provided HTML file.
 `
@@ -557,29 +553,28 @@ For publishing (default):
   Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
 
 For ejecting a published package:
-  jspm deploy <package> --eject --out <directory>
+  jspm deploy <package> --eject --dir <directory>
 
   Ejects a deployed package into a local directory, stitching its deployment import map into the current import map.
-  The --out flag is required to specify the output directory when using --eject.
+  The --dir flag is required to specify the output directory when using --eject.
 `
   )
   .action(
     wrapCommand((directoryOrPackage, flags) => {
       if (flags.eject) {
-        // Handle eject mode
-        const packageName = directoryOrPackage;
-
-        if (!packageName) {
+        if (!directoryOrPackage) {
           throw new JspmError(
-            "When using --eject, you must provide a package name to eject"
+            "When using --eject, you must provide a package name argument to eject"
           );
         }
-
-        return eject(packageName, flags);
+        if (!flags.dir) {
+          throw new JspmError(
+            "When using --eject, you must provide a --dir flag to eject into"
+          );
+        }
+        return eject(directoryOrPackage, flags);
       } else {
-        // Handle publish mode (default)
-        const directory = directoryOrPackage;
-        return publish(directory, flags);
+        return publish(directoryOrPackage, flags);
       }
     })
   );
@@ -611,7 +606,7 @@ export interface AuthProviderFlags extends BaseFlags {
 export interface ServeFlags extends GenerateOutputFlags {
   port?: number;
   typeStripping?: boolean;
-  static?: boolean;
+  watch?: boolean;
   install?: boolean;
 }
 
@@ -794,7 +789,6 @@ function defaultHelpCb(helpSections: HelpSection[]) {
             l.includes("config") ||
             l.includes("uninstall") ||
             l.includes("update") ||
-            l.includes("deploy") ||
             l.includes("auth") ||
             l.includes("clear-cache")
           );

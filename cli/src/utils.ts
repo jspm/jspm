@@ -341,7 +341,8 @@ async function writeJsonOutput(
 
 export async function getGenerator(
   flags: GenerateFlags & GenerateOutputFlags,
-  configOverride: any = null
+  configOverride: any = null,
+  inputMap?: IImportMap | undefined
 ): Promise<Generator> {
   const log = withType("utils/getGenerator");
   const mapUrl = getOutputMapUrl(flags);
@@ -368,7 +369,7 @@ export async function getGenerator(
         mapUrl,
         baseUrl,
         rootUrl,
-        inputMap: await getInputMap(flags),
+        inputMap: inputMap || (await getInputMap(flags)),
         env: await getEnv(flags),
         flattenScopes: flags.flattenScopes,
         combineSubpaths: flags.combineSubpaths,

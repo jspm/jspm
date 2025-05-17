@@ -177,8 +177,12 @@ export async function initCreate(
         createClaudeMd.toLowerCase() === "y" ||
         createClaudeMd.toLowerCase() === "yes" ||
         createClaudeMd === "";
+    }
 
-      // Ask about creating index.html example app
+    // Ask about creating index.html example app
+    const htmlPath = join(projectDir, "index.html");
+    const htmlExists = exists(htmlPath);
+    if (mode === "Creating" || !htmlExists) {
       const createHtmlExample = await readline.question(
         `${c.cyan("Create an index.html example app file? ")}${c.bold(
           "(y/n)"
@@ -267,18 +271,13 @@ export async function initCreate(
 
     // Create index.html example if requested
     if (shouldCreateHtml) {
-      const htmlPath = join(projectDir, "index.html");
-      const htmlExists = exists(htmlPath);
+      const htmlContent = await createExampleHtml(
+        packageJson,
+        exportsValue !== undefined
+      );
 
-      if (!htmlExists) {
-        const htmlContent = await createExampleHtml(
-          packageJson,
-          exportsValue !== undefined
-        );
-
-        await writeFile(htmlPath, htmlContent);
-        htmlCreated = true;
-      }
+      await writeFile(htmlPath, htmlContent);
+      htmlCreated = true;
 
       // Check if entry point file exists, create it if not
       if (exportsValue) {
@@ -631,6 +630,10 @@ The \`import type\` or \`import { type T }\` import type forms should be used wh
 JavaScript code may obtain URLs to assets using the \`new URL('./asset', import.meta.url)\` relative URL pattern.
 
 While stylesheets may be co-located with modules in the \`src\` folder, it is advisable to write assets into a separate \`assets\` folder.
+
+### HTML
+
+HTML files may exist at any nesting level. And the server root may also be variable. For this reason absolute paths should never be used, and instead stylesheets should always use relative paths to assets and HTML files should use HTML-relative paths to assets.
 
 ### Hot Reloading
 

@@ -1,10 +1,12 @@
 export default function createHotMap(map) {
   return `/**
  * JSPM Hot Reloading Injection Script
+ * Uses ES Module Shims for hot reloading, and works with both shim mode and polyfill mode.
+ * Using shim mode is recommended.
  */
 (map => {
   const mapUrl = document.currentScript.src;
-  const baseUrl = document.baseURI;
+  const pkgBase = new URL('.', mapUrl);
 
   const resolve = imports => Object.fromEntries(Object.entries(imports).map(([k, v]) => [k, new URL(v, mapUrl).href]));
   function resolveMap(map) {
@@ -17,10 +19,7 @@ export default function createHotMap(map) {
   map = resolveMap(map);
 
   // First, put ES Module Shims into Shim Mode, and enable hot reloading
-  esmsInitOptions = {
-    hotReload: true,
-    shimMode: true
-  };
+  esmsInitOptions = { hotReload: true, shimMode: true };
 
   const log = msg => console.log('%c[JSPM Watch]%c ' + msg, 'color: cyan', '');
 
@@ -30,11 +29,10 @@ export default function createHotMap(map) {
     source.onmessage = evt => {
       const data = JSON.parse(evt.data);
       if (data.newMap) {
-        const map = importShim.getImportMap();
-        importShim.addImportMap(mapDiff(map, resolveMap(data.newMap)));
+        importShim.addImportMap(data.newMap);
       }
       data.files?.forEach(file => {
-        const resolvedUrl = new URL(file, baseUrl).href;
+        const resolvedUrl = new URL(file, pkgBase).href;
         if (importShim?.hotReload?.(resolvedUrl))
           log(\`Reloaded \${file}\`);
         for (const style of [...document.querySelectorAll('link[rel=stylesheet]')]) {
@@ -49,7 +47,6 @@ export default function createHotMap(map) {
           };
         }
       });
-
     };
     source.onerror = evt => {
       if (source.readyState === EventSource.CLOSED) {
@@ -114,62 +111,6 @@ export default function createHotMap(map) {
       ))
     })
   }));
-
-  function mapDiff(lastMap, newMap) {
-    const diffMap = {};
-    if (newMap.imports) {
-      const diffImports = {};
-      let hasImportsDiff = false;
-      for (const key in newMap.imports) {
-        if (!lastMap.imports || lastMap.imports[key] !== newMap.imports[key]) {
-          diffImports[key] = newMap.imports[key];
-          hasImportsDiff = true;
-        }
-      }
-      if (hasImportsDiff)
-        diffMap.imports = diffImports;
-    }
-    if (newMap.scopes) {
-      const diffScopes = {};
-      let hasScopesDiff = false;
-      for (const scope in newMap.scopes) {
-        const newScopeImports = newMap.scopes[scope];
-        const lastScopeImports = lastMap.scopes?.[scope];
-        if (!lastScopeImports) {
-          diffScopes[scope] = { ...newScopeImports };
-          hasScopesDiff = true;
-          continue;
-        }
-        const scopeDiff = {};
-        let hasScopeDiff = false;
-        for (const key in newScopeImports) {
-          if (lastScopeImports[key] !== newScopeImports[key]) {
-            scopeDiff[key] = newScopeImports[key];
-            hasScopeDiff = true;
-          }
-        }
-        if (hasScopeDiff) {
-          diffScopes[scope] = scopeDiff;
-          hasScopesDiff = true;
-        }
-      }
-      if (hasScopesDiff)
-        diffMap.scopes = diffScopes;
-    }
-    if (newMap.integrity) {
-      const diffIntegrity = {};
-      let hasIntegrityDiff = false;
-      for (const url in newMap.integrity) {
-        if (!lastMap.integrity || lastMap.integrity[url] !== newMap.integrity[url]) {
-          diffIntegrity[url] = newMap.integrity[url];
-          hasIntegrityDiff = true;
-        }
-      }
-      if (hasIntegrityDiff)
-        diffMap.integrity = diffIntegrity;
-    }
-    return diffMap;
-  }
 })
 (${JSON.stringify(map, null, 2)});
 `;

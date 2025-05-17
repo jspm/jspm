@@ -411,7 +411,7 @@ export function getDeploymentUrl(
 ) {
   return {
     packageUrl: `${publicDeployUrl}app:${name}@${version}/` as `${string}/`,
-    mapUrl: `${publicDeployUrl}app:${name}@${version}.json`,
+    mapUrl: `${publicDeployUrl}app:${name}@${version}/importmap.json`,
   };
 }
 
@@ -568,7 +568,7 @@ ${
                 : idx === 1
                 ? "// Further available import map entrypoints - import as needed:\n// "
                 : "// "
-            }import '${impt}'${imports.length > 1 ? ";" : ""}`
+            }import '${impt}';`
         )
         .join("\n")}${imports.length > 1 ? "\n" : ""}</script>`
     : ""
@@ -700,7 +700,7 @@ async function createDeployToken(
 ): Promise<string> {
   if (!authToken) {
     throw new JspmError(
-      `No auth token has been generated for jspm.io. Either set providers['jspm.io'].authToken, or first run "jspm provider auth jspm.io"`
+      `No auth token has been generated for jspm.io. Either set providers['jspm.io'].authToken, or first run "jspm auth jspm.io"`
     );
   }
   try {
@@ -779,7 +779,7 @@ async function createTarball(
 
   if (map) {
     pack.entry(
-      { name: "importmap.json" },
+      { name: "package/importmap.json" },
       new TextEncoder().encode(JSON.stringify(map.toJSON()))
     );
   }

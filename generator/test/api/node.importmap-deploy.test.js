@@ -84,7 +84,7 @@ try {
 
   // Fetch the deployed import map
   const importMapResponse = await fetch(
-    deployResult.packageUrl.slice(0, -1) + ".json"
+    deployResult.packageUrl + "/importmap.json"
   );
 
   if (!importMapResponse.ok) {

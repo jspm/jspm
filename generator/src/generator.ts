@@ -433,11 +433,7 @@ export interface Deployment {
   package: string | SourceData;
 
   /**
-   * Optional import map to include for the deployment, deployed as a separate artifact from the package file contents.
-   * Providers that do not support separate import map deployments may throw if unsupported.
-   *
-   * Deployments are defined as modules along with their import map, where this import map is generated
-   * at deployment time.
+   * Optional import map to include for the deployment, deployed as the importmap.json file in the package.
    *
    * @default true
    *
@@ -446,9 +442,7 @@ export interface Deployment {
    * package being deployed will automatically be updated to reflect the deployed URLs.
    *
    * The benefit of defining the import map separately is that this provides a strong definition of the deployment
-   * execution model. In addition, even for immutable package deployments, their import maps may under special
-   * circumstances be treated as mutable when emergency dependency updates are required. For example, in the
-   * JSPM app registry, caching rules for import maps have a three day cache expiry to allow for such security fixes.
+   * execution model.
    */
   importMap?: IImportMap | boolean;
 
@@ -1034,6 +1028,10 @@ export class Generator {
    * Install a package target into the import map, including all its dependency resolutions via tracing.
    *
    * @param install Package or list of packages to install into the import map.
+   * @param mode Install constraint mode.
+   *
+   * Passing no install list or an empty install list will reinsstall all top-level "imports" from the
+   * provided input import map.
    *
    * @example
    * ```js
@@ -1058,9 +1056,24 @@ export class Generator {
    * ```
    */
   async install(
-    install?: string | Install | (string | Install)[]
+    install: string | Install | (string | Install)[],
+    mode?: InstallMode
+  );
+  async install(mode?: InstallMode);
+  async install(
+    install?: string | Install | (string | Install)[] | InstallMode,
+    mode?: InstallMode
   ): Promise<void | { staticDeps: string[]; dynamicDeps: string[] }> {
-    return this._install(install);
+    if (
+      install === "default" ||
+      install === "latest-primaries" ||
+      install === "latest-all" ||
+      install === "freeze"
+    ) {
+      mode = install;
+      install = [];
+    }
+    return this._install(install, mode);
   }
 
   private async _install(
@@ -1148,6 +1161,10 @@ export class Generator {
             const pcfg = await this.traceMap.resolver.getPackageConfig(
               installed.installUrl
             );
+            // no entry point case
+            if (!pcfg.exports && !pcfg.main) {
+              return [];
+            }
             // main only
             if (
               !pcfg.exports ||
@@ -1216,15 +1233,10 @@ export class Generator {
   /**
    * Locking install, retraces all top-level pins but does not change the
    * versions of anything (similar to "npm ci").
+   * @deprecated use generator.install('freeze') instead.
    */
   async reinstall() {
-    await this.traceMap.processInputMap;
-    const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
-      this.traceMap.pins,
-      this.integrity
-    );
-    this.map = map;
-    return { staticDeps, dynamicDeps };
+    return await this.install("freeze");
   }
 
   /**
@@ -1415,7 +1427,6 @@ export class Generator {
       [...fileList].map(async (file) => {
         const res = await fetch(pkg + file, this.traceMap.resolver.fetchOpts);
         if (!res.ok) {
-          console.log(res);
           throw new JspmError(
             `Unable to read file ${file} in ${pkg} - got ${
               res.statusText || res.status
@@ -1602,10 +1613,6 @@ export class Generator {
       throw new JspmError(`Unable to load import map ${mapUrl}: ${e}`);
     }
 
-    if (deploymentMap) {
-      await this.mergeMap(deploymentMap, mapUrl);
-    }
-
     const packageFiles = await this.traceMap.resolver.pm.downloadDeployment(
       provider,
       name,
@@ -1628,6 +1635,10 @@ export class Generator {
       writeFileSync(resolved, source);
     }
 
+    if (deploymentMap) {
+      await this.mergeMap(deploymentMap, "about:blank");
+    }
+
     this.map.replace(packageUrl, pathToFileURL(outDir).href + "/");
     this.map.rebase(this.mapUrl, this.rootUrl);
   }
@@ -1642,12 +1653,12 @@ export class Generator {
   async mergeMap(map: IImportMap, mapUrl?: string) {
     const mergeGenerator = this.clone();
     mergeGenerator.flattenScopes = false;
-    mergeGenerator.addMappings(map, mapUrl);
-    await mergeGenerator.reinstall();
+    await mergeGenerator.addMappings(map, mapUrl);
+    await mergeGenerator.install("freeze");
     await this.addMappings(
       mergeGenerator.getMap(mergeGenerator.mapUrl, mergeGenerator.rootUrl)
     );
-    await this.reinstall();
+    await this.install("freeze");
   }
 
   /**

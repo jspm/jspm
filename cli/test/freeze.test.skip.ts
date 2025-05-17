@@ -2,20 +2,16 @@ import { test } from "node:test";
 import assert from "assert";
 import { run } from "./scenarios.ts";
 
-let importMap: Map<string, string>;
-
-test("setup", async () => {
-  importMap = new Map([
-    [
-      "importmap.json",
-      JSON.stringify({
-        imports: {
-          fs: "https://ga.jspm.io/npm:@jspm/core@2.0.0-beta.20/nodelibs/node/fs.js",
-        },
-      }),
-    ],
-  ]);
-});
+const importMap = new Map([
+  [
+    "importmap.json",
+    JSON.stringify({
+      imports: {
+        fs: "https://ga.jspm.io/npm:@jspm/core@2.0.0-beta.20/nodelibs/node/fs.js",
+      },
+    }),
+  ],
+]);
 
 test("Installing without freeze should bump the version of core", async () => {
   await run({

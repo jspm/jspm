@@ -132,7 +132,7 @@ test("Config - installation with custom provider from config", async () => {
         }),
       ],
     ]),
-    commands: ["jspm install react@17.0.1"],
+    commands: ["jspm link react -o importmap.json"],
     validationFn: async (files: Map<string, string>) => {
       assert(files.has("importmap.json"), "Import map not created");
 
@@ -159,7 +159,7 @@ test("Config - local config overrides user config", async () => {
     commands: [
       // This would set user config, but shouldn't affect our test due to local override
       "jspm config set defaultProvider unpkg",
-      "jspm install react@17.0.1",
+      "jspm link react -o importmap.json",
     ],
     validationFn: async (files: Map<string, string>) => {
       assert(files.has("importmap.json"), "Import map not created");
@@ -190,7 +190,7 @@ test("Config - configuration inherited from parent directory", async () => {
     ]),
     // Use the cwd option to run commands from the subdirectory
     cwd: "subdir",
-    commands: ["jspm install react@17.0.1"],
+    commands: ["jspm link react -o importmap.json"],
     validationFn: async (files: Map<string, string>) => {
       assert(
         files.has("subdir/importmap.json"),

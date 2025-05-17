@@ -98,6 +98,13 @@ stdio = 'stderr-only'
 run = 'node ../node_modules/@swc/cli/bin/swc.js $DEP -o $TARGET --no-swcrc --source-maps -C inlineSourcesContent=false -C jsc.target=es2019 -C jsc.parser.syntax=typescript -C jsc.parser.importAttributes=true -C jsc.parser.topLevelAwait=true -C jsc.parser.importMeta=true -C jsc.parser.privateMethod=true -C jsc.parser.dynamicImport=true -C jsc.experimental.keepImportAssertions=true'
 
 [[task]]
+name = 'test-with-auth-windows'
+run = '''
+$env:JSPM_AUTH_TOKEN = "$(jspm config get -p jspm.io authToken)"
+chomp test
+'''
+
+[[task]]
 name = 'test'
 deps = [
     'test:unit',

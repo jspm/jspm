@@ -35,6 +35,8 @@ export interface HtmlAnalysis {
   dynamicImports: Set<string>;
   preloads: HtmlTag[];
   modules: HtmlTag[];
+  inlineModules: HtmlTag[];
+  scripts: HtmlTag[];
   comments: HtmlTag[];
   newlineTab: string;
 }
@@ -74,6 +76,8 @@ export function analyzeHtml(source: string, url: URL = baseUrl): HtmlAnalysis {
     dynamicImports: new Set<string>(),
     preloads: [],
     modules: [],
+    inlineModules: [],
+    scripts: [],
     esModuleShims: null,
     comments: [],
   };
@@ -126,13 +130,20 @@ export function analyzeHtml(source: string, url: URL = baseUrl): HtmlAnalysis {
               });
             }
           } else {
-            const [imports] =
+            const [imports, , facade] =
               parse(source.slice(tag.innerStart, tag.innerEnd)) || [];
             for (const { n, d } of imports) {
               if (!n) continue;
               (d === -1 ? analysis.staticImports : analysis.dynamicImports).add(
                 n
               );
+            }
+            if (!facade) {
+              analysis.inlineModules.push({
+                start: tag.start,
+                end: tag.end,
+                attrs: toHtmlAttrs(source, tag.attributes),
+              });
             }
           }
         } else if (!type || type === "javascript") {
@@ -144,6 +155,12 @@ export function analyzeHtml(source: string, url: URL = baseUrl): HtmlAnalysis {
                 end: tag.end,
                 attrs: toHtmlAttrs(source, tag.attributes),
               };
+            } else {
+              analysis.scripts.push({
+                start: tag.start,
+                end: tag.end,
+                attrs: toHtmlAttrs(source, tag.attributes),
+              });
             }
           } else {
             const [imports] =

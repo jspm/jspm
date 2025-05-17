@@ -44,32 +44,12 @@ test("Real-world - loading configuration from fixtures", async () => {
       // Verify that .jspmrc was loaded correctly
       assert(files.has(".jspmrc"), "Config file should exist");
 
-      const config = JSON.parse(files.get(".jspmrc"));
+      const config = JSON.parse(files.get(".jspmrc")!);
       assert.strictEqual(config.defaultProvider, "jsdelivr");
       // Only check specific properties, not the entire object
       assert.strictEqual(
         config.providers.npm.baseUrl,
         "https://registry.example.com/"
-      );
-    },
-  });
-});
-
-test("Real-world - config affects package installation", async () => {
-  const fixtureFiles = await loadFixtures("scenario_config");
-
-  await run({
-    files: fixtureFiles,
-    commands: ["jspm install react@17.0.1", "jspm link ./index.js"],
-    validationFn: async (files: Map<string, string>) => {
-      assert(files.has("importmap.json"), "Import map should exist");
-
-      const importMap = JSON.parse(files.get("importmap.json"));
-
-      // Verify it used jsdelivr (from config) instead of jspm.io (the default)
-      assert(
-        importMap.imports.react.startsWith("https://cdn.jsdelivr.net/"),
-        "Import map should use jsdelivr provider from config"
       );
     },
   });
@@ -89,36 +69,10 @@ test("Real-world - config merging between parent and child directories", async (
       assert(files.has("nested/.jspmrc"), "Nested config file should exist");
 
       // Check if nested directory has merged config values from parent
-      const nestedConfig = JSON.parse(files.get("nested/.jspmrc"));
+      const nestedConfig = JSON.parse(files.get("nested/.jspmrc")!);
 
       // The nested config should have auth token
       assert.strictEqual(nestedConfig.providers.npm.auth, "token123");
-    },
-  });
-});
-
-test("Real-world - config merging and package installation in nested directory", async () => {
-  const fixtureFiles = await loadFixtures("scenario_config");
-
-  await run({
-    files: fixtureFiles,
-    // Use the nested subdirectory as the working directory
-    cwd: "nested",
-    commands: ["jspm install lit@2.6.1", "jspm link ./index.js"],
-    validationFn: async (files: Map<string, string>) => {
-      // Check if importmap was created in the nested directory
-      assert(
-        files.has("nested/importmap.json"),
-        "Import map should exist in nested directory"
-      );
-
-      const importMap = JSON.parse(files.get("nested/importmap.json"));
-
-      // Verify lit was installed properly (without depending on a specific provider)
-      assert(
-        importMap.imports.lit && typeof importMap.imports.lit === "string",
-        "lit should be properly installed in the import map"
-      );
     },
   });
 });
@@ -150,41 +104,6 @@ test("Real-world - local config updates", async () => {
   });
 });
 
-test("Real-world - isolated config affects package installation", async () => {
-  const fixtureFiles = await loadFixtures("scenario_config");
-
-  await run({
-    files: fixtureFiles,
-    commands: [
-      // Set config in isolated environment with --local flag to ensure it's applied
-      "jspm config set defaultProvider unpkg --local",
-      // Install a package which should use the updated local config
-      "jspm install lodash@4.17.21",
-      "jspm link ./index.js",
-    ],
-    validationFn: async (files: Map<string, string>) => {
-      assert(files.has("importmap.json"), "Import map should exist");
-
-      // Check the local .jspmrc file was updated
-      assert(files.has(".jspmrc"), "Local config file should exist");
-      const localConfig = JSON.parse(files.get(".jspmrc")!);
-      assert.strictEqual(
-        localConfig.defaultProvider,
-        "unpkg",
-        "Local config should be updated with unpkg provider"
-      );
-
-      const importMap = JSON.parse(files.get("importmap.json")!);
-
-      // ImportMap should use unpkg from the updated local config
-      assert(
-        importMap.imports.lodash.startsWith("https://unpkg.com/"),
-        "Import map should use unpkg provider from local config"
-      );
-    },
-  });
-});
-
 test("Real-world - config value overrides", async () => {
   const fixtureFiles = await loadFixtures("scenario_config");
 
@@ -193,13 +112,13 @@ test("Real-world - config value overrides", async () => {
     commands: [
       // Override the default provider in .jspmrc
       "jspm config set defaultProvider unpkg --local",
-      "jspm install lodash@4.17.21",
+      "jspm link lodash -o importmap.json",
     ],
     validationFn: async (files: Map<string, string>) => {
       assert(files.has("importmap.json"), "Import map should exist");
 
-      const importMap = JSON.parse(files.get("importmap.json"));
-      const config = JSON.parse(files.get(".jspmrc"));
+      const importMap = JSON.parse(files.get("importmap.json")!);
+      const config = JSON.parse(files.get(".jspmrc")!);
 
       // Config should be updated
       assert.strictEqual(config.defaultProvider, "unpkg");

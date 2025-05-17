@@ -15,6 +15,8 @@ docs = docs.replace(/\$ (jspm[^\n]+)\n/g, '\n```\n$1\n```');
 docs = docs.replace(/\<([a-zA-Z0-9]+)\>/g, '_&lt;$1&gt;_'); // <opts>
 docs = docs.replace(/\[mode\]/g, '_[mode]_'); // --preload [mode]
 
+docs = docs.replace(/^Γûú.*\r?\n\r?\n/mg, '');
+
 const intro = readFileSync('docs/intro.md', 'utf8');
 const config = readFileSync('docs/config.md', 'utf8');
 

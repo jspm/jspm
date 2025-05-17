@@ -1,4 +1,4 @@
-{
+globalThis.foo = ({
   "env": [
     "browser",
     "deno",
@@ -16,4 +16,4 @@
       "scheduler": "https://ga.jspm.io/npm:scheduler@0.20.2/index.js"
     }
   }
-}
+});

@@ -5,9 +5,10 @@ import c from "picocolors";
 import { type Generator } from "@jspm/generator";
 import type { GenerateOutputFlags } from "./cli.ts";
 import {
+  JspmError,
   getEnv,
   getGenerator,
-  getInput,
+  getInputMap,
   getInputPath,
   getOutputPath,
   isJsExtension,
@@ -16,6 +17,7 @@ import {
   writeOutput,
 } from "./utils.ts";
 import { withType } from "./logger.ts";
+import { initProject } from "./init.ts";
 
 export default async function link(
   modules: string[],
@@ -34,56 +36,75 @@ export default async function link(
   const outputMapPath = getOutputPath(flags);
   const generator = await getGenerator(flags);
 
-  const inlinePins: string[] = [];
-  const resolvedModules = (
-    await Promise.all(
-      modules.map((spec) => resolveModule(spec, inlinePins, generator))
-    )
-  ).filter((m) => !!m);
+  let pins;
+  if (modules.length === 0) {
+    if (!flags.quiet) {
+      startSpinner(`Linking import map`);
+    }
+    try {
+      // First validate the project - this will warn about missing exports
+      try {
+        // Initialize project to validate package.json
+        const projectConfig = await initProject({
+          quiet: flags.quiet,
+          dir: process.cwd(),
+        });
 
-  // The input map is either from a JSON file or extracted from an HTML file.
-  // In the latter case we want to trace any inline modules from the HTML file
-  // as well, since they may have imports that are not in the import map yet:
-  const input = await getInput(flags, fallbackMap);
-  const pins = inlinePins.concat(resolvedModules.map((p) => p.target));
-  let allPins = pins;
-  if (input) {
-    allPins = pins.concat(await generator.addMappings(input));
-  }
+        log(`Project validated: ${projectConfig.name}`);
+      } catch (e) {
+        // Just log warnings for project validation issues but continue with freeze
+        if (e instanceof JspmError && !flags.quiet) {
+          console.warn(`${c.yellow("Warning:")} ${e.message}`);
+        }
+      }
 
-  log(`Input map parsed: ${input}`);
-  log(`Trace installing: ${allPins.concat(pins).join(", ")}`);
+      await generator.install("freeze");
+    } finally {
+      stopSpinner();
+    }
+  } else {
+    const inlinePins: string[] = [];
+    const resolvedModules = (
+      await Promise.all(
+        modules.map((spec) => resolveModule(spec, inlinePins, generator))
+      )
+    ).filter((m) => !!m);
 
-  if (allPins.length) {
-    if (modules.length === 0) {
-      !flags.silent && startSpinner(`Linking input.`);
-    } else {
-      !flags.silent &&
-        startSpinner(
-          `Linking ${c.bold(
-            resolvedModules.map((p) => p.alias || p.target).join(", ")
-          )}. (${env.join(", ")})`
-        );
+    // The input map is either from a JSON file or extracted from an HTML file.
+    // In the latter case we want to trace any inline modules from the HTML file
+    // as well, since they may have imports that are not in the import map yet:
+    const input = await getInputMap(flags, fallbackMap);
+    pins = inlinePins.concat(resolvedModules.map((p) => p.target));
+    let allPins = pins;
+    if (input) {
+      allPins = pins.concat(await generator.addMappings(input));
     }
 
-    await generator.link(allPins.concat(pins));
-    stopSpinner();
-  } else {
-    !flags.silent &&
-      console.warn(
-        `${c.red(
-          "Warning:"
-        )} Found nothing to link, will default to relinking input map. Provide a list of modules or HTML files with inline modules to change this behaviour.`
+    log(`Input map parsed: ${input}`);
+    log(`Trace installing: ${allPins.concat(pins).join(", ")}`);
+
+    if (!flags.quiet) {
+      startSpinner(
+        `Linking ${c.bold(
+          resolvedModules.map((p) => p.alias || p.target).join(", ")
+        )}. (${env.join(", ")})`
       );
+    }
+
+    try {
+      await generator.link(allPins.concat(pins));
+    } finally {
+      stopSpinner();
+    }
   }
 
   // If the user has provided modules and the output path is different to the
   // input path, then we behave as an extraction from the input map. In all
   // other cases we behave as an update to the map:
   if (inputMapPath !== outputMapPath && modules.length !== 0) {
-    return await writeOutput(generator, pins, env, flags, flags.silent);
+    return await writeOutput(generator, pins, env, flags, flags.quiet);
   } else {
-    return await writeOutput(generator, null, env, flags, flags.silent);
+    return await writeOutput(generator, null, env, flags, flags.quiet);
   }
 }
 
@@ -155,7 +176,7 @@ async function handleLocalFile(
     throw e;
   }
   if (!pins || pins.length === 0) {
-    throw new Error("No inline HTML modules found to link.");
+    throw new JspmError("No inline HTML modules found to link.");
   }
 
   inlinePins.push(...pins);

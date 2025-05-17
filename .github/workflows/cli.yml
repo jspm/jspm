@@ -29,7 +29,7 @@ jobs:
       - run: npm install
       - run: chomp -c cli lint
       - run: npm run -ws build
-      - run: node cli/jspm.js config set -p jspm.io authToken ${{ secrets.JSPM_TOKEN }}
+      - run: node cli/dist/jspm.js config set -p jspm.io authToken ${{ secrets.JSPM_TOKEN }}
       - run: chomp -c cli test
   deno-test:
     name: Deno Tests
@@ -45,11 +45,11 @@ jobs:
         uses: guybedford/chomp-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: denoland/setup-deno@v1
+      - uses: denoland/setup-deno@v2
         with:
           deno-version: ${{ matrix.deno }}
       - run: npm install
       - run: npm run -ws build
       - run: deno test --no-check --allow-all cli/test/deno_test.ts
-      - run: node cli/jspm.js config set -p jspm.io authToken ${{ secrets.JSPM_TOKEN }}
+      - run: node cli/dist/jspm.js config set -p jspm.io authToken ${{ secrets.JSPM_TOKEN }}
       - run: chomp -c cli deno:test

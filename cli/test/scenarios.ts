@@ -64,7 +64,7 @@ export async function run(scenario: Scenario) {
 
   try {
     for (const cmd of scenario.commands) {
-      const args = ["node", ...cmd.split(" "), "--silent"];
+      const args = ["node", ...cmd.split(" "), "--quiet"];
       cli.parse(args, { run: false });
       if (!(await cli.runMatchedCommand())) {
         throw new Error("Command failed");

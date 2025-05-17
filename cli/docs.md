@@ -487,7 +487,7 @@ When a resolution is set, _all_ dependencies on that package will take the given
 ### Examples
 
 ```
-  jspm install -r react=npm:preact@10.13.2
+  jspm install react@latest -r react=npm:preact@10.13.2
 ```
 
 Installs `npm:preact@10.13.2` into the import map under the name `react`. Note that this will happen even though we have specified a particular version for `react`. The resulting import map looks like this:

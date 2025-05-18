@@ -1,8 +1,8 @@
 {
   "workspaces": [
-    "cli",
-    "generator",
     "import-map",
-    "plugin-rollup"
+    "generator",
+    "plugin-rollup",
+    "cli"
   ]
 }

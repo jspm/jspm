@@ -71,7 +71,6 @@ export async function initCreate(
   const readline = createInterface({
     input: process.stdin,
     output: process.stdout,
-    terminal: true // This helps prevent character echo issues on Windows
   });
   let closed = false;
   readline.on('SIGINT', () => {
@@ -179,23 +178,40 @@ export async function initCreate(
         createHtmlExample === '';
     }
 
-    // Close readline interface before using terminal-utils
-    closed = true;
-    readline.close();
+    // Readline is now closed in the AI file section for both modes
 
     // Ask about creating AI rules file
     if (mode === 'Creating') {
-      // Show AI rules file selection options
-      const aiRuleOptions = [
-        { name: 'AGENTS.md', description: 'OpenAI' },
-        { name: 'CLAUDE.md', description: 'Anthropic Claude' },
-        { name: '.clinerules', description: 'Cline' },
-        { name: '.cursorrules', description: 'Cursor' },
-        { name: '.windsurfrules', description: 'Windsurf' },
-        { name: 'none', description: 'No AI file' }
-      ];
+      // First ask a simple yes/no question
+      const createAiFile = await readline.question(
+        `${c.cyan('Create an AI prompt file? ')}${c.bold('(y/n)')} `
+      );
+      
+      const wantAiFile = createAiFile.toLowerCase() === 'y' || 
+                       createAiFile.toLowerCase() === 'yes' || 
+                       createAiFile === '';
+      
+      // Close the readline interface before using the getOption function
+      closed = true;
+      readline.close();
+      
+      if (wantAiFile) {
+        // Show AI rules file selection options
+        const aiRuleOptions = [
+          { name: 'AGENTS.md', description: 'OpenAI' },
+          { name: 'CLAUDE.md', description: 'Anthropic Claude' },
+          { name: '.clinerules', description: 'Cline' },
+          { name: '.cursorrules', description: 'Cursor' },
+          { name: '.windsurfrules', description: 'Windsurf' },
+          { name: 'none', description: 'No AI file' }
+        ];
 
-      createdAiFile = await getOption('Create an AI prompt file?', aiRuleOptions);
+        createdAiFile = await getOption('Which AI prompt file would you like to create?', aiRuleOptions);
+      }
+    } else {
+      // Close the readline interface for non-creating mode
+      closed = true;
+      readline.close();
     }
 
     // Create the package.json content, preserving other fields
@@ -394,13 +410,14 @@ export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
 
     const readline = createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
     });
 
     try {
       const answer = await readline.question(
         `${c.cyan('No package.json found. Would you like to create one?')} ${c.bold('(y)')} `
       );
+      readline.close();
 
       if (
         answer.toLowerCase() === 'y' ||
@@ -413,8 +430,9 @@ export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
           `No package.json found. Please create a package.json file to continue.`
         );
       }
-    } finally {
+    } catch (e) {
       readline.close();
+      throw e;
     }
   }
 

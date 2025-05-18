@@ -57,11 +57,11 @@ export default async function serve(flags: ServeFlags = {}) {
 
   const fileMTimes = await getFileMtimes(resolvedDir, watchInclude, watchIgnore);
 
-  const serverUrl = `http://localhost:${port}/${name}`;
+  const serverUrl = `http://localhost:${port}/`;
 
   const server = createServer(async (req, res) => {
     try {
-      const reqUrl = new URL(req.url || '/', `http://${req.headers.host}`);
+      const reqUrl = new URL(req.url || '', `http://${req.headers.host}`);
       let reqPath = decodeURIComponent(reqUrl.pathname);
 
       // Serve the JSPM logo
@@ -94,23 +94,10 @@ export default async function serve(flags: ServeFlags = {}) {
         return;
       }
 
-      // Redirect the root into the app dir
+      // Serve the root directory directly
       if (reqPath === '/') {
-        res.writeHead(302, { Location: `${`/${name}`}/` });
-        res.end();
-        return;
+        reqPath = '/';
       }
-
-      if (
-        !reqPath.startsWith(`/${name}`) ||
-        (reqPath.length !== name.length + 1 && reqPath[name.length + 1] !== '/')
-      ) {
-        res.writeHead(404);
-        res.end(notFoundPage);
-        return;
-      }
-
-      reqPath = reqPath.substring(`/${name}`.length) || '';
 
       // Rlve to the actual file system path
       let filePath = join(resolvedDir, reqPath);
@@ -134,19 +121,19 @@ export default async function serve(flags: ServeFlags = {}) {
             try {
               await stat(indexPath);
               // If index.html exists, redirect to it directly
-              res.writeHead(302, { Location: `/${name}${reqPath}/index.html` });
+              res.writeHead(302, { Location: `${reqPath}/index.html` });
               res.end();
               return;
             } catch (err) {
               // If index.html doesn't exist, redirect to the directory with trailing slash
-              res.writeHead(301, { Location: `/${name}${reqPath}/` });
+              res.writeHead(301, { Location: `${reqPath}/` });
               res.end();
               return;
             }
           }
           // Only show directory listing for URLs with trailing slash
           res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end(await renderDirectoryListing(filePath, reqPath, `/${name}`));
+          res.end(await renderDirectoryListing(filePath, reqPath, ''));
         } else if (flags.watch && filePath.endsWith('.js') && filePath === outputMapPath) {
           // When watching, we intercept the import map with the hot reloading import map
           const map = readInputMap(outputMapPath);

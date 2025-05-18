@@ -464,13 +464,13 @@ the current directory is used. The server provides directory listings and serves
 appropriate MIME types.
 
 This is an intentionally minimal, opinionated server focused on standards-based workflows:
-  - Applications are served under their package name (http://localhost:5776/myapp/...)
+  - Applications are served directly from the root (http://localhost:5776/...)
   - TypeScript support with type-only stripping (no transpilation of JSX or other non-standard syntax)
   - Native ES modules only (no bundling or transformation)
   - Import maps for dependency management
 
 Key features:
-  - Serves applications under their package name (derived from package.json)
+  - Serves applications directly from the root path
   - TypeScript type stripping (disable with --no-type-stripping if you prefer to use tsc)
   - Live reload capabilities
   - Full support for import map generation options via -m/--map

@@ -462,7 +462,7 @@ export interface BuildFlags extends BaseFlags {
 outputOpts(
   generateOpts(
     cli
-      .command('deploy', `Deploy package to a provider (experimental)`)
+      .command('deploy', `Deploy package to a provider (limited availability)`)
       .option(
         '--no-usage',
         'Disable printing HTML/JS import code examples after successful deployment',
@@ -497,9 +497,9 @@ Deploy the current directory as a package to the JSPM CDN.
   )
   .example(
     name => `
-$ ${name} deploy --dir dist
+$ ${name} deploy -p jspm.io
 
-Deploy the ./dist directory as a package to the JSPM CDN.
+Deploy the current package as a package to the JSPM CDN.
 `
   )
   .example(
@@ -513,7 +513,7 @@ Start a watched deployment to a custom mutable version tag (dev-feat-2) instead 
     name => `
 $ ${name} deploy --eject app:foo@bar --dir foo
 
-Download the application package foo@bar into the folder foo, merging its import map into importmap.js.
+Download the application package foo@bar into the folder foo, merging its import map into foo/importmap.js.
 `
   )
   .example(
@@ -526,21 +526,24 @@ Download the application package foo@bar into the folder foo, merging its import
   .usage(
     `deploy [options]
 
-Manages deployments to the JSPM CDN.
+Manages deployments to the JSPM providers.
 
 For publishing (default):
+
   jspm deploy
 
-  The package must have a valid package.json with name and version fields.
-  The package.json "files" and "ignore" arrays will be respected.
-  Semver versions are always immutable deployments that cannot be redeployed.
-  Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
+  - The provider flag is always required, with limited availability only on the jspm.io provider currently
+  - The package must have a valid package.json with name and version fields.
+  - The package.json "files" and "ignore" arrays will be respected.
+  - Semver versions are always immutable deployments that cannot be redeployed.
+  - Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
 
 For ejecting a published package:
+
   jspm deploy --eject <packagename@packageversion> --dir <directory>
 
-  Ejects a deployed package into a local directory, stitching its deployment import map into the current import map.
-  The --dir flag is required to specify the output directory when using --eject.
+  - Ejects a deployed package into a local directory, stitching its deployment import map into the target import map.
+  - The --dir flag is required to specify the output project directory when using --eject.
 `
   )
   .action(
@@ -759,8 +762,7 @@ function defaultHelpCb(helpSections: HelpSection[]) {
             l.includes('uninstall') ||
             l.includes('update') ||
             l.includes('auth') ||
-            l.includes('clear-cache') ||
-            l.includes('deploy')
+            l.includes('clear-cache')
           );
         })
         .join('\n');

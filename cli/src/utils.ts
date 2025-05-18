@@ -792,6 +792,7 @@ export function getDisabledWarnings(flags: any): DisabledWarnings {
   return disabledWarnings;
 }
 
+const shownWarnings = new Set();
 export async function getFilesRecursively(
   directory: string,
   ignore: string[] = [],
@@ -833,7 +834,8 @@ export async function getFilesRecursively(
   await processDirectory(directory, false);
 
   // Display warning if file count exceeds threshold
-  if (files.length > 150 && !disabledWarnings.fileCount) {
+  if (files.length > 150 && !disabledWarnings.fileCount && !shownWarnings.has('file-count')) {
+    shownWarnings.add('file-count');
     console.warn(
       `${c.yellow(
         'Warning:'

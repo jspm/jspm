@@ -1,4 +1,3 @@
-
 The JSPM CLI is the main command-line import map package management tool for JSPM.
 
 > For a complete guide and introduction to the JSPM CLI and import map package management, see the [getting started guide](/getting-started).
@@ -19,9 +18,9 @@ For a full list of commands and supported options, run `jspm --help`. For help w
 
 By default, JSPM operates on `importmap.json` which is automatically created if it does not exist. This is considered the main import map on which link and install operations are being performed, and can be customized with the `--map` option.
 
-## init
+## Init
 
-### Usage
+**Usage**
   
 ```
 jspm init [directory] [options]
@@ -29,13 +28,13 @@ jspm init [directory] [options]
 Initializes a JSPM project in the current or specified directory.
 
 
-### Options
+**Options**
 * `-q, --quiet`                   Quiet output (default: false)
 * `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
 * `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                    Display this help (add --all for extended command list) 
 
-### Examples
+**Examples**
 
 
 ```
@@ -50,9 +49,9 @@ jspm init ./my-project
 ```
 Initialize a project in the ./my-project directory.
 
-## ls
+## Ls
 
-### Usage
+**Usage**
   
 ```
 jspm ls [package] [options]
@@ -70,7 +69,7 @@ When run with a package name:
 
 By default, output is limited to 20 items. Use --limit to see more items.
 
-### Options
+**Options**
 * `-f, --filter` _&lt;pattern&gt;_        Filter exports by pattern (case-insensitive substring match) 
 * `-l, --limit` _&lt;number&gt;_          Limit the number of exports displayed (default: 20) 
 * `-p, --provider` &lt;[providers](#providers)&gt;     Provider to use for package resolution. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
@@ -79,7 +78,7 @@ By default, output is limited to 20 items. Use --limit to see more items.
 * `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                    Display this help (add --all for extended command list) 
 
-### Examples
+**Examples**
 
 
 ```
@@ -115,9 +114,9 @@ jspm ls lit@2.7.0 --provider unpkg
 ```
 List exports for the Lit package using the unpkg provider explicitly.
 
-## install
+## Install
 
-### Usage
+**Usage**
   
 ```
 jspm install [flags]
@@ -140,9 +139,9 @@ Enhanced Security and Performance:
   - Use --preload to generate preload link tags when using HTML output, improving load performance
   - Preload supports both "static" (explicit imports) and "dynamic" (conditional imports) modes
 
-### Options
+**Options**
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
-* `-C, --conditions` &lt;[environments](#environments)&gt;  Comma-separated environment condition overrides (default: browser,development,module)
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,development,module)
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
@@ -159,15 +158,15 @@ Enhanced Security and Performance:
 * `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                       Display this help (add --all for extended command list) 
 
-### Examples
+**Examples**
 Install packages into the import map tracing the package.json "exports" entry points with "dependencies" constraints
   
 ```
 jspm install
 ```
-## serve
+## Serve
 
-### Usage
+**Usage**
   
 ```
 jspm serve [directory] [options]
@@ -198,13 +197,13 @@ The server will automatically update the import map on changes using the JSPM ge
 the same options as the 'jspm install' command with no arguments.
 
 
-### Options
+**Options**
 * `-p, --port` _&lt;number&gt;_              Port to run the server on (default: 5776)
 * `--no-type-stripping`              Disable TypeScript type stripping (serve .ts files as is) (default: true)
 * `--no-watch`                       Disable watcher hot reloading (default: true)
 * `--no-install`                     Disable automatic import map installs in watch mode (default: true)
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
-* `-C, --conditions` &lt;[environments](#environments)&gt;  Comma-separated environment condition overrides (default: browser,development,module)
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,development,module)
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
@@ -221,7 +220,7 @@ the same options as the 'jspm install' command with no arguments.
 * `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                       Display this help (add --all for extended command list) 
 
-### Examples
+**Examples**
 
 
 ```
@@ -250,9 +249,9 @@ jspm serve --no-watch --no-install --no-type-stripping
 ```    
 Start a server that does not generate the import map on startup, perform type stripping or provide a hot reload watcher
 
-## build
+## Build
 
-### Usage
+**Usage**
   
 ```
 jspm build [options]
@@ -266,11 +265,11 @@ Includes and ignores can be specified using the package.json "files" and "ignore
 optionally using the JSPM overrides for these via the "jspm" property in the package.json.
 
 
-### Options
+**Options**
 * `--no-minify`                      Disable build minification (default: true)
 * `-o, --out` _&lt;dir&gt;_                  Path to the output directory for the build (default: dist)
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
-* `-C, --conditions` &lt;[environments](#environments)&gt;  Comma-separated environment condition overrides (default: browser,production,module)
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,production,module)
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
@@ -279,7 +278,7 @@ optionally using the JSPM overrides for these via the "jspm" property in the pac
 * `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                       Display this help (add --all for extended command list) 
 
-### Examples
+**Examples**
 
 
 ```
@@ -308,9 +307,9 @@ jspm build --map custom-map.json
 ```
 Build using a custom import map file.
 
-## deploy
+## Deploy
 
-### Usage
+**Usage**
   
 ```
 jspm deploy [options]
@@ -335,13 +334,13 @@ For ejecting a published package:
   - The --dir flag is required to specify the output project directory when using --eject.
 
 
-### Options
+**Options**
 * `--no-usage`                       Disable printing HTML/JS import code examples after successful deployment (default: true)
 * `-w, --watch`                      Watch for changes and redeploy (experimental) (default: false)
 * `-n, --name` _&lt;name&gt;_                Publish with a custom name instead of the name from package.json 
 * `--eject` _&lt;package&gt;_                Eject a deployed package instead of publishing 
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
-* `-C, --conditions` &lt;[environments](#environments)&gt;  Comma-separated environment condition overrides (default: browser,production,module)
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,production,module)
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
@@ -358,7 +357,7 @@ For ejecting a published package:
 * `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                       Display this help (add --all for extended command list) 
 
-### Examples
+**Examples**
 
 
 ```
@@ -394,21 +393,21 @@ jspm deploy --eject app:foo@bar --dir foo -o test.html
 ```
 Download the application package foo@bar into the folder foo, merging its import map into the provided HTML file.
 
-## auth
+## Auth
 
-### Usage
+**Usage**
   
 ```
 jspm auth [provider] [options]
 ```
 Manages authentication for JSPM providers.
 
-### Usage
+**Usage**
   jspm auth              List all available providers and their authentication status
   jspm auth &lt;[providers](#providers)&gt;   Authenticate with a specific provider
 
 
-### Options
+**Options**
 * `-u, --username` _&lt;username&gt;_     Username for authentication (if required) 
 * `--no-open`                     Disable automatically opening the authorization URL (default: true)
 * `-q, --quiet`                   Quiet output (default: false)
@@ -416,7 +415,7 @@ Manages authentication for JSPM providers.
 * `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                    Display this help (add --all for extended command list) 
 
-### Examples
+**Examples**
 
 
 ```
@@ -431,16 +430,16 @@ jspm auth
 ```
 List all available providers and their authentication status.
 
-## clear-cache
+## Clear Cache
 
-### Usage
+**Usage**
   
 ```
 jspm clear-cache
 ```
 Clears the global module fetch cache, for situations where the contents of a dependency may have changed without a version bump. This can happen during local development, for instance.
 
-### Options
+**Options**
 * `-q, --quiet`                   Quiet output (default: false)
 * `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
 * `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 

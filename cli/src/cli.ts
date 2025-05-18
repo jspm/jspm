@@ -14,6 +14,22 @@
  *    limitations under the License.
  */
 
+/**
+ * @module jspm
+ * 
+ * JSPM CLI is a command-line tool for package management using import maps.
+ * It provides commands for installing, linking, updating, building, and deploying
+ * JavaScript/TypeScript packages using standard ES modules.
+ * 
+ * The CLI supports various workflows including:
+ * - Import map generation and manipulation
+ * - Development server with live reloading
+ * - Package building and optimization
+ * 
+ * For a complete guide to all commands and options, see the
+ * {@link https://jspm.org/docs/cli JSPM CLI documentation}.
+ */
+
 import { readFileSync } from 'node:fs';
 import c from 'picocolors';
 import cac, { type Command } from 'cac';
@@ -32,8 +48,8 @@ import { initCreate } from './init.ts';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
-// @ts-ignore
-export const cli = cac(c.yellow('jspm'));
+/** @ignore */
+export const cli = (cac as any)(c.yellow('jspm'));
 
 type OptionGroup = (input: Command, production?: boolean) => Command;
 
@@ -59,11 +75,43 @@ const generateOpts: OptionGroup = (cac, production = false) =>
       default: 'online'
     });
 
+/**
+ * Flags for all import map generation commands, internally used by the JSPM Generator
+ * when generating the import map.
+ * 
+ * Applies to:
+ * - {@link https://jspm.org/docs/cli/#install jspm install}
+ * - {@link https://jspm.org/docs/cli/#link jspm link}
+ * - {@link https://jspm.org/docs/cli/#update jspm update}
+ * - {@link https://jspm.org/docs/cli/#serve jspm serve}
+ * - {@link https://jspm.org/docs/cli/#build jspm build}
+ * - {@link https://jspm.org/docs/cli/#deploy jspm deploy}
+ */
 export interface GenerateFlags extends BaseFlags {
+  /** 
+   * File containing initial import map (defaults to importmap.json, 
+   * supports .js with embedded JSON, or HTML with inline import map) 
+   */
   map?: string;
+  /** 
+   * Comma-separated environment condition overrides or array of conditions
+   * (defaults to ['browser', 'development', 'module'] in normal mode, 
+   * or ['browser', 'production', 'module'] in production mode) 
+   */
   conditions?: string | string[];
+  /** 
+   * Comma-separated dependency resolution overrides or array of resolutions 
+   * (no default, used to override specific package versions)
+   */
   resolution?: string | string[];
+  /** 
+   * Default module provider to use (e.g., 'jspm.io', 'unpkg', 'jsdelivr', etc.)
+   * (defaults to user's configured defaultProvider or 'jspm.io')
+   */
   provider?: string;
+  /** 
+   * Cache mode for fetches (defaults to 'online', accepts 'online', 'offline', 'no-cache') 
+   */
   cache?: string;
 }
 
@@ -94,22 +142,52 @@ const outputOpts: OptionGroup = (cac, production = false) =>
       {}
     );
 
+/**
+ * Flags for commands that generate import maps with output options.
+ * Extends {@link GenerateFlags} with additional output formatting options.
+ * 
+ * Applies to:
+ * - {@link https://jspm.org/docs/cli/#install jspm install}
+ * - {@link https://jspm.org/docs/cli/#link jspm link}
+ * - {@link https://jspm.org/docs/cli/#update jspm update}
+ * - {@link https://jspm.org/docs/cli/#serve jspm serve}
+ * - {@link https://jspm.org/docs/cli/#deploy jspm deploy}
+ */
 export interface GenerateOutputFlags extends GenerateFlags {
+  /** URL to treat as server root for rebasing import maps (defaults to current directory) */
   root?: string;
+  /** Install mode for resolving dependencies (defaults to 'default') */
   installMode?: 'default' | 'latest-primaries' | 'latest-all' | 'freeze';
+  /** Output a compact import map (defaults to false, true for production) */
   compact?: boolean;
+  /** Output the import map to stdout (defaults to false) */
   stdout?: boolean;
+  /** File to inject the final import map into (defaults to value of --map or importmap.js) */
   out?: string;
+  /** Flatten import map scopes into smaller single top-level scope per origin (defaults to false, true for production) */
   flattenScopes?: boolean;
+  /** Combine import map subpaths under folder maps (defaults to false, true for production) */
   combineSubpaths?: boolean;
+  /** Add module preloads to HTML output (defaults to undefined, accepts 'static', 'dynamic') */
   preload?: boolean | string;
+  /** Add module integrity attributes to the import map (defaults to false) */
   integrity?: boolean;
 }
 
+/**
+ * Base flags available for all JSPM CLI commands.
+ * 
+ * Provides common options like quiet mode and directory selection that
+ * are available across all command implementations.
+ */
 export interface BaseFlags {
+  /** Suppress non-essential output (defaults to false) */
   quiet?: boolean;
+  /** Display version information (defaults to false) */
   showVersion?: boolean;
+  /** Directory to operate in (defaults to current working directory) */
   dir?: string;
+  /** Comma-separated list of warnings to disable (e.g., 'file-count') */
   disableWarning?: string[] | string;
 }
 
@@ -319,8 +397,16 @@ Import Map Handling:
   )
   .action(wrapCommand(update));
 
+/**
+ * Flags for the config command to manage JSPM configuration.
+ * 
+ * Used by the {@link https://jspm.org/docs/cli/#config jspm config} command
+ * to manipulate user and project-level configuration settings.
+ */
 export interface ConfigFlags extends BaseFlags {
+  /** Use local project configuration instead of user-level (defaults to false) */
   local?: boolean;
+  /** Provider to configure (for provider-specific configuration, no default) */
   provider?: string;
 }
 
@@ -454,8 +540,16 @@ optionally using the JSPM overrides for these via the "jspm" property in the pac
   )
   .action(wrapCommand(build));
 
-export interface BuildFlags extends BaseFlags {
+/**
+ * Flags for the build command to compile packages.
+ * 
+ * Used by the {@link https://jspm.org/docs/cli/#build jspm build} command
+ * to build and optimize packages using RollupJS.
+ */
+export interface BuildFlags extends GenerateFlags {
+  /** Path to the output directory for the build (defaults to 'dist') */
   out?: string;
+  /** Enable/disable build minification (defaults to true) */
   minify?: boolean;
 }
 
@@ -564,38 +658,78 @@ For ejecting a published package:
 
 // The eject command has been moved to be a subcommand of deploy
 
+/**
+ * Flags for ejecting deployed packages.
+ * 
+ * Used with {@link https://jspm.org/docs/cli/#deploy jspm deploy --eject}
+ * to download deployed packages into local directories.
+ */
 export interface EjectFlags extends GenerateFlags {
+  /** Package to eject in the format "[provider:]package[@version]" (required) */
   eject: string;
 }
 
+/**
+ * Flags for deploying packages to providers.
+ * 
+ * Used by the {@link https://jspm.org/docs/cli/#deploy jspm deploy} command
+ * to publish packages to JSPM providers.
+ */
 export interface DeployFlags extends GenerateFlags {
+  /** Watch for changes and redeploy (experimental, defaults to false) */
   watch?: boolean;
+  /** Custom name to use instead of package.json name (defaults to name in package.json) */
   name?: string;
+  /** Custom version to use instead of package.json version (defaults to version in package.json) */
   version?: string;
+  /** Print HTML/JS import code examples after successful deployment (defaults to true) */
   usage?: boolean;
+  /** Eject a deployed package instead of publishing (defaults to false) */
   eject?: boolean;
 }
 
-// Using the interfaces from provider.ts for consistency
-export interface ProviderFlags extends BaseFlags {
-  provider?: string;
-}
-
+/**
+ * Flags for provider authentication commands.
+ * 
+ * Used by the {@link https://jspm.org/docs/cli/#auth jspm auth} command
+ * to authenticate with package providers.
+ */
 export interface AuthProviderFlags extends BaseFlags {
+  /** Username for authentication (if required by the provider, no default) */
   username?: string;
+  /** Automatically open the authorization URL in a browser (defaults to true) */
   open?: boolean;
 }
 
+/**
+ * Flags for the serve command to start a development server.
+ * 
+ * Used by the {@link https://jspm.org/docs/cli/#serve jspm serve} command
+ * to run a local development server with live reloading and TypeScript support.
+ */
 export interface ServeFlags extends GenerateOutputFlags {
+  /** Port to run the server on (defaults to 5776) */
   port?: number;
+  /** Enable/disable TypeScript type stripping (defaults to true) */
   typeStripping?: boolean;
+  /** Enable/disable file watching and hot reloading (defaults to true) */
   watch?: boolean;
+  /** Enable/disable automatic import map installs in watch mode (defaults to true) */
   install?: boolean;
 }
 
+/**
+ * Flags for the ls command to list package exports.
+ * 
+ * Used by the {@link https://jspm.org/docs/cli/#ls jspm ls} command
+ * to discover and list available package exports.
+ */
 export interface LsFlags extends BaseFlags {
+  /** Filter exports by pattern (case-insensitive substring match, no default) */
   filter?: string;
+  /** Limit the number of exports displayed (defaults to 20) */
   limit?: number | string;
+  /** Provider to use for package resolution (defaults to configured defaultProvider) */
   provider?: string;
 }
 

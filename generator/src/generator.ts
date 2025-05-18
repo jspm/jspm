@@ -35,19 +35,25 @@ import {
   setFetch,
   setRetryCount,
   setVirtualSourceData,
-  SourceData
+  type SourceData
 } from './common/fetch.js';
-import { IImportMap, ImportMap } from '@jspm/import-map';
+import { type IImportMap, ImportMap } from '@jspm/import-map';
 import { SemverRange } from 'sver';
 import { JspmError } from './common/err.js';
 import { getIntegrity } from './common/integrity.js';
-import { createLogger, Log, LogStream } from './common/log.js';
+import { createLogger, type Log, type LogStream } from './common/log.js';
 import { Replacer } from './common/str.js';
-import { analyzeHtml } from './html/analyze.js';
-import { InstallTarget, type InstallMode } from './install/installer.js';
-import { LockResolutions } from './install/lock.js';
 import {
-  DeployOutput,
+  analyzeHtml,
+  type HtmlAttr,
+  type HtmlTag,
+  type ParsedMap,
+  type HtmlAnalysis
+} from './html/analyze.js';
+import { InstallTarget, PackageProvider, type InstallMode } from './install/installer.js';
+import type { LockResolutions } from './install/lock.js';
+import {
+  type DeployOutput,
   getDefaultProviderStrings,
   ProviderManager,
   type Provider
@@ -58,15 +64,8 @@ import { getMaybeWrapperUrl } from './common/wrapper.js';
 import { expandExportsResolutions } from './common/package.js';
 import { isNode } from './common/env.js';
 import { minimatch } from 'minimatch';
-
-export {
-  // utility export
-  analyzeHtml,
-  // hook export
-  setFetch
-};
-
-export type { Provider };
+import type { ProviderContext } from './providers/index.js';
+import type { ExportsTarget, LatestPackageTarget, PackageTarget } from './install/package.js';
 
 /**
  * @interface GeneratorOptions.
@@ -1916,3 +1915,31 @@ function detectDefaultProvider(
 
   return defaultProvider || winner || 'jspm.io';
 }
+
+export {
+  // utility export
+  analyzeHtml,
+  // hook export
+  setFetch
+};
+
+export type {
+  DeployOutput,
+  ExactModule,
+  ExactPackage,
+  ExportsTarget,
+  HtmlAnalysis,
+  HtmlTag,
+  HtmlAttr,
+  PackageTarget,
+  InstallMode,
+  InstallTarget,
+  LatestPackageTarget,
+  Log,
+  LogStream,
+  PackageConfig,
+  PackageProvider,
+  ParsedMap,
+  Provider,
+  SourceData
+};

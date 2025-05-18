@@ -1,4 +1,4 @@
-import type { ExportsTarget } from '../install/package';
+import type { ExportsTarget } from '../install/package.js';
 
 export function getMapMatch<T = any>(
   specifier: string,

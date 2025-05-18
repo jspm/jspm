@@ -25,9 +25,9 @@ By default, JSPM operates on `importmap.json` which is automatically created if 
   
 ```
 jspm init [directory] [options]
-```    
-    Initializes a JSPM project in the current or specified directory.
-    
+```
+Initializes a JSPM project in the current or specified directory.
+
 
 ### Options
 * `-q, --quiet`                   Quiet output (default: false)
@@ -131,9 +131,9 @@ Import Map Handling:
   - --map can point to JSON, JS, or HTML files, and maps will be extracted appropriately
   - Maps behave like lockfiles; versions are locked to resolutions from the input map
   - Output map is controlled by --out flag, supporting the same file types:
-    ΓÇó JSON: Just the import map
-    ΓÇó JS: An import map injection script that can be included with a script tag (recommended)
-    ΓÇó HTML: The import map is injected directly into the HTML file contents
+    - JSON: Just the import map
+    - JS: An import map injection script that can be included with a script tag (recommended)
+    - HTML: The import map is injected directly into the HTML file contents
   
 Enhanced Security and Performance:
   - Use --integrity to add SRI (Subresource Integrity) hashes to the import map
@@ -172,8 +172,8 @@ jspm install
 ```
 jspm serve [directory] [options]
 ```    
-Starts a standards-based development server for the specified directory. If no directory is specified, 
-the current directory is used. The server provides directory listings and serves files with 
+Starts a standards-based development server for the specified directory. If no directory is specified,
+the current directory is used. The server provides directory listings and serves files with
 appropriate MIME types.
 
 This is an intentionally minimal, opinionated server focused on standards-based workflows:
@@ -260,8 +260,10 @@ jspm build [options]
 Builds a package and its dependencies using the JSPM import map and dependency resolution.
 Uses RollupJS under the hood to create optimized bundles.
 
-By default the package entry points as defined in the package.json "exports" field
-are built.
+The package entry points as defined in the package.json "exports" field are built, with the
+entire package copied into the output directory. As such, it is a whole-package transformation.
+Includes and ignores can be specified using the package.json "files" and "ignore" fields,
+optionally using the JSPM overrides for these via the "jspm" property in the package.json.
 
 
 ### Options
@@ -276,6 +278,36 @@ are built.
 * `-d, --dir` _&lt;directory&gt;_            Package directory to operate on (defaults to working directory) 
 * `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                       Display this help (add --all for extended command list) 
+
+### Examples
+
+
+```
+jspm build
+```
+Build the current package using default options.
+
+
+
+```
+jspm build --no-minify
+```
+Build the package without minification for better debugging.
+
+
+
+```
+jspm build -o lib
+```
+Build the package to the lib directory instead of the default dist directory.
+
+
+
+```
+jspm build --map custom-map.json
+```
+Build using a custom import map file.
+
 ## deploy
 
 ### Usage
@@ -283,25 +315,28 @@ are built.
 ```
 jspm deploy [options]
 ```
-Manages deployments to the JSPM CDN.
+Manages deployments to the JSPM providers.
 
 For publishing (default):
+
   jspm deploy
 
-  The package must have a valid package.json with name and version fields.
-  The package.json "files" and "ignore" arrays will be respected.
-  Semver versions are always immutable deployments that cannot be redeployed.
-  Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
+  - The provider flag is always required, with limited availability only on the jspm.io provider currently
+  - The package must have a valid package.json with name and version fields.
+  - The package.json "files" and "ignore" arrays will be respected.
+  - Semver versions are always immutable deployments that cannot be redeployed.
+  - Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
 
 For ejecting a published package:
+
   jspm deploy --eject <packagename@packageversion> --dir _&lt;directory&gt;_
 
-  Ejects a deployed package into a local directory, stitching its deployment import map into the current import map.
-  The --dir flag is required to specify the output directory when using --eject.
+  - Ejects a deployed package into a local directory, stitching its deployment import map into the target import map.
+  - The --dir flag is required to specify the output project directory when using --eject.
 
 
 ### Options
-* `--no-usage`                       Disable printing the usage code snippet for the deployment (default: true)
+* `--no-usage`                       Disable printing HTML/JS import code examples after successful deployment (default: true)
 * `-w, --watch`                      Watch for changes and redeploy (experimental) (default: false)
 * `-n, --name` _&lt;name&gt;_                Publish with a custom name instead of the name from package.json 
 * `--eject` _&lt;package&gt;_                Eject a deployed package instead of publishing 
@@ -334,9 +369,9 @@ Deploy the current directory as a package to the JSPM CDN.
 
 
 ```
-jspm deploy --dir dist
+jspm deploy -p jspm.io
 ```
-Deploy the ./dist directory as a package to the JSPM CDN.
+Deploy the current package as a package to the JSPM CDN.
 
 
 
@@ -350,7 +385,7 @@ Start a watched deployment to a custom mutable version tag (dev-feat-2) instead 
 ```
 jspm deploy --eject app:foo@bar --dir foo
 ```
-Download the application package foo@bar into the folder foo, merging its import map into importmap.js.
+Download the application package foo@bar into the folder foo, merging its import map into foo/importmap.js.
 
 
 

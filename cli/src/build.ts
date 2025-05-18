@@ -74,7 +74,6 @@ export default async function build(flags: BuildFlags) {
       input,
       plugins: [
         jspmRollup({
-          // @ts-expect-error untyped plugin interface
           generator,
           baseUrl,
           env,

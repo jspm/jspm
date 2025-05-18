@@ -1,5 +1,12 @@
 import fs from 'node:fs/promises';
-import { accessSync, existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  accessSync,
+  constants,
+  existsSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync
+} from 'node:fs';
 import path, { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { platform, tmpdir } from 'node:os';
@@ -637,7 +644,7 @@ export async function isDirectory(path: string): Promise<boolean> {
 
 function canRead(file: string) {
   try {
-    accessSync(file, (fs.constants || fs).R_OK);
+    accessSync(file, constants.R_OK);
     return true;
   } catch (e) {
     return false;
@@ -647,7 +654,7 @@ function canRead(file: string) {
 function canWrite(file: string) {
   try {
     if (!exists(file)) return true;
-    accessSync(file, (fs.constants || fs).W_OK);
+    accessSync(file, constants.W_OK);
     return true;
   } catch (e) {
     return false;
@@ -953,7 +960,6 @@ export async function getLatestEsms(generator: Generator, provider: string) {
       registry: 'npm',
       ranges: [new SemverRange('*')]
     },
-    // @ts-expect-error generator internals
     generator.traceMap.installer.defaultProvider
   );
   return `${await generator.traceMap.resolver.pm.pkgToUrl(

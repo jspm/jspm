@@ -1,39 +1,32 @@
-import * as deno from "./deno.js";
-import * as jspm from "./jspm.js";
-import * as skypack from "./skypack.js";
-import * as jsdelivr from "./jsdelivr.js";
-import * as unpkg from "./unpkg.js";
-import * as node from "./node.js";
-import * as esmsh from "./esmsh.js";
+import * as deno from './deno.js';
+import * as jspm from './jspm.js';
+import * as skypack from './skypack.js';
+import * as jsdelivr from './jsdelivr.js';
+import * as unpkg from './unpkg.js';
+import * as node from './node.js';
+import * as esmsh from './esmsh.js';
 import {
   PackageConfig,
   ExactPackage,
   LatestPackageTarget,
-  PackageTarget,
-} from "../install/package.js";
-import { Resolver } from "../trace/resolver.js";
-import { Install } from "../generator.js";
-import { JspmError } from "../common/err.js";
-import { Log } from "../common/log.js";
-import { PackageProvider } from "../install/installer.js";
-import type { ImportMap } from "@jspm/import-map";
-import { isNode } from "../common/env.js";
-import { fetch } from "../common/fetch.js";
+  PackageTarget
+} from '../install/package.js';
+import { Resolver } from '../trace/resolver.js';
+import { Install } from '../generator.js';
+import { JspmError } from '../common/err.js';
+import { Log } from '../common/log.js';
+import { PackageProvider } from '../install/installer.js';
+import type { ImportMap } from '@jspm/import-map';
+import { isNode } from '../common/env.js';
+import { fetch } from '../common/fetch.js';
 
 export interface Provider {
   parseUrlPkg(
     this: ProviderContext,
     url: string
-  ):
-    | ExactPackage
-    | { pkg: ExactPackage; subpath: `./${string}` | null; layer: string }
-    | null;
+  ): ExactPackage | { pkg: ExactPackage; subpath: `./${string}` | null; layer: string } | null;
 
-  pkgToUrl(
-    this: ProviderContext,
-    pkg: ExactPackage,
-    layer: string
-  ): Promise<`${string}/`>;
+  pkgToUrl(this: ProviderContext, pkg: ExactPackage, layer: string): Promise<`${string}/`>;
 
   resolveLatestTarget(
     this: ProviderContext,
@@ -45,21 +38,11 @@ export interface Provider {
 
   ownsUrl?(this: ProviderContext, url: string): boolean;
 
-  resolveBuiltin?(
-    this: ProviderContext,
-    specifier: string,
-    env: string[]
-  ): string | Install | null;
+  resolveBuiltin?(this: ProviderContext, specifier: string, env: string[]): string | Install | null;
 
-  getPackageConfig?(
-    this: ProviderContext,
-    pkgUrl: string
-  ): Promise<PackageConfig | null>;
+  getPackageConfig?(this: ProviderContext, pkgUrl: string): Promise<PackageConfig | null>;
 
-  getFileList?(
-    this: ProviderContext,
-    pkgUrl: string
-  ): Promise<Set<string> | undefined>;
+  getFileList?(this: ProviderContext, pkgUrl: string): Promise<Set<string> | undefined>;
 
   getDeploymentUrl?(
     this: ProviderContext,
@@ -174,11 +157,7 @@ export class ProviderManager {
   #getProviderContext(name: string) {
     return (
       this.contexts[name] ||
-      (this.contexts[name] = new ProviderContext(
-        this,
-        this.log,
-        this.fetchOpts
-      ))
+      (this.contexts[name] = new ProviderContext(this, this.log, this.fetchOpts))
     );
   }
 
@@ -190,17 +169,11 @@ export class ProviderManager {
    */
   addProvider(name: string, provider: Provider): void {
     if (!provider.pkgToUrl)
-      throw new Error(
-        `Custom provider "${name}" must define a "pkgToUrl" method.`
-      );
+      throw new Error(`Custom provider "${name}" must define a "pkgToUrl" method.`);
     if (!provider.parseUrlPkg)
-      throw new Error(
-        `Custom provider "${name}" must define a "parseUrlPkg" method.`
-      );
+      throw new Error(`Custom provider "${name}" must define a "parseUrlPkg" method.`);
     if (!provider.resolveLatestTarget)
-      throw new Error(
-        `Custom provider "${name}" must define a "resolveLatestTarget" method.`
-      );
+      throw new Error(`Custom provider "${name}" must define a "resolveLatestTarget" method.`);
     this.providers[name] = provider;
   }
 
@@ -253,12 +226,12 @@ export class ProviderManager {
       const result = providerInstance.parseUrlPkg.call(context, url);
       if (result)
         return {
-          pkg: "pkg" in result ? result.pkg : result,
+          pkg: 'pkg' in result ? result.pkg : result,
           source: {
             provider,
-            layer: "layer" in result ? result.layer : "default",
+            layer: 'layer' in result ? result.layer : 'default'
           },
-          subpath: "subpath" in result ? result.subpath : null,
+          subpath: 'subpath' in result ? result.subpath : null
         };
     }
     return null;
@@ -272,11 +245,7 @@ export class ProviderManager {
    * @param layer Layer to use
    * @returns URL for the package
    */
-  async pkgToUrl(
-    pkg: ExactPackage,
-    provider: string,
-    layer: string
-  ): Promise<`${string}/`> {
+  async pkgToUrl(pkg: ExactPackage, provider: string, layer: string): Promise<`${string}/`> {
     return this.#getProvider(provider).pkgToUrl.call(
       this.#getProviderContext(provider),
       pkg,
@@ -290,9 +259,7 @@ export class ProviderManager {
    * @param pkgUrl URL to the package
    * @returns
    */
-  async getPackageConfig(
-    pkgUrl: string
-  ): Promise<PackageConfig | null | undefined> {
+  async getPackageConfig(pkgUrl: string): Promise<PackageConfig | null | undefined> {
     const name = this.providerNameForUrl(pkgUrl);
     if (name) {
       const pcfg = await this.#getProvider(name).getPackageConfig?.call(
@@ -307,7 +274,7 @@ export class ProviderManager {
    * Obtain a file listing of a package boundary if available
    */
   async getFileList(pkgUrl: string): Promise<Set<string> | undefined> {
-    if (!pkgUrl.endsWith("/")) pkgUrl += "/";
+    if (!pkgUrl.endsWith('/')) pkgUrl += '/';
     const name = this.providerNameForUrl(pkgUrl);
     if (name) {
       const fileList = await this.#getProvider(name).getFileList?.call(
@@ -318,7 +285,7 @@ export class ProviderManager {
     }
     // if we don't have a provider, and we are on the local filesystem, verify there
     // is a package.json and do a glob excluding node_modules
-    if ((isNode && pkgUrl.startsWith("file:")) || pkgUrl.startsWith("https:")) {
+    if ((isNode && pkgUrl.startsWith('file:')) || pkgUrl.startsWith('https:')) {
       const fileList = new Set<string>();
       async function walk(path: string, basePath: string) {
         try {
@@ -327,17 +294,15 @@ export class ProviderManager {
           if (res.status === 200) {
             fileList.add(path.slice(basePath.length));
           } else if (res.status === 204) {
-            if (!path.endsWith("/")) path += "/";
+            if (!path.endsWith('/')) path += '/';
             const dirListing = await res.json();
             for (const entry of dirListing) {
-              if (entry === "node_modules" || entry === ".git") continue;
+              if (entry === 'node_modules' || entry === '.git') continue;
               await walk(path + entry, basePath);
             }
           }
         } catch (e) {
-          throw new JspmError(
-            `Unable to read package ${path} - ${e.toString()}`
-          );
+          throw new JspmError(`Unable to read package ${path} - ${e.toString()}`);
         }
       }
       await walk(pkgUrl, pkgUrl);
@@ -351,10 +316,7 @@ export class ProviderManager {
    * @param specifier Module specifier
    * @returns Resolved string, install object, or undefined if not resolvable
    */
-  resolveBuiltin(
-    specifier: string,
-    env: string[]
-  ): string | Install | undefined {
+  resolveBuiltin(specifier: string, env: string[]): string | Install | undefined {
     for (const [name, provider] of Object.entries(this.providers).reverse()) {
       if (!provider.resolveBuiltin) continue;
       const context = this.#getProviderContext(name);
@@ -372,9 +334,7 @@ export class ProviderManager {
   ): Promise<ExactPackage> {
     // find the range to resolve latest
     let range: any;
-    for (const possibleRange of target.ranges.sort(
-      target.ranges[0].constructor.compare
-    )) {
+    for (const possibleRange of target.ranges.sort(target.ranges[0].constructor.compare)) {
       if (!range) {
         range = possibleRange;
       } else if (possibleRange.gt(range) && !range.contains(possibleRange)) {
@@ -386,7 +346,7 @@ export class ProviderManager {
       registry: target.registry,
       name: target.name,
       range,
-      unstable: target.unstable,
+      unstable: target.unstable
     };
 
     const resolveLatestTarget = this.#getProvider(provider).resolveLatestTarget;
@@ -399,7 +359,7 @@ export class ProviderManager {
     );
     if (pkg) return pkg;
 
-    if (provider === "nodemodules") {
+    if (provider === 'nodemodules') {
       throw new JspmError(
         `Cannot find package ${target.name} in node_modules from parent ${parentUrl}. Try installing "${target.name}" with npm first adding it to package.json "dependencies" or running "npm install --save ${target.name}".`
       );
@@ -434,8 +394,8 @@ export class ProviderManager {
   getProviderStrings(): string[] {
     let res: string[] = [];
     for (const [name, provider] of Object.entries(this.providers)) {
-      for (const layer of provider.supportedLayers ?? ["default"])
-        res.push(`${name}${layer === "default" ? "" : `#${layer}`}`);
+      for (const layer of provider.supportedLayers ?? ['default'])
+        res.push(`${name}${layer === 'default' ? '' : `#${layer}`}`);
     }
     return res;
   }
@@ -447,15 +407,9 @@ export class ProviderManager {
   downloadDeployment(providerName: string, name: string, version: string) {
     const provider = this.#getProvider(providerName);
     if (!provider.downloadDeployment) {
-      throw new JspmError(
-        `Provider "${providerName}" does not support deployment`
-      );
+      throw new JspmError(`Provider "${providerName}" does not support deployment`);
     }
-    return provider.downloadDeployment.call(
-      this.#getProviderContext(providerName),
-      name,
-      version
-    );
+    return provider.downloadDeployment.call(this.#getProviderContext(providerName), name, version);
   }
 
   /**
@@ -470,16 +424,10 @@ export class ProviderManager {
     const provider = this.#getProvider(providerName);
 
     if (!provider.deploy) {
-      throw new JspmError(
-        `Provider "${providerName}" does not support deployment`
-      );
+      throw new JspmError(`Provider "${providerName}" does not support deployment`);
     }
 
-    return provider.getDeploymentUrl.call(
-      this.#getProviderContext(providerName),
-      name,
-      version
-    );
+    return provider.getDeploymentUrl.call(this.#getProviderContext(providerName), name, version);
   }
 
   /**
@@ -527,9 +475,7 @@ export class ProviderManager {
     const provider = this.#getProvider(providerName);
 
     if (!provider.deploy) {
-      throw new JspmError(
-        `Provider "${providerName}" does not support deployment`
-      );
+      throw new JspmError(`Provider "${providerName}" does not support deployment`);
     }
 
     return provider.deploy.call(
@@ -559,9 +505,7 @@ export class ProviderManager {
     const provider = this.#getProvider(providerName);
 
     if (!provider.auth) {
-      throw new JspmError(
-        `Provider "${providerName}" does not support authentication`
-      );
+      throw new JspmError(`Provider "${providerName}" does not support authentication`);
     }
 
     return provider.auth.call(this.#getProviderContext(providerName), options);
@@ -580,25 +524,25 @@ export const defaultProviders: Record<string, Provider> = {
   node,
   skypack,
   unpkg,
-  "esm.sh": esmsh,
-  "jspm.io": jspm,
+  'esm.sh': esmsh,
+  'jspm.io': jspm
 };
 
 export function getDefaultProviderStrings() {
   let res = [];
   for (const [name, provider] of Object.entries(defaultProviders)) {
-    for (const layer of provider.supportedLayers ?? ["default"])
-      res.push(`${name}${layer === "default" ? "" : `#${layer}`}`);
+    for (const layer of provider.supportedLayers ?? ['default'])
+      res.push(`${name}${layer === 'default' ? '' : `#${layer}`}`);
   }
 
   return res;
 }
 
 export const registryProviders: Record<string, string> = {
-  "denoland:": "deno",
-  "deno:": "deno",
+  'denoland:': 'deno',
+  'deno:': 'deno'
 };
 
-export const mappableSchemes = new Set<String>(["npm", "deno", "node"]);
+export const mappableSchemes = new Set<String>(['npm', 'deno', 'node']);
 
-export const builtinSchemes = new Set<String>(["node", "deno"]);
+export const builtinSchemes = new Set<String>(['node', 'deno']);

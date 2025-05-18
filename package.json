@@ -2,6 +2,7 @@
   "workspaces": [
     "import-map",
     "generator",
+    "plugin-rollup",
     "cli"
   ]
 }

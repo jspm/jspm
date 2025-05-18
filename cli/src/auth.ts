@@ -14,11 +14,11 @@
  *    limitations under the License.
  */
 
-import c from "picocolors";
-import open from "open";
-import { JspmError, availableProviders, getGenerator } from "./utils.ts";
-import { loadConfig, saveConfig } from "./config.ts";
-import type { BaseFlags } from "./cli.ts";
+import c from 'picocolors';
+import open from 'open';
+import { JspmError, availableProviders, getGenerator } from './utils.ts';
+import { loadConfig, saveConfig } from './config.ts';
+import type { BaseFlags } from './cli.ts';
 
 export interface AuthProviderFlags extends BaseFlags {
   username?: string;
@@ -26,12 +26,10 @@ export interface AuthProviderFlags extends BaseFlags {
 }
 
 export async function list(): Promise<void> {
-  console.log(`${c.magenta(c.bold("Available providers:"))}`);
+  console.log(`${c.magenta(c.bold('Available providers:'))}`);
 
   // Get the list of available providers
-  const providers = availableProviders.filter(
-    (provider) => !provider.includes("#")
-  );
+  const providers = availableProviders.filter(provider => !provider.includes('#'));
 
   // Load the configuration to check which providers have auth tokens
   const config = await loadConfig();
@@ -40,25 +38,18 @@ export async function list(): Promise<void> {
   // Display each provider with its authentication status
   for (const provider of providers) {
     const isAuthenticated = !!configuredProviders[provider]?.authToken;
-    const authStatus = isAuthenticated
-      ? c.green("authenticated")
-      : c.yellow("not authenticated");
+    const authStatus = isAuthenticated ? c.green('authenticated') : c.yellow('not authenticated');
 
-    console.log(`  ${c.cyan(provider)} ${c.dim("→")} ${authStatus}`);
+    console.log(`  ${c.cyan(provider)} ${c.dim('→')} ${authStatus}`);
   }
 
   console.log();
   console.log(
-    `${c.blue("Info:")} Use ${c.bold(
-      "jspm auth <provider>"
-    )} to authenticate with a provider.`
+    `${c.blue('Info:')} Use ${c.bold('jspm auth <provider>')} to authenticate with a provider.`
   );
 }
 
-export async function provider(
-  providerName: string,
-  flags: AuthProviderFlags = {}
-): Promise<void> {
+export async function provider(providerName: string, flags: AuthProviderFlags = {}): Promise<void> {
   const { username, open: shouldOpen = true } = flags;
 
   if (!providerName) {
@@ -82,21 +73,19 @@ export async function provider(
         // Automatically open the URL in the browser if not disabled
         if (shouldOpen) {
           open(url).catch(() => {
-            console.log(
-              "Could not open the URL automatically. Please open it manually."
-            );
+            console.log('Could not open the URL automatically. Please open it manually.');
           });
         }
-      },
+      }
     });
 
     // Store the token in the JSPM configuration
     if (result && result.token) {
       // Get the normalized provider name (strip any #layer suffix)
-      const provider = providerName.split("#")[0];
+      const provider = providerName.split('#')[0];
 
       // Load user config only (not local)
-      const config = await loadConfig("user");
+      const config = await loadConfig('user');
 
       // Ensure providers object exists
       if (!config.providers) {
@@ -112,26 +101,18 @@ export async function provider(
       config.providers[provider].authToken = result.token;
 
       // Save the config back to user scope
-      await saveConfig(config, "user");
+      await saveConfig(config, 'user');
 
-      console.log(`${c.green("Ok:")} Authentication successful`);
+      console.log(`${c.green('Ok:')} Authentication successful`);
       console.log(
-        `${c.blue(
-          "Info:"
-        )} Token saved in JSPM configuration for provider '${provider}'`
+        `${c.blue('Info:')} Token saved in JSPM configuration for provider '${provider}'`
       );
     } else {
-      console.log(
-        `${c.yellow(
-          "Warning:"
-        )} Authentication completed but no token was returned`
-      );
+      console.log(`${c.yellow('Warning:')} Authentication completed but no token was returned`);
     }
   } catch (error) {
-    if (error.message?.includes("does not support authentication")) {
-      throw new JspmError(
-        `Provider "${providerName}" does not support authentication.`
-      );
+    if (error.message?.includes('does not support authentication')) {
+      throw new JspmError(`Provider "${providerName}" does not support authentication.`);
     }
     throw error;
   }

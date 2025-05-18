@@ -1,2 +1,2 @@
-import "react";
-import "localdep";
+import 'react';
+import 'localdep';

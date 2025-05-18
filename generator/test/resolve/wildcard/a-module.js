@@ -1,1 +1,1 @@
-export default "mod";
+export default 'mod';

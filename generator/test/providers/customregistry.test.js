@@ -1,11 +1,11 @@
-import { Generator, lookup, fetch } from "@jspm/generator";
-import assert from "assert";
+import { Generator, lookup, fetch } from '@jspm/generator';
+import assert from 'assert';
 
-const myorgUrl = "https://unpkg.com/";
+const myorgUrl = 'https://unpkg.com/';
 const exactPkgRegEx = /^((?:@[^/\\%@]+\/)?[^./\\%@][^/\\%@]*)@([^\/]+)(\/.*)?$/;
 
 const generator = new Generator({
-  defaultProvider: "myorg",
+  defaultProvider: 'myorg',
   customProviders: {
     myorg: {
       ownsUrl(url) {
@@ -27,8 +27,7 @@ const generator = new Generator({
         if (pcfg.dependencies) {
           let dependencies = {};
           for (let [name, target] of Object.entries(pcfg.dependencies)) {
-            if (target.indexOf(":") === -1)
-              target = "myorg:" + name + "@" + target;
+            if (target.indexOf(':') === -1) target = 'myorg:' + name + '@' + target;
             dependencies[name] = target;
           }
           pcfg.dependencies = dependencies;
@@ -37,32 +36,27 @@ const generator = new Generator({
       },
       parseUrlPkg(url) {
         if (url.startsWith(myorgUrl)) {
-          const [, name, version] =
-            url.slice(myorgUrl.length).match(exactPkgRegEx) || [];
-          return { registry: "myorg", name, version };
+          const [, name, version] = url.slice(myorgUrl.length).match(exactPkgRegEx) || [];
+          return { registry: 'myorg', name, version };
         }
       },
-      async resolveLatestTarget(
-        { registry, name, range, unstable },
-        layer,
-        parentUrl
-      ) {
-        assert.ok(registry === "myorg");
+      async resolveLatestTarget({ registry, name, range, unstable }, layer, parentUrl) {
+        assert.ok(registry === 'myorg');
         const {
-          resolved: { name: resolvedName, version: resolvedVersion },
+          resolved: { name: resolvedName, version: resolvedVersion }
         } = await lookup(`${name}@${range.toString()}`);
         return {
-          registry: "myorg",
+          registry: 'myorg',
           name: resolvedName,
-          version: resolvedVersion,
+          version: resolvedVersion
         };
-      },
-    },
-  },
+      }
+    }
+  }
 });
 
-await generator.install("myorg:lit");
+await generator.install('myorg:lit');
 
 const json = generator.getMap();
 
-assert.ok(json.imports.lit.startsWith("https://unpkg.com/lit@"));
+assert.ok(json.imports.lit.startsWith('https://unpkg.com/lit@'));

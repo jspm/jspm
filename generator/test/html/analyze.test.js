@@ -1,5 +1,5 @@
-import { analyzeHtml } from "@jspm/generator";
-import { deepStrictEqual } from "assert";
+import { analyzeHtml } from '@jspm/generator';
+import { deepStrictEqual } from 'assert';
 
 const analysis = analyzeHtml(`
 
@@ -35,24 +35,24 @@ deepStrictEqual(analysis.map, {
     type: {
       start: 10,
       end: 25,
-      name: "type",
+      name: 'type',
       quote: '"',
-      value: "importmap",
-    },
+      value: 'importmap'
+    }
   },
   json: {
     imports: {
-      react: "/react.js",
-    },
+      react: '/react.js'
+    }
   },
   newScript: false,
   style: {
-    indent: "  ",
-    newline: "\n",
+    indent: '  ',
+    newline: '\n',
     quote: '"',
-    tab: "  ",
-    trailingNewline: "\n",
-  },
+    tab: '  ',
+    trailingNewline: '\n'
+  }
 });
 
 deepStrictEqual(analysis.preloads, [
@@ -63,68 +63,63 @@ deepStrictEqual(analysis.preloads, [
       rel: {
         start: 316,
         end: 333,
-        quote: "",
-        name: "rel",
-        value: "modulepreload",
+        quote: '',
+        name: 'rel',
+        value: 'modulepreload'
       },
       href: {
         start: 334,
         end: 351,
         quote: '"',
-        name: "href",
-        value: "./subdep.js",
+        name: 'href',
+        value: './subdep.js'
       },
       integrity: {
         start: 353,
         end: 368,
         quote: '"',
-        name: "integrity",
-        value: "asdf",
-      },
-    },
-  },
+        name: 'integrity',
+        value: 'asdf'
+      }
+    }
+  }
 ]);
 
-deepStrictEqual(
-  [...analysis.staticImports],
-  ["react", "./local.js", "/absolute.js"]
-);
+deepStrictEqual([...analysis.staticImports], ['react', './local.js', '/absolute.js']);
 
-deepStrictEqual([...analysis.dynamicImports], ["/dynamic"]);
+deepStrictEqual([...analysis.dynamicImports], ['/dynamic']);
 
 deepStrictEqual(analysis.esModuleShims, {
   attrs: {
     async: {
-      name: "async",
-      quote: "",
+      name: 'async',
+      quote: '',
       value: null,
       start: 105,
-      end: 110,
+      end: 110
     },
     crossorigin: {
-      name: "crossorigin",
+      name: 'crossorigin',
       quote: '"',
-      value: "anonymous",
+      value: 'anonymous',
       start: 275,
-      end: 297,
+      end: 297
     },
     integrity: {
-      name: "integrity",
+      name: 'integrity',
       quote: '"',
-      value:
-        "sha384-Gba99Cy/cyqL1MpdnMzkUKYpebrPnBrQ5xnOoqJJNQstoxJQjAE4xgr80AiDYuTA",
+      value: 'sha384-Gba99Cy/cyqL1MpdnMzkUKYpebrPnBrQ5xnOoqJJNQstoxJQjAE4xgr80AiDYuTA',
       start: 191,
-      end: 273,
+      end: 273
     },
     src: {
-      name: "src",
+      name: 'src',
       quote: '"',
-      value:
-        "https://ga.jspm.io/npm:es-module-shims@0.12.8/dist/es-module-shims.min.js",
+      value: 'https://ga.jspm.io/npm:es-module-shims@0.12.8/dist/es-module-shims.min.js',
       start: 111,
-      end: 189,
-    },
+      end: 189
+    }
   },
   end: 308,
-  start: 97,
+  start: 97
 });

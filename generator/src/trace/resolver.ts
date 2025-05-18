@@ -1,27 +1,23 @@
-import { PackageConfig, ExportsTarget } from "../install/package.js";
-import { JspmError } from "../common/err.js";
+import { PackageConfig, ExportsTarget } from '../install/package.js';
+import { JspmError } from '../common/err.js';
 // @ts-ignore
-import { fetch } from "../common/fetch.js";
-import { importedFrom, isFetchProtocol } from "../common/url.js";
+import { fetch } from '../common/fetch.js';
+import { importedFrom, isFetchProtocol } from '../common/url.js';
 // @ts-ignore
-import { parse } from "es-module-lexer/js";
-import { Install } from "../generator.js";
-import { getMapMatch, allDotKeys } from "../common/package.js";
-import {
-  builtinSchemes,
-  mappableSchemes,
-  ProviderManager,
-} from "../providers/index.js";
+import { parse } from 'es-module-lexer/js';
+import { Install } from '../generator.js';
+import { getMapMatch, allDotKeys } from '../common/package.js';
+import { builtinSchemes, mappableSchemes, ProviderManager } from '../providers/index.js';
 import {
   Analysis,
   createSystemAnalysis,
   createCjsAnalysis,
   createEsmAnalysis,
-  createTsAnalysis,
-} from "./analysis.js";
-import { Installer } from "../install/installer.js";
-import { SemverRange } from "sver";
-import { getIntegrity } from "../common/integrity.js";
+  createTsAnalysis
+} from './analysis.js';
+import { Installer } from '../install/installer.js';
+import { SemverRange } from 'sver';
+import { getIntegrity } from '../common/integrity.js';
 
 let realpath, pathToFileURL;
 
@@ -29,18 +25,14 @@ export function setPathFns(_realpath, _pathToFileURL) {
   (realpath = _realpath), (pathToFileURL = _pathToFileURL);
 }
 
-export function isBuiltinScheme(
-  specifier: string
-): specifier is `${string}:${string}` {
-  if (specifier.indexOf(":") === -1) return false;
-  return builtinSchemes.has(specifier.slice(0, specifier.indexOf(":")));
+export function isBuiltinScheme(specifier: string): specifier is `${string}:${string}` {
+  if (specifier.indexOf(':') === -1) return false;
+  return builtinSchemes.has(specifier.slice(0, specifier.indexOf(':')));
 }
 
-export function isMappableScheme(
-  specifier: string
-): specifier is `${string}:${string}` {
-  if (specifier.indexOf(":") === -1) return false;
-  return mappableSchemes.has(specifier.slice(0, specifier.indexOf(":")));
+export function isMappableScheme(specifier: string): specifier is `${string}:${string}` {
+  if (specifier.indexOf(':') === -1) return false;
+  return mappableSchemes.has(specifier.slice(0, specifier.indexOf(':')));
 }
 
 export interface TraceEntry {
@@ -65,14 +57,7 @@ export interface TraceEntry {
   // For cjs modules, the list of hoisted deps
   // this is needed for proper cycle handling
   cjsLazyDeps: string[];
-  format:
-    | "esm"
-    | "commonjs"
-    | "system"
-    | "json"
-    | "css"
-    | "typescript"
-    | "wasm";
+  format: 'esm' | 'commonjs' | 'system' | 'json' | 'css' | 'typescript' | 'wasm';
 
   // network errors are stored on the traceEntryPromises promise, while parser
   // errors are stored here. This allows for existence checks in resolver operations.
@@ -103,7 +88,7 @@ export class Resolver {
     preserveSymlinks = false,
     traceCjs = true,
     traceTs = true,
-    traceSystem = true,
+    traceSystem = true
   }: {
     env: string[];
     fetchOpts?: any;
@@ -113,11 +98,10 @@ export class Resolver {
     traceSystem: boolean;
     providerManager: ProviderManager;
   }) {
-    if (env.includes("require"))
-      throw new Error("Cannot manually pass require condition");
-    if (!env.includes("import")) env.push("import");
+    if (env.includes('require')) throw new Error('Cannot manually pass require condition');
+    if (!env.includes('import')) env.push('import');
     this.env = env;
-    this.cjsEnv = this.env.map((e) => (e === "import" ? "require" : e));
+    this.cjsEnv = this.env.map(e => (e === 'import' ? 'require' : e));
     this.fetchOpts = fetchOpts;
     this.preserveSymlinks = preserveSymlinks;
     this.traceCjs = traceCjs;
@@ -132,24 +116,22 @@ export class Resolver {
 
   async getPackageBase(url: string): Promise<`${string}/`> {
     const pkg = await this.pm.parseUrlPkg(url);
-    if (pkg)
-      return this.pm.pkgToUrl(pkg.pkg, pkg.source.provider, pkg.source.layer);
+    if (pkg) return this.pm.pkgToUrl(pkg.pkg, pkg.source.provider, pkg.source.layer);
 
     let testUrl: URL;
     try {
-      testUrl = new URL("./", url);
+      testUrl = new URL('./', url);
     } catch {
       return url as `${string}/`;
     }
-    const rootUrl = new URL("/", testUrl).href as `${string}/`;
+    const rootUrl = new URL('/', testUrl).href as `${string}/`;
     do {
       let responseUrl;
       if ((responseUrl = await this.checkPjson(testUrl.href)))
-        return new URL(".", responseUrl).href as `${string}/`;
+        return new URL('.', responseUrl).href as `${string}/`;
       // No package base -> use directory itself
-      if (testUrl.href === rootUrl)
-        return new URL("./", url).href as `${string}/`;
-    } while ((testUrl = new URL("../", testUrl)));
+      if (testUrl.href === rootUrl) return new URL('./', url).href as `${string}/`;
+    } while ((testUrl = new URL('../', testUrl)));
   }
 
   // TODO: there are actually two different kinds of "package" in the codebase.
@@ -161,18 +143,16 @@ export class Resolver {
   // backtracking to find package bases.
 
   async getPackageConfig(pkgUrl: string): Promise<PackageConfig | null> {
-    const protocol = pkgUrl.slice(0, pkgUrl.indexOf(":") + 1);
+    const protocol = pkgUrl.slice(0, pkgUrl.indexOf(':') + 1);
     if (!isFetchProtocol(protocol)) return null;
-    if (!pkgUrl.endsWith("/"))
-      throw new Error(
-        `Internal Error: Package URL must end in "/". Got ${pkgUrl}`
-      );
+    if (!pkgUrl.endsWith('/'))
+      throw new Error(`Internal Error: Package URL must end in "/". Got ${pkgUrl}`);
     let cached = this.pcfgs[pkgUrl];
     if (cached) return cached;
     if (!this.pcfgPromises[pkgUrl])
       this.pcfgPromises[pkgUrl] = (async () => {
         const pcfg = await this.pm.getPackageConfig(pkgUrl);
-        if (typeof pcfg === "object") {
+        if (typeof pcfg === 'object') {
           if (pcfg !== null) {
             this.pcfgs[pkgUrl] = pcfg;
             return;
@@ -205,10 +185,7 @@ export class Resolver {
               `Invalid status code ${res.status} reading package config for ${pkgUrl}. ${res.statusText}`
             );
         }
-        if (
-          res.headers &&
-          !res.headers.get("Content-Type")?.match(/^application\/json(;|$)/)
-        ) {
+        if (res.headers && !res.headers.get('Content-Type')?.match(/^application\/json(;|$)/)) {
           this.pcfgs[pkgUrl] = null;
         } else
           try {
@@ -231,9 +208,9 @@ export class Resolver {
           Object.keys((dev && pjson.devDependencies) || {}),
           Object.keys(pjson.peerDependencies || {}),
           Object.keys(pjson.optionalDependencies || {}),
-          Object.keys(pjson.imports || {}),
+          Object.keys(pjson.imports || {})
         ].flat()
-      ),
+      )
     ];
   }
 
@@ -259,31 +236,29 @@ export class Resolver {
     if (!pkgUrl) return false;
     const pcfg = await this.getPackageConfig(pkgUrl);
     if (!pcfg) return false;
-    const subpath = "./" + url.slice(pkgUrl.length);
-    return pcfg?.exports?.[subpath + "!cjs"] ? true : false;
+    const subpath = './' + url.slice(pkgUrl.length);
+    return pcfg?.exports?.[subpath + '!cjs'] ? true : false;
   }
 
   async realPath(url: string): Promise<string> {
-    if (!url.startsWith("file:") || this.preserveSymlinks) return url;
+    if (!url.startsWith('file:') || this.preserveSymlinks) return url;
     let encodedColon = false;
     url = url.replace(/%3a/i, () => {
       encodedColon = true;
-      return ":";
+      return ':';
     });
     if (!realpath) {
       [{ realpath }, { pathToFileURL }] = await Promise.all([
-        import("fs" as any),
-        import("url" as any),
+        import('fs' as any),
+        import('url' as any)
       ]);
     }
     const outUrl = pathToFileURL(
       await new Promise((resolve, reject) =>
-        realpath(new URL(url), (err, result) =>
-          err ? reject(err) : resolve(result)
-        )
+        realpath(new URL(url), (err, result) => (err ? reject(err) : resolve(result)))
       )
     ).href;
-    if (encodedColon) return "file:" + outUrl.slice(5).replace(":", "%3a");
+    if (encodedColon) return 'file:' + outUrl.slice(5).replace(':', '%3a');
     return outUrl;
   }
 
@@ -293,29 +268,29 @@ export class Resolver {
     exportsResolution: boolean,
     pkgUrl: `${string}/`
   ): Promise<string> {
-    if (parentIsCjs && url.endsWith("/")) url = url.slice(0, -1);
+    if (parentIsCjs && url.endsWith('/')) url = url.slice(0, -1);
     // Only CJS modules do extension searching for relative resolved paths
     if (parentIsCjs)
       url = await (async () => {
         // subfolder checks before file checks because of fetch
-        if (await this.exists(url + "/package.json")) {
+        if (await this.exists(url + '/package.json')) {
           const pcfg = (await this.getPackageConfig(url)) || {};
-          const urlUrl = new URL(url + "/");
-          if (this.env.includes("browser") && typeof pcfg.browser === "string")
+          const urlUrl = new URL(url + '/');
+          if (this.env.includes('browser') && typeof pcfg.browser === 'string')
             return this.finalizeResolve(
               await legacyMainResolve.call(this, pcfg.browser, urlUrl),
               parentIsCjs,
               exportsResolution,
               pkgUrl
             );
-          if (this.env.includes("module") && typeof pcfg.module === "string")
+          if (this.env.includes('module') && typeof pcfg.module === 'string')
             return this.finalizeResolve(
               await legacyMainResolve.call(this, pcfg.module, urlUrl),
               parentIsCjs,
               exportsResolution,
               pkgUrl
             );
-          if (typeof pcfg.main === "string")
+          if (typeof pcfg.main === 'string')
             return this.finalizeResolve(
               await legacyMainResolve.call(this, pcfg.main, urlUrl),
               parentIsCjs,
@@ -329,31 +304,28 @@ export class Resolver {
             pkgUrl
           );
         }
-        if (await this.exists(url + "/index.js")) return url + "/index.js";
-        if (await this.exists(url + "/index.json")) return url + "/index.json";
-        if (await this.exists(url + "/index.node")) return url + "/index.node";
+        if (await this.exists(url + '/index.js')) return url + '/index.js';
+        if (await this.exists(url + '/index.json')) return url + '/index.json';
+        if (await this.exists(url + '/index.node')) return url + '/index.node';
         if (await this.exists(url)) return url;
-        if (await this.exists(url + ".js")) return url + ".js";
-        if (await this.exists(url + ".json")) return url + ".json";
-        if (await this.exists(url + ".node")) return url + ".node";
+        if (await this.exists(url + '.js')) return url + '.js';
+        if (await this.exists(url + '.json')) return url + '.json';
+        if (await this.exists(url + '.node')) return url + '.node';
         return url;
       })();
 
     // Only browser maps apply to relative resolved paths
-    if (this.env.includes("browser")) {
+    if (this.env.includes('browser')) {
       pkgUrl = pkgUrl || (await this.getPackageBase(url));
       if (url.startsWith(pkgUrl)) {
         const pcfg = await this.getPackageConfig(pkgUrl);
-        if (pcfg && typeof pcfg.browser === "object" && pcfg.browser !== null) {
-          const subpath = "./" + url.slice(pkgUrl.length);
+        if (pcfg && typeof pcfg.browser === 'object' && pcfg.browser !== null) {
+          const subpath = './' + url.slice(pkgUrl.length);
           if (subpath in pcfg.browser) {
             const target = pcfg.browser[subpath];
-            if (target === false)
-              return this.resolveEmpty(parentIsCjs, url, pkgUrl);
-            if (!target.startsWith("./"))
-              throw new Error(
-                `TODO: External browser map for ${subpath} to ${target} in ${url}`
-              );
+            if (target === false) return this.resolveEmpty(parentIsCjs, url, pkgUrl);
+            if (!target.startsWith('./'))
+              throw new Error(`TODO: External browser map for ${subpath} to ${target} in ${url}`);
             // for browser mappings to the same module, avoid a loop
             if (pkgUrl + target.slice(2) === url) return url;
             return await this.finalizeResolve(
@@ -370,9 +342,9 @@ export class Resolver {
     // give some compatibility for packages without "exports" field
     if (!exportsResolution) {
       if (await this.exists(url)) void 0;
-      else if (await this.exists(url + ".js")) return url + ".js";
-      else if (await this.exists(url + ".json")) return url + ".json";
-      else if (await this.exists(url + ".node")) return url + ".node";
+      else if (await this.exists(url + '.js')) return url + '.js';
+      else if (await this.exists(url + '.json')) return url + '.json';
+      else if (await this.exists(url + '.node')) return url + '.node';
     }
 
     return url;
@@ -383,70 +355,52 @@ export class Resolver {
   // also handles "imports"
   async getExportResolution(
     pkgUrl: `${string}/`,
-    subpath: "." | `./${string}`,
+    subpath: '.' | `./${string}`,
     originalSpecifier: string
-  ): Promise<"." | `./${string}` | null> {
-    const resolvedUrl =
-      subpath === "." ? pkgUrl.slice(0, -1) : pkgUrl + subpath.slice(2);
+  ): Promise<'.' | `./${string}` | null> {
+    const resolvedUrl = subpath === '.' ? pkgUrl.slice(0, -1) : pkgUrl + subpath.slice(2);
     const pcfg = (await this.getPackageConfig(pkgUrl)) || {};
-    if (originalSpecifier[0] === "#") {
+    if (originalSpecifier[0] === '#') {
       if (pcfg.imports === undefined || pcfg.imports === null) return null;
-      const match = getMapMatch(
-        originalSpecifier,
-        pcfg.imports as Record<string, ExportsTarget>
-      );
+      const match = getMapMatch(originalSpecifier, pcfg.imports as Record<string, ExportsTarget>);
       if (!match) return null;
       const targets = enumeratePackageTargets(pcfg.imports[match]);
       for (const curTarget of targets) {
         try {
-          if (
-            (await this.finalizeResolve(curTarget, false, true, pkgUrl)) ===
-            resolvedUrl
-          ) {
-            return ".";
+          if ((await this.finalizeResolve(curTarget, false, true, pkgUrl)) === resolvedUrl) {
+            return '.';
           }
         } catch {}
       }
       return null;
     }
     if (pcfg.exports !== undefined && pcfg.exports !== null) {
-      if (typeof pcfg.exports === "string") {
-        if (subpath !== ".") return null;
+      if (typeof pcfg.exports === 'string') {
+        if (subpath !== '.') return null;
         const url = new URL(pcfg.exports, pkgUrl).href;
         try {
-          if (
-            (await this.finalizeResolve(url, false, true, pkgUrl)) ===
-            resolvedUrl
-          )
-            return ".";
+          if ((await this.finalizeResolve(url, false, true, pkgUrl)) === resolvedUrl) return '.';
         } catch {}
         return null;
       } else if (!allDotKeys(pcfg.exports)) {
-        if (subpath !== ".") return null;
+        if (subpath !== '.') return null;
         const targets = enumeratePackageTargets(pcfg.exports);
         for (const curTarget of targets) {
           try {
             if (
-              (await this.finalizeResolve(
-                new URL(curTarget, pkgUrl).href,
-                false,
-                true,
-                pkgUrl
-              )) === resolvedUrl
+              (await this.finalizeResolve(new URL(curTarget, pkgUrl).href, false, true, pkgUrl)) ===
+              resolvedUrl
             )
-              return ".";
+              return '.';
           } catch {}
         }
         return null;
       } else {
         let bestMatch;
-        for (const expt of Object.keys(pcfg.exports) as (
-          | "."
-          | `./${string}`
-        )[]) {
+        for (const expt of Object.keys(pcfg.exports) as ('.' | `./${string}`)[]) {
           const targets = enumeratePackageTargets(pcfg.exports[expt]);
           for (const curTarget of targets) {
-            if (curTarget.indexOf("*") === -1) {
+            if (curTarget.indexOf('*') === -1) {
               if (
                 (await this.finalizeResolve(
                   new URL(curTarget, pkgUrl).href,
@@ -466,38 +420,27 @@ export class Resolver {
                 bestMatch = expt;
               }
             } else {
-              const parts = curTarget.split("*");
+              const parts = curTarget.split('*');
               if (!subpath.startsWith(parts[0])) continue;
               const matchEndIndex = subpath.indexOf(parts[1], parts[0].length);
               if (matchEndIndex === -1) continue;
               const match = subpath.slice(parts[0].length, matchEndIndex);
               const substitutedTarget = curTarget.replace(/\*/g, match);
               if (subpath === substitutedTarget) {
-                const prefix = expt.slice(0, expt.indexOf("*"));
-                const suffix = expt.slice(expt.indexOf("*") + 1);
+                const prefix = expt.slice(0, expt.indexOf('*'));
+                const suffix = expt.slice(expt.indexOf('*') + 1);
                 if (bestMatch) {
                   if (originalSpecifier.endsWith(bestMatch.slice(2))) {
                     if (
-                      !originalSpecifier.endsWith(
-                        expt.slice(2).replace("*", match)
-                      ) ||
-                      (bestMatch.startsWith(prefix) &&
-                        bestMatch.endsWith(suffix))
+                      !originalSpecifier.endsWith(expt.slice(2).replace('*', match)) ||
+                      (bestMatch.startsWith(prefix) && bestMatch.endsWith(suffix))
                     )
                       continue;
-                  } else if (
-                    !originalSpecifier.endsWith(
-                      expt.slice(2).replace("*", match)
-                    )
-                  ) {
-                    if (
-                      bestMatch.startsWith(prefix) &&
-                      bestMatch.endsWith(suffix)
-                    )
-                      continue;
+                  } else if (!originalSpecifier.endsWith(expt.slice(2).replace('*', match))) {
+                    if (bestMatch.startsWith(prefix) && bestMatch.endsWith(suffix)) continue;
                   }
                 }
-                bestMatch = expt.replace("*", match);
+                bestMatch = expt.replace('*', match);
               }
             }
           }
@@ -507,7 +450,7 @@ export class Resolver {
     } else {
       try {
         if (
-          typeof pcfg.main === "string" &&
+          typeof pcfg.main === 'string' &&
           (await this.finalizeResolve(
             await legacyMainResolve.call(
               this,
@@ -521,28 +464,22 @@ export class Resolver {
             pkgUrl
           )) === resolvedUrl
         )
-          return ".";
+          return '.';
       } catch {}
       try {
         if (
           (await this.finalizeResolve(
-            await legacyMainResolve.call(
-              this,
-              null,
-              new URL(pkgUrl),
-              originalSpecifier,
-              pkgUrl
-            ),
+            await legacyMainResolve.call(this, null, new URL(pkgUrl), originalSpecifier, pkgUrl),
             false,
             false,
             pkgUrl
           )) === resolvedUrl
         )
-          return ".";
+          return '.';
       } catch {}
       try {
         if (
-          typeof pcfg.browser === "string" &&
+          typeof pcfg.browser === 'string' &&
           (await this.finalizeResolve(
             await legacyMainResolve.call(
               this,
@@ -556,11 +493,11 @@ export class Resolver {
             pkgUrl
           )) === resolvedUrl
         )
-          return ".";
+          return '.';
       } catch {}
       try {
         if (
-          typeof pcfg.module === "string" &&
+          typeof pcfg.module === 'string' &&
           (await this.finalizeResolve(
             await legacyMainResolve.call(
               this,
@@ -574,7 +511,7 @@ export class Resolver {
             pkgUrl
           )) === resolvedUrl
         )
-          return ".";
+          return '.';
       } catch {}
       try {
         if (
@@ -590,27 +527,18 @@ export class Resolver {
     }
   }
 
-  async resolveEmpty(
-    cjsEnv: boolean,
-    originalSpecifier: string,
-    parentUrl: string
-  ) {
+  async resolveEmpty(cjsEnv: boolean, originalSpecifier: string, parentUrl: string) {
     const stdlibTarget = {
-      registry: "npm",
-      name: "@jspm/core",
-      ranges: [new SemverRange("*")],
-      unstable: true,
+      registry: 'npm',
+      name: '@jspm/core',
+      ranges: [new SemverRange('*')],
+      unstable: true
     };
     const provider = this.installer.getProvider(stdlibTarget);
-    const pkg = await this.pm.resolveLatestTarget(
-      stdlibTarget,
-      provider,
-      parentUrl,
-      this
-    );
+    const pkg = await this.pm.resolveLatestTarget(stdlibTarget, provider, parentUrl, this);
     return this.resolveExport(
       await this.pm.pkgToUrl(pkg, provider.provider, provider.layer),
-      "./nodelibs/@empty",
+      './nodelibs/@empty',
       cjsEnv,
       false,
       originalSpecifier,
@@ -632,7 +560,7 @@ export class Resolver {
 
     // If the package has no exports then we resolve against "node:@empty":
     if (
-      typeof pcfg.exports === "object" &&
+      typeof pcfg.exports === 'object' &&
       pcfg.exports !== null &&
       Object.keys(pcfg.exports).length === 0
     ) {
@@ -644,19 +572,19 @@ export class Resolver {
         `No '${subpath}' exports subpath defined in ${pkgUrl} resolving ${originalSpecifier}${importedFrom(
           parentUrl
         )}.`,
-        "MODULE_NOT_FOUND"
+        'MODULE_NOT_FOUND'
       );
     }
 
     if (pcfg.exports !== undefined && pcfg.exports !== null) {
       function allDotKeys(exports: Record<string, any>) {
         for (let p in exports) {
-          if (p[0] !== ".") return false;
+          if (p[0] !== '.') return false;
         }
         return true;
       }
-      if (typeof pcfg.exports === "string") {
-        if (subpath === ".")
+      if (typeof pcfg.exports === 'string') {
+        if (subpath === '.')
           return this.finalizeResolve(
             new URL(pcfg.exports, pkgUrl).href,
             parentIsCjs,
@@ -665,31 +593,22 @@ export class Resolver {
           );
         else throwExportNotDefined();
       } else if (!allDotKeys(pcfg.exports)) {
-        if (subpath === ".") {
-          const url = this.resolvePackageTarget(
-            pcfg.exports,
-            pkgUrl,
-            cjsEnv,
-            "",
-            false
-          );
+        if (subpath === '.') {
+          const url = this.resolvePackageTarget(pcfg.exports, pkgUrl, cjsEnv, '', false);
           if (url === null) throwExportNotDefined();
           return this.finalizeResolve(url, parentIsCjs, true, pkgUrl);
         } else throwExportNotDefined();
       } else {
-        const match = getMapMatch(
-          subpath,
-          pcfg.exports as Record<string, ExportsTarget>
-        );
+        const match = getMapMatch(subpath, pcfg.exports as Record<string, ExportsTarget>);
         if (match) {
-          let replacement = "";
-          const wildcardIndex = match.indexOf("*");
+          let replacement = '';
+          const wildcardIndex = match.indexOf('*');
           if (wildcardIndex !== -1) {
             replacement = subpath.slice(
               wildcardIndex,
               subpath.length - (match.length - wildcardIndex - 1)
             );
-          } else if (match.endsWith("/")) {
+          } else if (match.endsWith('/')) {
             replacement = subpath.slice(match.length);
           }
           const resolved = this.resolvePackageTarget(
@@ -705,8 +624,8 @@ export class Resolver {
         throwExportNotDefined();
       }
     } else {
-      if (subpath === "." || (parentIsCjs && subpath === "./")) {
-        if (env.includes("browser") && typeof pcfg.browser === "string")
+      if (subpath === '.' || (parentIsCjs && subpath === './')) {
+        if (env.includes('browser') && typeof pcfg.browser === 'string')
           return this.finalizeResolve(
             await legacyMainResolve.call(
               this,
@@ -719,7 +638,7 @@ export class Resolver {
             false,
             pkgUrl
           );
-        if (env.includes("module") && typeof pcfg.module === "string")
+        if (env.includes('module') && typeof pcfg.module === 'string')
           return this.finalizeResolve(
             await legacyMainResolve.call(
               this,
@@ -732,7 +651,7 @@ export class Resolver {
             false,
             pkgUrl
           );
-        if (typeof pcfg.main === "string")
+        if (typeof pcfg.main === 'string')
           return this.finalizeResolve(
             await legacyMainResolve.call(
               this,
@@ -746,13 +665,7 @@ export class Resolver {
             pkgUrl
           );
         return this.finalizeResolve(
-          await legacyMainResolve.call(
-            this,
-            null,
-            new URL(pkgUrl),
-            originalSpecifier,
-            pkgUrl
-          ),
+          await legacyMainResolve.call(this, null, new URL(pkgUrl), originalSpecifier, pkgUrl),
           parentIsCjs,
           false,
           pkgUrl
@@ -789,27 +702,23 @@ export class Resolver {
             cjsLazyDeps: null,
             hasStaticParent: true,
             size: NaN,
-            integrity: "",
-            format: undefined,
+            integrity: '',
+            format: undefined
           };
-          if ("parseError" in analysis) {
+          if ('parseError' in analysis) {
             traceEntry.parseError = analysis.parseError;
           } else {
-            const { deps, dynamicDeps, cjsLazyDeps, size, format, integrity } =
-              analysis;
+            const { deps, dynamicDeps, cjsLazyDeps, size, format, integrity } = analysis;
             traceEntry.integrity = integrity;
             traceEntry.format = format;
             traceEntry.size = size;
             traceEntry.deps = deps.sort();
             traceEntry.dynamicDeps = dynamicDeps.sort();
-            traceEntry.cjsLazyDeps = cjsLazyDeps
-              ? cjsLazyDeps.sort()
-              : cjsLazyDeps;
+            traceEntry.cjsLazyDeps = cjsLazyDeps ? cjsLazyDeps.sort() : cjsLazyDeps;
 
             // wasCJS distinct from CJS because it applies to CJS transformed into ESM
             // from the resolver perspective
-            const wasCJS =
-              format === "commonjs" || (await this.wasCommonJS(resolvedUrl));
+            const wasCJS = format === 'commonjs' || (await this.wasCommonJS(resolvedUrl));
             if (wasCJS) traceEntry.wasCjs = true;
           }
         }
@@ -829,38 +738,27 @@ export class Resolver {
     subpath: string,
     isImport: boolean
   ): string | null {
-    if (typeof target === "string") {
-      if (target === ".") {
+    if (typeof target === 'string') {
+      if (target === '.') {
         // special dot export for file packages
         return packageUrl.slice(0, -1);
       }
-      if (!target.startsWith("./")) {
+      if (!target.startsWith('./')) {
         if (isImport) return target;
-        throw new Error(
-          `Invalid exports target ${target} resolving ./${subpath} in ${packageUrl}`
-        );
+        throw new Error(`Invalid exports target ${target} resolving ./${subpath} in ${packageUrl}`);
       }
-      if (!target.startsWith("./")) throw new Error("Invalid ");
-      if (subpath === "") return new URL(target, packageUrl).href;
-      if (target.indexOf("*") !== -1) {
+      if (!target.startsWith('./')) throw new Error('Invalid ');
+      if (subpath === '') return new URL(target, packageUrl).href;
+      if (target.indexOf('*') !== -1) {
         return new URL(target.replace(/\*/g, subpath), packageUrl).href;
-      } else if (target.endsWith("/")) {
+      } else if (target.endsWith('/')) {
         return new URL(target + subpath, packageUrl).href;
       } else {
-        throw new Error(
-          `Expected pattern or path export resolving ./${subpath} in ${packageUrl}`
-        );
+        throw new Error(`Expected pattern or path export resolving ./${subpath} in ${packageUrl}`);
       }
-    } else if (
-      typeof target === "object" &&
-      target !== null &&
-      !Array.isArray(target)
-    ) {
+    } else if (typeof target === 'object' && target !== null && !Array.isArray(target)) {
       for (const condition in target) {
-        if (
-          condition === "default" ||
-          (cjsEnv ? this.cjsEnv : this.env).includes(condition)
-        ) {
+        if (condition === 'default' || (cjsEnv ? this.cjsEnv : this.env).includes(condition)) {
           const resolved = this.resolvePackageTarget(
             target[condition],
             packageUrl,
@@ -874,13 +772,7 @@ export class Resolver {
     } else if (Array.isArray(target)) {
       // TODO: Validation for arrays
       for (const targetFallback of target) {
-        return this.resolvePackageTarget(
-          targetFallback,
-          packageUrl,
-          cjsEnv,
-          subpath,
-          isImport
-        );
+        return this.resolvePackageTarget(targetFallback, packageUrl, cjsEnv, subpath, isImport);
       }
     }
     return null;
@@ -889,15 +781,11 @@ export class Resolver {
 
 export function enumeratePackageTargets(
   target: ExportsTarget,
-  targets = new Set<`./${string}` | ".">()
-): Set<`./${string}` | "."> {
-  if (typeof target === "string") {
+  targets = new Set<`./${string}` | '.'>()
+): Set<`./${string}` | '.'> {
+  if (typeof target === 'string') {
     targets.add(target);
-  } else if (
-    typeof target === "object" &&
-    target !== null &&
-    !Array.isArray(target)
-  ) {
+  } else if (typeof target === 'object' && target !== null && !Array.isArray(target)) {
     for (const condition in target) {
       enumeratePackageTargets(target[condition], targets);
     }
@@ -920,55 +808,37 @@ async function legacyMainResolve(
   parentUrl?: URL | string
 ) {
   let guess: string;
-  if (main?.endsWith("index.js")) {
-    if (await this.exists((guess = new URL(`./${main}`, pkgUrl).href)))
-      return guess;
+  if (main?.endsWith('index.js')) {
+    if (await this.exists((guess = new URL(`./${main}`, pkgUrl).href))) return guess;
   } else if (main) {
-    if (await this.exists((guess = new URL(`./${main}/index.js`, pkgUrl).href)))
-      return guess;
-    if (
-      await this.exists((guess = new URL(`./${main}/index.json`, pkgUrl).href))
-    )
-      return guess;
-    if (
-      await this.exists((guess = new URL(`./${main}/index.node`, pkgUrl).href))
-    )
-      return guess;
-    if (await this.exists((guess = new URL(`./${main}`, pkgUrl).href)))
-      return guess;
-    if (await this.exists((guess = new URL(`./${main}.js`, pkgUrl).href)))
-      return guess;
-    if (await this.exists((guess = new URL(`./${main}.json`, pkgUrl).href)))
-      return guess;
-    if (await this.exists((guess = new URL(`./${main}.node`, pkgUrl).href)))
-      return guess;
+    if (await this.exists((guess = new URL(`./${main}/index.js`, pkgUrl).href))) return guess;
+    if (await this.exists((guess = new URL(`./${main}/index.json`, pkgUrl).href))) return guess;
+    if (await this.exists((guess = new URL(`./${main}/index.node`, pkgUrl).href))) return guess;
+    if (await this.exists((guess = new URL(`./${main}`, pkgUrl).href))) return guess;
+    if (await this.exists((guess = new URL(`./${main}.js`, pkgUrl).href))) return guess;
+    if (await this.exists((guess = new URL(`./${main}.json`, pkgUrl).href))) return guess;
+    if (await this.exists((guess = new URL(`./${main}.node`, pkgUrl).href))) return guess;
   } else {
     if (
-      pkgUrl.protocol !== "file:" &&
-      (await this.exists((guess = new URL("./mod.ts", pkgUrl).href)))
+      pkgUrl.protocol !== 'file:' &&
+      (await this.exists((guess = new URL('./mod.ts', pkgUrl).href)))
     )
       return guess;
-    if (await this.exists((guess = new URL("./index.js", pkgUrl).href)))
-      return guess;
-    if (await this.exists((guess = new URL("./index.json", pkgUrl).href)))
-      return guess;
-    if (await this.exists((guess = new URL("./index.node", pkgUrl).href)))
-      return guess;
+    if (await this.exists((guess = new URL('./index.js', pkgUrl).href))) return guess;
+    if (await this.exists((guess = new URL('./index.json', pkgUrl).href))) return guess;
+    if (await this.exists((guess = new URL('./index.node', pkgUrl).href))) return guess;
   }
   // Not found.
   throw new JspmError(
-    `Unable to resolve ${main ? main + " in " : ""}${pkgUrl} resolving ${
-      originalSpecifier ?? ""
+    `Unable to resolve ${main ? main + ' in ' : ''}${pkgUrl} resolving ${
+      originalSpecifier ?? ''
     }${importedFrom(parentUrl)}.`,
-    "MODULE_NOT_FOUND"
+    'MODULE_NOT_FOUND'
   );
 }
 
 // TODO: Refactor legacy intermediate Analysis type into TraceEntry directly
-async function getAnalysis(
-  resolver: Resolver,
-  resolvedUrl: string
-): Promise<Analysis | null> {
+async function getAnalysis(resolver: Resolver, resolvedUrl: string): Promise<Analysis | null> {
   const parentIsRequire = false;
   const res = await fetch(resolvedUrl, resolver.fetchOpts);
   let source;
@@ -985,7 +855,7 @@ async function getAnalysis(
   }
   // TODO: headers over extensions for non-file URLs
   try {
-    if (resolvedUrl.endsWith(".wasm")) {
+    if (resolvedUrl.endsWith('.wasm')) {
       try {
         var compiled = await WebAssembly.compile(source);
       } catch (e) {
@@ -996,8 +866,8 @@ async function getAnalysis(
         dynamicDeps: [],
         cjsLazyDeps: null,
         size: source.byteLength,
-        format: "wasm",
-        integrity: await getIntegrity(new Uint8Array(source)),
+        format: 'wasm',
+        integrity: await getIntegrity(new Uint8Array(source))
       };
     }
 
@@ -1005,13 +875,11 @@ async function getAnalysis(
 
     if (
       resolver.traceTs &&
-      (resolvedUrl.endsWith(".ts") ||
-        resolvedUrl.endsWith(".tsx") ||
-        resolvedUrl.endsWith(".jsx"))
+      (resolvedUrl.endsWith('.ts') || resolvedUrl.endsWith('.tsx') || resolvedUrl.endsWith('.jsx'))
     )
       return await createTsAnalysis(sourceText, resolvedUrl);
 
-    if (resolvedUrl.endsWith(".json")) {
+    if (resolvedUrl.endsWith('.json')) {
       try {
         JSON.parse(sourceText);
         return {
@@ -1019,56 +887,46 @@ async function getAnalysis(
           dynamicDeps: [],
           cjsLazyDeps: null,
           size: sourceText.length,
-          format: "json",
-          integrity: await getIntegrity(sourceText),
+          format: 'json',
+          integrity: await getIntegrity(sourceText)
         };
       } catch {}
     }
 
-    if (resolvedUrl.endsWith(".css")) {
+    if (resolvedUrl.endsWith('.css')) {
       try {
         return {
           deps: [],
           dynamicDeps: [],
           cjsLazyDeps: null,
           size: sourceText.length,
-          format: "css",
-          integrity: await getIntegrity(sourceText),
+          format: 'css',
+          integrity: await getIntegrity(sourceText)
         };
       } catch {}
     }
 
     const [imports, exports] = parse(sourceText) as any as [any[], string[]];
-    if (
-      imports.every((impt) => impt.d > 0) &&
-      !exports.length &&
-      resolvedUrl.startsWith("file:")
-    ) {
+    if (imports.every(impt => impt.d > 0) && !exports.length && resolvedUrl.startsWith('file:')) {
       // Support CommonJS package boundary checks for non-ESM on file: protocol only
       if (parentIsRequire) {
         if (
           resolver.traceCjs &&
           !(
-            resolvedUrl.endsWith(".mjs") ||
-            (resolvedUrl.endsWith(".js") &&
-              (
-                await resolver.getPackageConfig(
-                  await resolver.getPackageBase(resolvedUrl)
-                )
-              )?.type === "module")
+            resolvedUrl.endsWith('.mjs') ||
+            (resolvedUrl.endsWith('.js') &&
+              (await resolver.getPackageConfig(await resolver.getPackageBase(resolvedUrl)))
+                ?.type === 'module')
           )
         ) {
           return createCjsAnalysis(imports, sourceText, resolvedUrl);
         }
       } else if (
         resolver.traceCjs &&
-        (resolvedUrl.endsWith(".cjs") ||
-          (resolvedUrl.endsWith(".js") &&
-            (
-              await resolver.getPackageConfig(
-                await resolver.getPackageBase(resolvedUrl)
-              )
-            )?.type !== "module"))
+        (resolvedUrl.endsWith('.cjs') ||
+          (resolvedUrl.endsWith('.js') &&
+            (await resolver.getPackageConfig(await resolver.getPackageBase(resolvedUrl)))?.type !==
+              'module'))
       ) {
         return createCjsAnalysis(imports, sourceText, resolvedUrl);
       }
@@ -1077,26 +935,24 @@ async function getAnalysis(
       ? createSystemAnalysis(sourceText, imports, resolvedUrl)
       : createEsmAnalysis(imports, sourceText, resolvedUrl);
   } catch (e) {
-    if (!e.message || !e.message.startsWith("Parse error @:")) {
+    if (!e.message || !e.message.startsWith('Parse error @:')) {
       return {
-        parseError: e,
+        parseError: e
       };
     }
     // TODO: better parser errors
-    if (e.message && e.message.startsWith("Parse error @:")) {
-      const [topline] = e.message.split("\n", 1);
+    if (e.message && e.message.startsWith('Parse error @:')) {
+      const [topline] = e.message.split('\n', 1);
       const pos = topline.slice(14);
-      let [line, col] = pos.split(":");
-      const lines = sourceText.split("\n");
-      let errStack = "";
-      if (line > 1) errStack += "\n  " + lines[line - 2];
-      errStack += "\n> " + lines[line - 1];
-      errStack += "\n  " + " ".repeat(col - 1) + "^";
-      if (lines.length > 1) errStack += "\n  " + lines[line];
+      let [line, col] = pos.split(':');
+      const lines = sourceText.split('\n');
+      let errStack = '';
+      if (line > 1) errStack += '\n  ' + lines[line - 2];
+      errStack += '\n> ' + lines[line - 1];
+      errStack += '\n  ' + ' '.repeat(col - 1) + '^';
+      if (lines.length > 1) errStack += '\n  ' + lines[line];
       return {
-        parseError: new JspmError(
-          `${errStack}\n\nError parsing ${resolvedUrl}:${pos}`
-        ),
+        parseError: new JspmError(`${errStack}\n\nError parsing ${resolvedUrl}:${pos}`)
       };
     }
     throw e;

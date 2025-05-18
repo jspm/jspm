@@ -1,19 +1,19 @@
-import { Generator, lookup } from "@jspm/generator";
-import assert from "assert";
+import { Generator, lookup } from '@jspm/generator';
+import assert from 'assert';
 
 {
   const generator = new Generator({
-    defaultProvider: "deno",
+    defaultProvider: 'deno'
   });
 
-  await generator.install("denoland:fresh@1.1.5/runtime.ts");
+  await generator.install('denoland:fresh@1.1.5/runtime.ts');
   const json = generator.getMap();
 
   assert.strictEqual(
-    json.imports["fresh/runtime.ts"],
-    "https://deno.land/x/fresh@1.1.5/runtime.ts"
+    json.imports['fresh/runtime.ts'],
+    'https://deno.land/x/fresh@1.1.5/runtime.ts'
   );
-  assert.ok(json.scopes["https://deno.land/"]["preact"]);
+  assert.ok(json.scopes['https://deno.land/']['preact']);
 }
 
 // const denoStdVersion = (await lookup("deno:path")).resolved.version;

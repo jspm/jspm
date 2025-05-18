@@ -1,9 +1,9 @@
-import * as fs from "node:fs/promises";
-import { extname } from "node:path";
-import { pathToFileURL } from "url";
-import c from "picocolors";
-import { type Generator } from "@jspm/generator";
-import type { GenerateOutputFlags } from "./cli.ts";
+import * as fs from 'node:fs/promises';
+import { extname } from 'node:path';
+import { pathToFileURL } from 'url';
+import c from 'picocolors';
+import { type Generator } from '@jspm/generator';
+import type { GenerateOutputFlags } from './cli.ts';
 import {
   JspmError,
   getEnv,
@@ -14,22 +14,18 @@ import {
   isJsExtension,
   startSpinner,
   stopSpinner,
-  writeOutput,
-} from "./utils.ts";
-import { withType } from "./logger.ts";
-import { initProject } from "./init.ts";
+  writeOutput
+} from './utils.ts';
+import { withType } from './logger.ts';
+import { initProject } from './init.ts';
 
-export default async function link(
-  modules: string[],
-  flags: GenerateOutputFlags
-) {
-  const log = withType("link/link");
+export default async function link(modules: string[], flags: GenerateOutputFlags) {
+  const log = withType('link/link');
 
-  log(`Linking modules: ${modules.join(", ")}`);
+  log(`Linking modules: ${modules.join(', ')}`);
   log(`Flags: ${JSON.stringify(flags)}`);
 
-  const fallbackMap =
-    !modules[0] || isJsExtension(extname(modules[0])) ? undefined : modules[0];
+  const fallbackMap = !modules[0] || isJsExtension(extname(modules[0])) ? undefined : modules[0];
 
   const env = await getEnv(flags);
   const inputMapPath = getInputPath(flags, fallbackMap);
@@ -47,47 +43,45 @@ export default async function link(
         // Initialize project to validate package.json
         const projectConfig = await initProject({
           quiet: flags.quiet,
-          dir: process.cwd(),
+          dir: process.cwd()
         });
 
         log(`Project validated: ${projectConfig.name}`);
       } catch (e) {
         // Just log warnings for project validation issues but continue with freeze
         if (e instanceof JspmError && !flags.quiet) {
-          console.warn(`${c.yellow("Warning:")} ${e.message}`);
+          console.warn(`${c.yellow('Warning:')} ${e.message}`);
         }
       }
 
-      await generator.install("freeze");
+      await generator.install('freeze');
     } finally {
       stopSpinner();
     }
   } else {
     const inlinePins: string[] = [];
     const resolvedModules = (
-      await Promise.all(
-        modules.map((spec) => resolveModule(spec, inlinePins, generator))
-      )
-    ).filter((m) => !!m);
+      await Promise.all(modules.map(spec => resolveModule(spec, inlinePins, generator)))
+    ).filter(m => !!m);
 
     // The input map is either from a JSON file or extracted from an HTML file.
     // In the latter case we want to trace any inline modules from the HTML file
     // as well, since they may have imports that are not in the import map yet:
     const input = await getInputMap(flags, fallbackMap);
-    pins = inlinePins.concat(resolvedModules.map((p) => p.target));
+    pins = inlinePins.concat(resolvedModules.map(p => p.target));
     let allPins = pins;
     if (input) {
       allPins = pins.concat(await generator.addMappings(input));
     }
 
     log(`Input map parsed: ${input}`);
-    log(`Trace installing: ${allPins.concat(pins).join(", ")}`);
+    log(`Trace installing: ${allPins.concat(pins).join(', ')}`);
 
     if (!flags.quiet) {
       startSpinner(
-        `Linking ${c.bold(
-          resolvedModules.map((p) => p.alias || p.target).join(", ")
-        )}. (${env.join(", ")})`
+        `Linking ${c.bold(resolvedModules.map(p => p.alias || p.target).join(', '))}. (${env.join(
+          ', '
+        )})`
       );
     }
 
@@ -108,16 +102,12 @@ export default async function link(
   }
 }
 
-async function resolveModule(
-  p: string,
-  inlinePins: string[],
-  generator: Generator
-) {
-  const log = withType("link/resolveModule");
+async function resolveModule(p: string, inlinePins: string[], generator: Generator) {
+  const log = withType('link/resolveModule');
 
   let res: { target: string; alias?: string };
-  if (p.includes("=")) {
-    const [alias, target] = p.split("=");
+  if (p.includes('=')) {
+    const [alias, target] = p.split('=');
     res = { alias, target };
   } else {
     res = { target: p };
@@ -127,16 +117,14 @@ async function resolveModule(
   // a local file of the same name ('./app.js') and use that as the target
   // rather. If the user really wants to link the 'app.js' package they can
   // prefix it with '%' as follows: '%app.js':
-  if (res.target.startsWith("%")) {
+  if (res.target.startsWith('%')) {
     log(`Resolving target '${res.target}' as '${res.target.slice(1)}'`);
     res.target = res.target.slice(1);
   } else {
     try {
       await fs.access(res.target);
       const targetPath =
-        res.target.startsWith(".") || res.target.startsWith("/")
-          ? res.target
-          : `./${res.target}`;
+        res.target.startsWith('.') || res.target.startsWith('/') ? res.target : `./${res.target}`;
 
       log(`Resolving target '${res.target}' as '${targetPath}'`);
       res.target = targetPath;
@@ -155,8 +143,8 @@ async function handleLocalFile(
   inlinePins: string[],
   generator: Generator
 ) {
-  const source = await fs.readFile(resolvedModule.target, { encoding: "utf8" });
-  const babel = await import("@babel/core");
+  const source = await fs.readFile(resolvedModule.target, { encoding: 'utf8' });
+  const babel = await import('@babel/core');
 
   try {
     babel.parse(source);
@@ -176,7 +164,7 @@ async function handleLocalFile(
     throw e;
   }
   if (!pins || pins.length === 0) {
-    throw new JspmError("No inline HTML modules found to link.");
+    throw new JspmError('No inline HTML modules found to link.');
   }
 
   inlinePins.push(...pins);

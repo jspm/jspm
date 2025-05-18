@@ -1,14 +1,14 @@
-import { Generator } from "@jspm/generator";
-import assert from "assert";
+import { Generator } from '@jspm/generator';
+import assert from 'assert';
 
 // Mimic calling the generator from the ./local/pkg package:
-const mapUrl = new URL("./local/pkg/importmap.json", import.meta.url).href;
-const pkgNames = ["localpkg", "localpkg/custom", "localpkg/conditional"];
+const mapUrl = new URL('./local/pkg/importmap.json', import.meta.url).href;
+const pkgNames = ['localpkg', 'localpkg/custom', 'localpkg/conditional'];
 
 for (const pkgName of pkgNames) {
   let generator = new Generator({
     mapUrl,
-    env: ["production"],
+    env: ['production']
   });
 
   // Installing the package from within itself should resolve locally, since the
@@ -28,7 +28,7 @@ for (const pkgName of pkgNames) {
   generator = new Generator({
     mapUrl,
     inputMap: json,
-    env: ["production"],
+    env: ['production']
   });
 
   // Uninstalling the package should get rid of it:

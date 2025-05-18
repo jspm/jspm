@@ -1,40 +1,34 @@
-import { LatestPackageTarget } from "../install/package.js";
-import { ExactPackage } from "../install/package.js";
-import { Provider, ProviderContext } from "./index.js";
+import { LatestPackageTarget } from '../install/package.js';
+import { ExactPackage } from '../install/package.js';
+import { Provider, ProviderContext } from './index.js';
 // @ts-ignore
-import { fetch } from "../common/fetch.js";
-import { JspmError } from "../common/err.js";
-import { importedFrom } from "../common/url.js";
-import { PackageConfig } from "../install/package.js";
-import { encodeBase64, decodeBase64 } from "../common/b64.js";
+import { fetch } from '../common/fetch.js';
+import { JspmError } from '../common/err.js';
+import { importedFrom } from '../common/url.js';
+import { PackageConfig } from '../install/package.js';
+import { encodeBase64, decodeBase64 } from '../common/b64.js';
 
-export function createProvider(
-  baseUrl: string,
-  ownsBaseUrl: boolean
-): Provider {
+export function createProvider(baseUrl: string, ownsBaseUrl: boolean): Provider {
   return {
     ownsUrl,
     pkgToUrl,
     parseUrlPkg,
     resolveLatestTarget,
-    getPackageConfig,
+    getPackageConfig
   };
 
   function ownsUrl(this: ProviderContext, url: string) {
     // The nodemodules provider owns the base URL when it is the default
     // provider so that it can link against a user's local installs, letting
     // us support "file:" dependencies:
-    return (ownsBaseUrl && url === baseUrl) || url.includes("/node_modules/");
+    return (ownsBaseUrl && url === baseUrl) || url.includes('/node_modules/');
   }
 
-  async function pkgToUrl(
-    this: ProviderContext,
-    pkg: ExactPackage
-  ): Promise<`${string}/`> {
+  async function pkgToUrl(this: ProviderContext, pkg: ExactPackage): Promise<`${string}/`> {
     // The node_modules registry uses the base64-encoded URL of the package as
     // the package version, so we need to decode it to get the right copy. See
     // comments in the `resolveLatestTarget` function for details:
-    if (pkg.registry === "node_modules") {
+    if (pkg.registry === 'node_modules') {
       return `${decodeBase64(pkg.version)}` as `${string}/`;
     }
 
@@ -42,21 +36,19 @@ export function createProvider(
     // resolve the package against the node_modules in the base package:
     const target = await nodeResolve.call(this, pkg.name, baseUrl);
     if (!target)
-      throw new JspmError(
-        `Failed to resolve ${pkg.name} against node_modules from ${baseUrl}`
-      );
+      throw new JspmError(`Failed to resolve ${pkg.name} against node_modules from ${baseUrl}`);
 
     return `${decodeBase64(target.version)}` as `${string}/`;
   }
 
   function parseUrlPkg(this: ProviderContext, url: string) {
     // We can only resolve packages in node_modules folders:
-    const nodeModulesIndex = url.lastIndexOf("/node_modules/");
+    const nodeModulesIndex = url.lastIndexOf('/node_modules/');
     if (nodeModulesIndex === -1) return null;
 
-    const nameAndSubpaths = url.slice(nodeModulesIndex + 14).split("/");
+    const nameAndSubpaths = url.slice(nodeModulesIndex + 14).split('/');
     const name =
-      nameAndSubpaths[0][0] === "@"
+      nameAndSubpaths[0][0] === '@'
         ? `${nameAndSubpaths[0]}/${nameAndSubpaths[1]}`
         : nameAndSubpaths[0];
     const pkgUrl = `${url.slice(0, nodeModulesIndex + 14)}${name}/`;
@@ -66,11 +58,11 @@ export function createProvider(
       return {
         pkg: {
           name,
-          registry: "node_modules",
-          version: encodeBase64(pkgUrl),
+          registry: 'node_modules',
+          version: encodeBase64(pkgUrl)
         },
-        subpath: subpath === "./" ? null : (subpath as `./${string}`),
-        layer: "default",
+        subpath: subpath === './' ? null : (subpath as `./${string}`),
+        layer: 'default'
       };
     }
   }
@@ -90,7 +82,7 @@ export function createProvider(
   ): Promise<PackageConfig | null> {
     if (!ownsUrl.call(this, pkgUrl)) return null;
 
-    const pkgJsonUrl = new URL("package.json", pkgUrl);
+    const pkgJsonUrl = new URL('package.json', pkgUrl);
     const res = await fetch(pkgJsonUrl.href, this.fetchOpts);
     switch (res.status) {
       case 200:
@@ -101,10 +93,7 @@ export function createProvider(
         return null;
     }
 
-    async function remap(
-      this: ProviderContext,
-      deps: Record<string, string> | null
-    ) {
+    async function remap(this: ProviderContext, deps: Record<string, string> | null) {
       if (!deps) return;
       for (const [name, dep] of Object.entries(deps)) {
         if (!isLocal(dep)) continue;
@@ -139,15 +128,12 @@ async function nodeResolve(
 ): Promise<ExactPackage | null> {
   let curUrl = new URL(`node_modules/${name}`, parentUrl);
   const rootUrl = new URL(`/node_modules/${name}`, parentUrl).href;
-  const isScoped = name[0] === "@";
+  const isScoped = name[0] === '@';
 
   while (!(await dirExists.call(this, curUrl))) {
     if (curUrl.href === rootUrl) return null; // failed to resolve
 
-    curUrl = new URL(
-      `../../${isScoped ? "../" : ""}node_modules/${name}`,
-      curUrl
-    );
+    curUrl = new URL(`../../${isScoped ? '../' : ''}node_modules/${name}`, curUrl);
   }
 
   // Providers need to be able to translate between canonical package specs and
@@ -159,8 +145,8 @@ async function nodeResolve(
   // registry, which we can decode to get the right copy:
   return {
     name,
-    registry: "node_modules",
-    version: encodeBase64(`${curUrl.href}/`),
+    registry: 'node_modules',
+    version: encodeBase64(`${curUrl.href}/`)
   };
 }
 
@@ -175,13 +161,13 @@ async function dirExists(this: ProviderContext, url: URL, parentUrl?: string) {
       return false;
     default:
       throw new JspmError(
-        `Invalid status code ${res.status} looking up "${url}" - ${
-          res.statusText
-        }${importedFrom(parentUrl)}`
+        `Invalid status code ${res.status} looking up "${url}" - ${res.statusText}${importedFrom(
+          parentUrl
+        )}`
       );
   }
 }
 
 function isLocal(dep: string): boolean {
-  return dep.startsWith("file:");
+  return dep.startsWith('file:');
 }

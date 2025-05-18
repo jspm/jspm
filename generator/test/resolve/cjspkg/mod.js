@@ -1,3 +1,3 @@
-const builtinProcess = require("process");
+const builtinProcess = require('process');
 
 console.log(builtinProcess === process);

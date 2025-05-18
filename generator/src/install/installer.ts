@@ -1,7 +1,7 @@
-import { Semver } from "sver";
-import { Log } from "../common/log.js";
-import { registryProviders } from "../providers/index.js";
-import { Resolver } from "../trace/resolver.js";
+import { Semver } from 'sver';
+import { Log } from '../common/log.js';
+import { registryProviders } from '../providers/index.js';
+import { Resolver } from '../trace/resolver.js';
 import {
   getConstraintFor,
   getFlattenedResolution,
@@ -11,16 +11,16 @@ import {
   PackageConstraint,
   setConstraint,
   setResolution,
-  VersionConstraints,
-} from "./lock.js";
-import { ExactPackage, newPackageTarget, PackageTarget } from "./package.js";
+  VersionConstraints
+} from './lock.js';
+import { ExactPackage, newPackageTarget, PackageTarget } from './package.js';
 
 export interface PackageProvider {
   provider: string;
   layer: string;
 }
 
-export type ResolutionMode = "new" | "new-prefer-existing" | "existing";
+export type ResolutionMode = 'new' | 'new-prefer-existing' | 'existing';
 
 /**
  * InstallOptions configure the generator's behaviour for existing mappings
@@ -52,15 +52,11 @@ export type ResolutionMode = "new" | "new-prefer-existing" | "existing";
  *   for new installs wherever possible. Completely new installs behave
  *   according to "default".
  */
-export type InstallMode =
-  | "default"
-  | "latest-primaries"
-  | "latest-all"
-  | "freeze";
+export type InstallMode = 'default' | 'latest-primaries' | 'latest-all' | 'freeze';
 
 export type InstallTarget = {
   pkgTarget: PackageTarget | URL;
-  installSubpath: null | "." | `./${string}`;
+  installSubpath: null | '.' | `./${string}`;
 };
 
 export interface InstallerOptions {
@@ -103,19 +99,14 @@ export class Installer {
   // @ts-ignore
   installBaseUrl: `${string}/`;
   hasLock = false;
-  defaultProvider = { provider: "jspm.io", layer: "default" };
-  defaultRegistry = "npm";
+  defaultProvider = { provider: 'jspm.io', layer: 'default' };
+  defaultRegistry = 'npm';
   providers: Record<string, string>;
   resolutions: Record<string, string>;
   log: Log;
   resolver: Resolver;
 
-  constructor(
-    baseUrl: `${string}/`,
-    opts: InstallerOptions,
-    log: Log,
-    resolver: Resolver
-  ) {
+  constructor(baseUrl: `${string}/`, opts: InstallerOptions, log: Log, resolver: Resolver) {
     this.log = log;
     this.resolver = resolver;
     this.resolver.installer = this;
@@ -126,32 +117,27 @@ export class Installer {
     this.installs = opts.lock || {
       primary: Object.create(null),
       secondary: Object.create(null),
-      flattened: Object.create(null),
+      flattened: Object.create(null)
     };
     this.constraints = {
       primary: Object.create(null),
-      secondary: Object.create(null),
+      secondary: Object.create(null)
     };
     if (opts.defaultRegistry) this.defaultRegistry = opts.defaultRegistry;
-    if (opts.defaultProvider)
-      this.defaultProvider = parseProviderStr(opts.defaultProvider);
+    if (opts.defaultProvider) this.defaultProvider = parseProviderStr(opts.defaultProvider);
     this.providers = Object.assign({}, registryProviders);
 
     // TODO: this is a hack, as we currently don't have proper support for
     // providers owning particular registries. The proper way to do this would
     // be to have each provider declare what registries it supports, and
     // construct a providers mapping at init when we detect default provider:
-    if (opts.defaultProvider.includes("deno"))
-      this.providers["npm:"] ??= "jspm.io";
+    if (opts.defaultProvider.includes('deno')) this.providers['npm:'] ??= 'jspm.io';
 
     if (opts.providers) Object.assign(this.providers, opts.providers);
   }
 
   visitInstalls(
-    visitor: (
-      scope: Record<string, InstalledResolution>,
-      scopeUrl: string | null
-    ) => boolean | void
+    visitor: (scope: Record<string, InstalledResolution>, scopeUrl: string | null) => boolean | void
   ) {
     if (visitor(this.installs.primary, null)) return;
     for (const scopeUrl of Object.keys(this.installs.secondary)) {
@@ -163,10 +149,9 @@ export class Installer {
     let provider = this.defaultProvider;
     for (const name of Object.keys(this.providers)) {
       if (
-        (name.endsWith(":") && target.registry === name.slice(0, -1)) ||
+        (name.endsWith(':') && target.registry === name.slice(0, -1)) ||
         (target.name.startsWith(name) &&
-          (target.name.length === name.length ||
-            target.name[name.length] === "/"))
+          (target.name.length === name.length || target.name[name.length] === '/'))
       ) {
         provider = parseProviderStr(this.providers[name]);
         break;
@@ -189,15 +174,14 @@ export class Installer {
   async installTarget(
     pkgName: string,
     { pkgTarget, installSubpath }: InstallTarget,
-    traceSubpath: `./${string}` | ".",
+    traceSubpath: `./${string}` | '.',
     mode: InstallMode,
     pkgScope: `${string}/` | null,
     parentUrl: string
   ): Promise<InstalledResolution> {
     const isTopLevel = pkgScope === null;
     const useLatest =
-      (isTopLevel && mode.includes("latest")) ||
-      (!isTopLevel && mode === "latest-all");
+      (isTopLevel && mode.includes('latest')) || (!isTopLevel && mode === 'latest-all');
 
     // Resolutions are always authoritative, and override the existing target:
     if (this.resolutions[pkgName]) {
@@ -208,9 +192,7 @@ export class Installer {
         pkgName
       );
       resolutionTarget.installSubpath = installSubpath;
-      if (
-        JSON.stringify(pkgTarget) !== JSON.stringify(resolutionTarget.pkgTarget)
-      )
+      if (JSON.stringify(pkgTarget) !== JSON.stringify(resolutionTarget.pkgTarget))
         return this.installTarget(
           pkgName,
           resolutionTarget,
@@ -225,13 +207,9 @@ export class Installer {
     // information to work with:
     if (pkgTarget instanceof URL) {
       const installHref = pkgTarget.href;
-      const installUrl = (installHref +
-        (installHref.endsWith("/") ? "" : "/")) as `${string}/`;
+      const installUrl = (installHref + (installHref.endsWith('/') ? '' : '/')) as `${string}/`;
 
-      this.log(
-        "installer/installTarget",
-        `${pkgName} ${pkgScope} -> ${installHref} (URL)`
-      );
+      this.log('installer/installTarget', `${pkgName} ${pkgScope} -> ${installHref} (URL)`);
 
       this.newInstalls = setResolution(
         this.installs,
@@ -247,18 +225,14 @@ export class Installer {
 
     // Look for an existing lock for this package if we're in an install mode
     // that supports them:
-    if (mode === "default" || mode === "freeze" || !useLatest) {
+    if (mode === 'default' || mode === 'freeze' || !useLatest) {
       const pkg = await this.getBestExistingMatch(pkgTarget);
       if (pkg) {
         this.log(
-          "installer/installTarget",
+          'installer/installTarget',
           `${pkgName} ${pkgScope} -> ${JSON.stringify(pkg)} (existing match)`
         );
-        const installUrl = await this.resolver.pm.pkgToUrl(
-          pkg,
-          provider.provider,
-          provider.layer
-        );
+        const installUrl = await this.resolver.pm.pkgToUrl(pkg, provider.provider, provider.layer);
         this.newInstalls = setResolution(
           this.installs,
           pkgName,
@@ -277,22 +251,14 @@ export class Installer {
       parentUrl,
       this.resolver
     );
-    const pkgUrl = await this.resolver.pm.pkgToUrl(
-      latestPkg,
-      provider.provider,
-      provider.layer
-    );
-    const installed = getConstraintFor(
-      latestPkg.name,
-      latestPkg.registry,
-      this.constraints
-    );
+    const pkgUrl = await this.resolver.pm.pkgToUrl(latestPkg, provider.provider, provider.layer);
+    const installed = getConstraintFor(latestPkg.name, latestPkg.registry, this.constraints);
 
     // If this is a secondary install, then we ideally want to upgrade all
     // existing locks on this package to latest and use that. If there's a
     // constraint and we can't, then we fallback to the best existing lock:
     if (
-      mode !== "freeze" &&
+      mode !== 'freeze' &&
       !useLatest &&
       !isTopLevel &&
       latestPkg &&
@@ -302,16 +268,10 @@ export class Installer {
       // cannot upgrade to latest -> stick with existing resolution (if compatible)
       if (pkg) {
         this.log(
-          "installer/installTarget",
-          `${pkgName} ${pkgScope} -> ${JSON.stringify(
-            latestPkg
-          )} (existing match not latest)`
+          'installer/installTarget',
+          `${pkgName} ${pkgScope} -> ${JSON.stringify(latestPkg)} (existing match not latest)`
         );
-        const installUrl = await this.resolver.pm.pkgToUrl(
-          pkg,
-          provider.provider,
-          provider.layer
-        );
+        const installUrl = await this.resolver.pm.pkgToUrl(pkg, provider.provider, provider.layer);
         this.newInstalls = setResolution(
           this.installs,
           pkgName,
@@ -327,21 +287,14 @@ export class Installer {
     // Otherwise we install latest and make an attempt to upgrade any existing
     // locks that are compatible to the latest version:
     this.log(
-      "installer/installTarget",
+      'installer/installTarget',
       `${pkgName} ${pkgScope} -> ${pkgUrl} ${
-        installSubpath ? installSubpath : "<no-subpath>"
+        installSubpath ? installSubpath : '<no-subpath>'
       } (latest)`
     );
-    this.newInstalls = setResolution(
-      this.installs,
-      pkgName,
-      pkgUrl,
-      pkgScope,
-      installSubpath
-    );
+    this.newInstalls = setResolution(this.installs, pkgName, pkgUrl, pkgScope, installSubpath);
     setConstraint(this.constraints, pkgName, pkgTarget, pkgScope);
-    if (mode !== "freeze")
-      this.upgradeSupportedTo(latestPkg, pkgUrl, installed);
+    if (mode !== 'freeze') this.upgradeSupportedTo(latestPkg, pkgUrl, installed);
     return { installUrl: pkgUrl, installSubpath };
   }
 
@@ -359,13 +312,10 @@ export class Installer {
     pkgName: string,
     mode: InstallMode,
     pkgScope: `${string}/` | null = null,
-    traceSubpath: `./${string}` | ".",
+    traceSubpath: `./${string}` | '.',
     parentUrl: string = this.installBaseUrl
   ): Promise<string | InstalledResolution> {
-    this.log(
-      "installer/install",
-      `installing ${pkgName} from ${parentUrl} in scope ${pkgScope}`
-    );
+    this.log('installer/install', `installing ${pkgName} from ${parentUrl} in scope ${pkgScope}`);
 
     // Anything installed in the scope of the installer's base URL is treated
     // as top-level, and hits the primary locks. Anything else is treated as
@@ -389,10 +339,8 @@ export class Installer {
       );
 
     // Fetch the current scope's pjson:
-    const definitelyPkgScope =
-      pkgScope || (await this.resolver.getPackageBase(parentUrl));
-    const pcfg =
-      (await this.resolver.getPackageConfig(definitelyPkgScope)) || {};
+    const definitelyPkgScope = pkgScope || (await this.resolver.getPackageBase(parentUrl));
+    const pcfg = (await this.resolver.getPackageConfig(definitelyPkgScope)) || {};
 
     // By default, we take an install target from the current scope's pjson:
     const pjsonTargetStr =
@@ -402,37 +350,24 @@ export class Installer {
       (isTopLevel && pcfg.devDependencies?.[pkgName]);
     const pjsonTarget =
       pjsonTargetStr &&
-      newPackageTarget(
-        pjsonTargetStr,
-        new URL(definitelyPkgScope),
-        this.defaultRegistry,
-        pkgName
-      );
+      newPackageTarget(pjsonTargetStr, new URL(definitelyPkgScope), this.defaultRegistry, pkgName);
 
     const useLatestPjsonTarget =
       !!pjsonTarget &&
-      ((isTopLevel && mode.includes("latest")) ||
-        (!isTopLevel && mode === "latest-all"));
+      ((isTopLevel && mode.includes('latest')) || (!isTopLevel && mode === 'latest-all'));
 
     // Find any existing locks in the current package scope, making sure
     // locks are always in-range for their parent scope pjsons:
-    const existingResolution = getResolution(
-      this.installs,
-      pkgName,
-      isTopLevel ? null : pkgScope
-    );
+    const existingResolution = getResolution(this.installs, pkgName, isTopLevel ? null : pkgScope);
     if (
       !useLatestPjsonTarget &&
       existingResolution &&
       (isTopLevel ||
-        mode === "freeze" ||
-        (await this.inRange(
-          existingResolution.installUrl,
-          pjsonTarget.pkgTarget
-        )))
+        mode === 'freeze' ||
+        (await this.inRange(existingResolution.installUrl, pjsonTarget.pkgTarget)))
     ) {
       this.log(
-        "installer/install",
+        'installer/install',
         `existing lock for ${pkgName} from ${parentUrl} in scope ${pkgScope} is ${JSON.stringify(
           existingResolution
         )}`
@@ -454,11 +389,8 @@ export class Installer {
       if (
         !useLatestPjsonTarget &&
         flattenedResolution &&
-        (mode === "freeze" ||
-          (await this.inRange(
-            flattenedResolution.installUrl,
-            pjsonTarget.pkgTarget
-          )))
+        (mode === 'freeze' ||
+          (await this.inRange(flattenedResolution.installUrl, pjsonTarget.pkgTarget)))
       ) {
         this.newInstalls = setResolution(
           this.installs,
@@ -484,10 +416,10 @@ export class Installer {
     }
 
     // Try resolve the package as a built-in:
-    const specifier = pkgName + (traceSubpath ? traceSubpath.slice(1) : "");
+    const specifier = pkgName + (traceSubpath ? traceSubpath.slice(1) : '');
     const builtin = this.resolver.resolveBuiltin(specifier);
     if (builtin) {
-      if (typeof builtin === "string") return builtin;
+      if (typeof builtin === 'string') return builtin;
       return this.installTarget(
         specifier,
         // TODO: either change the types so resolveBuiltin always returns a
@@ -508,7 +440,7 @@ export class Installer {
 
     // global install fallback
     const target = newPackageTarget(
-      "*",
+      '*',
       new URL(definitelyPkgScope),
       this.defaultRegistry,
       pkgName
@@ -530,20 +462,14 @@ export class Installer {
     for (const pkgUrl of Object.values(this.installs.primary)) {
       pkgUrls.add(pkgUrl.installUrl);
     }
-    for (const scope of Object.keys(
-      this.installs.secondary
-    ) as `${string}/`[]) {
-      for (const { installUrl } of Object.values(
-        this.installs.secondary[scope]
-      )) {
+    for (const scope of Object.keys(this.installs.secondary) as `${string}/`[]) {
+      for (const { installUrl } of Object.values(this.installs.secondary[scope])) {
         pkgUrls.add(installUrl);
       }
     }
-    for (const flatScope of Object.keys(
-      this.installs.flattened
-    ) as `${string}/`[]) {
+    for (const flatScope of Object.keys(this.installs.flattened) as `${string}/`[]) {
       for (const {
-        resolution: { installUrl },
+        resolution: { installUrl }
       } of Object.values(this.installs.flattened[flatScope]).flat()) {
         pkgUrls.add(installUrl);
       }
@@ -551,17 +477,14 @@ export class Installer {
     return pkgUrls;
   }
 
-  private async getBestExistingMatch(
-    matchPkg: PackageTarget
-  ): Promise<ExactPackage | null> {
+  private async getBestExistingMatch(matchPkg: PackageTarget): Promise<ExactPackage | null> {
     let bestMatch: ExactPackage | null = null;
     for (const pkgUrl of this.pkgUrls) {
       const pkg = await this.resolver.pm.parseUrlPkg(pkgUrl);
       if (pkg && (await this.inRange(pkg.pkg, matchPkg))) {
         if (bestMatch)
           bestMatch =
-            Semver.compare(new Semver(bestMatch.version), pkg.pkg.version) ===
-            -1
+            Semver.compare(new Semver(bestMatch.version), pkg.pkg.version) === -1
               ? pkg.pkg
               : bestMatch;
         else bestMatch = pkg.pkg;
@@ -570,23 +493,17 @@ export class Installer {
     return bestMatch;
   }
 
-  private async inRange(
-    pkg: ExactPackage | string,
-    target: PackageTarget | URL | null
-  ) {
+  private async inRange(pkg: ExactPackage | string, target: PackageTarget | URL | null) {
     // URL|null targets don't have ranges, so nothing is in-range for them:
     if (!target || target instanceof URL) return false;
 
-    const pkgExact =
-      typeof pkg === "string"
-        ? (await this.resolver.pm.parseUrlPkg(pkg))?.pkg
-        : pkg;
+    const pkgExact = typeof pkg === 'string' ? (await this.resolver.pm.parseUrlPkg(pkg))?.pkg : pkg;
     if (!pkgExact) return false;
 
     return (
       pkgExact.registry === target.registry &&
       pkgExact.name === target.name &&
-      target.ranges.some((range) => range.has(pkgExact.version, true))
+      target.ranges.some(range => range.has(pkgExact.version, true))
     );
   }
 
@@ -600,8 +517,7 @@ export class Installer {
 
     let allCompatible = true;
     for (const { ranges } of installed) {
-      if (ranges.every((range) => !range.has(pkgVersion)))
-        allCompatible = false;
+      if (ranges.every(range => !range.has(pkgVersion))) allCompatible = false;
     }
 
     if (!allCompatible) return false;
@@ -611,13 +527,7 @@ export class Installer {
       const resolution = getResolution(this.installs, alias, pkgScope);
       if (!resolution) continue;
       const { installSubpath } = resolution;
-      this.newInstalls = setResolution(
-        this.installs,
-        alias,
-        pkgUrl,
-        pkgScope,
-        installSubpath
-      );
+      this.newInstalls = setResolution(this.installs, alias, pkgUrl, pkgScope, installSubpath);
     }
 
     return true;
@@ -633,23 +543,17 @@ export class Installer {
     for (const { alias, pkgScope, ranges } of installed) {
       const resolution = getResolution(this.installs, alias, pkgScope);
       if (!resolution) continue;
-      if (!ranges.some((range) => range.has(pkgVersion, true))) continue;
+      if (!ranges.some(range => range.has(pkgVersion, true))) continue;
       const { installSubpath } = resolution;
-      this.newInstalls = setResolution(
-        this.installs,
-        alias,
-        pkgUrl,
-        pkgScope,
-        installSubpath
-      );
+      this.newInstalls = setResolution(this.installs, alias, pkgUrl, pkgScope, installSubpath);
     }
   }
 }
 
 function parseProviderStr(provider: string): PackageProvider {
-  const split = provider.split("#");
+  const split = provider.split('#');
   return {
     provider: split[0],
-    layer: split[1] || "default",
+    layer: split[1] || 'default'
   };
 }

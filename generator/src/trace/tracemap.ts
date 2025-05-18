@@ -1,38 +1,18 @@
-import {
-  type InstallerOptions,
-  InstallTarget,
-  InstallMode,
-} from "../install/installer.js";
-import {
-  importedFrom,
-  isFetchProtocol,
-  isPlain,
-  isURL,
-  resolveUrl,
-} from "../common/url.js";
-import { Installer } from "../install/installer.js";
-import { JspmError, throwInternalError } from "../common/err.js";
-import { parsePkg } from "../install/package.js";
+import { type InstallerOptions, InstallTarget, InstallMode } from '../install/installer.js';
+import { importedFrom, isFetchProtocol, isPlain, isURL, resolveUrl } from '../common/url.js';
+import { Installer } from '../install/installer.js';
+import { JspmError, throwInternalError } from '../common/err.js';
+import { parsePkg } from '../install/package.js';
 // @ts-ignore
-import {
-  ImportMap,
-  IImportMap,
-  getMapMatch,
-  getScopeMatches,
-} from "@jspm/import-map";
-import {
-  isBuiltinScheme,
-  isMappableScheme,
-  Resolver,
-  TraceEntry,
-} from "./resolver.js";
-import { Log } from "../common/log.js";
+import { ImportMap, IImportMap, getMapMatch, getScopeMatches } from '@jspm/import-map';
+import { isBuiltinScheme, isMappableScheme, Resolver, TraceEntry } from './resolver.js';
+import { Log } from '../common/log.js';
 import {
   mergeConstraints,
   mergeLocks,
   extractLockConstraintsAndMap,
-  InstalledResolution,
-} from "../install/lock.js";
+  InstalledResolution
+} from '../install/lock.js';
 
 // TODO: options as trace-specific / stored as top-level per top-level load
 export interface TraceMapOptions extends InstallerOptions {
@@ -77,14 +57,11 @@ interface VisitOpts {
 }
 
 function combineSubpaths(
-  installSubpath: "." | `./${string}` | null,
-  traceSubpath: "." | `./${string}`
-): `./${string}` | "." {
-  if (traceSubpath.endsWith("/"))
-    throw new Error("Trailing slash subpaths unsupported");
-  return installSubpath === null ||
-    installSubpath === "." ||
-    traceSubpath === "."
+  installSubpath: '.' | `./${string}` | null,
+  traceSubpath: '.' | `./${string}`
+): `./${string}` | '.' {
+  if (traceSubpath.endsWith('/')) throw new Error('Trailing slash subpaths unsupported');
+  return installSubpath === null || installSubpath === '.' || traceSubpath === '.'
     ? installSubpath || traceSubpath
     : `${installSubpath}${traceSubpath.slice(1)}`;
 }
@@ -116,10 +93,10 @@ export default class TraceMap {
     this.opts = opts;
     this.inputMap = new ImportMap({
       mapUrl: this.mapUrl,
-      rootUrl: this.rootUrl,
+      rootUrl: this.rootUrl
     });
     this.installer = new Installer(
-      this.mapUrl.pathname.endsWith("/")
+      this.mapUrl.pathname.endsWith('/')
         ? (this.mapUrl.href as `${string}/`)
         : `${this.mapUrl.href}/`,
       this.opts,
@@ -137,10 +114,7 @@ export default class TraceMap {
     // Note: integrity is currently ignored for inputMaps, instead integrity
     // is always trusted at generation time.
     return (this.processInputMap = this.processInputMap.then(async () => {
-      const inMap = new ImportMap({ map, mapUrl, rootUrl }).rebase(
-        this.mapUrl,
-        this.rootUrl
-      );
+      const inMap = new ImportMap({ map, mapUrl, rootUrl }).rebase(this.mapUrl, this.rootUrl);
       const pins = Object.keys(inMap.imports || []);
       for (const pin of pins) {
         if (!this.pins.includes(pin)) this.pins.push(pin);
@@ -168,35 +142,25 @@ export default class TraceMap {
    * @param {} parentUrl URL of the parent context for the specifier.
    * @param {} seen Cache for optimisation.
    */
-  async visit(
-    specifier: string,
-    opts: VisitOpts,
-    parentUrl = this.baseUrl.href,
-    seen = new Set()
-  ) {
-    if (!parentUrl) throw new Error("Internal error: expected parentUrl");
+  async visit(specifier: string, opts: VisitOpts, parentUrl = this.baseUrl.href, seen = new Set()) {
+    if (!parentUrl) throw new Error('Internal error: expected parentUrl');
     if (this.opts.ignore?.includes(specifier)) return;
 
     if (seen.has(`${specifier}##${parentUrl}`)) return;
     seen.add(`${specifier}##${parentUrl}`);
 
     this.log(
-      "tracemap/visit",
+      'tracemap/visit',
       `Attempting to resolve ${specifier} to a module from ${parentUrl}, toplevel=${opts.toplevel}, mode=${opts.installMode}`
     );
-    const resolved = await this.resolve(
-      specifier,
-      parentUrl,
-      opts.installMode,
-      opts.toplevel
-    );
+    const resolved = await this.resolve(specifier, parentUrl, opts.installMode, opts.toplevel);
 
     // We support analysis of CommonJS modules for local workflows, where it's
     // very likely that the user has some CommonJS dependencies, but this is
     // something that the user has to explicitly enable:
     if (isBuiltinScheme(resolved)) return null;
 
-    if (resolved.endsWith("/"))
+    if (resolved.endsWith('/'))
       throw new JspmError(
         `Trailing "/" installs not supported installing ${resolved} for ${parentUrl}`
       );
@@ -204,34 +168,21 @@ export default class TraceMap {
       var entry = await this.resolver.analyze(resolved);
     } catch (e) {
       if (e instanceof JspmError)
-        throw new Error(
-          `Unable to analyze ${resolved} imported from ${parentUrl}: ${e.message}`
-        );
+        throw new Error(`Unable to analyze ${resolved} imported from ${parentUrl}: ${e.message}`);
       else
-        throw new Error(
-          `Unable to analyze ${resolved} imported from ${parentUrl}`,
-          { cause: e }
-        );
+        throw new Error(`Unable to analyze ${resolved} imported from ${parentUrl}`, { cause: e });
     }
     if (entry === null) {
-      throw new Error(
-        `Module not found ${resolved} imported from ${parentUrl}`
-      );
+      throw new Error(`Module not found ${resolved} imported from ${parentUrl}`);
     }
-    if (entry?.format === "commonjs" && entry.usesCjs && !this.opts.commonJS) {
+    if (entry?.format === 'commonjs' && entry.usesCjs && !this.opts.commonJS) {
       throw new JspmError(
         `Unable to trace ${resolved}, as it is a CommonJS module. Either enable CommonJS tracing explicitly by setting "GeneratorOptions.commonJS" to true, or use a provider that performs ESM transpiling like jspm.io via defaultProvider: 'jspm.io'.`
       );
     }
 
     if (opts.visitor) {
-      const stop = await opts.visitor(
-        specifier,
-        parentUrl,
-        resolved,
-        opts.toplevel,
-        entry
-      );
+      const stop = await opts.visitor(specifier, parentUrl, resolved, opts.toplevel, entry);
       if (stop) return;
     }
 
@@ -254,10 +205,10 @@ export default class TraceMap {
     }
 
     await Promise.all(
-      allDeps.map(async (dep) => {
+      allDeps.map(async dep => {
         // Special wildcard tracing syntax for dynamic imports, todo
-        if (dep.indexOf("\x10") !== -1) {
-          this.log("todo", "Handle wildcard trace " + dep + " in " + resolved);
+        if (dep.indexOf('\x10') !== -1) {
+          this.log('todo', 'Handle wildcard trace ' + dep + ' in ' + resolved);
           return;
         }
         await this.visit(dep, opts, resolved, seen);
@@ -296,8 +247,7 @@ export default class TraceMap {
           const existing = map.imports[specifier];
           if (
             !existing ||
-            (existing !== resolved &&
-              this.resolver.getAnalysis(parentUrl)?.wasCjs)
+            (existing !== resolved && this.resolver.getAnalysis(parentUrl)?.wasCjs)
           ) {
             map.set(specifier, resolved);
           }
@@ -308,10 +258,7 @@ export default class TraceMap {
           const existing = map.scopes[scopeUrl]?.[specifier];
           if (!existing) {
             map.set(specifier, resolved, scopeUrl);
-          } else if (
-            existing !== resolved &&
-            map.scopes[parentUrl]?.[specifier] !== resolved
-          ) {
+          } else if (existing !== resolved && map.scopes[parentUrl]?.[specifier] !== resolved) {
             map.set(specifier, resolved, parentUrl);
           }
         }
@@ -320,14 +267,14 @@ export default class TraceMap {
 
     const seen = new Set();
     await Promise.all(
-      modules.map(async (module) => {
+      modules.map(async module => {
         await this.visit(
           module,
           {
             static: true,
             visitor,
-            installMode: "freeze",
-            toplevel: true,
+            installMode: 'freeze',
+            toplevel: true
           },
           this.baseUrl.href,
           seen
@@ -340,7 +287,7 @@ export default class TraceMap {
       dynamics.map(async ([specifier, parent]) => {
         await this.visit(
           specifier,
-          { visitor, installMode: "freeze", toplevel: false },
+          { visitor, installMode: 'freeze', toplevel: false },
           parent,
           seen
         );
@@ -355,23 +302,12 @@ export default class TraceMap {
     return {
       map,
       staticDeps: [...staticList] as string[],
-      dynamicDeps: [...dynamicList] as string[],
+      dynamicDeps: [...dynamicList] as string[]
     };
   }
 
-  async add(
-    name: string,
-    target: InstallTarget,
-    opts: InstallMode
-  ): Promise<InstalledResolution> {
-    return await this.installer.installTarget(
-      name,
-      target,
-      null,
-      opts,
-      null,
-      this.mapUrl.href
-    );
+  async add(name: string, target: InstallTarget, opts: InstallMode): Promise<InstalledResolution> {
+    return await this.installer.installTarget(name, target, null, opts, null, this.mapUrl.href);
   }
 
   async resolve(
@@ -386,27 +322,17 @@ export default class TraceMap {
     const parentPkgUrl = await this.resolver.getPackageBase(parentUrl);
     if (!parentPkgUrl) throwInternalError();
 
-    const parentIsCjs = parentAnalysis?.format === "commonjs";
+    const parentIsCjs = parentAnalysis?.format === 'commonjs';
 
-    if (
-      (!isPlain(specifier) || specifier === "..") &&
-      !isMappableScheme(specifier)
-    ) {
+    if ((!isPlain(specifier) || specifier === '..') && !isMappableScheme(specifier)) {
       let resolvedUrl = new URL(specifier, parentUrl);
       if (!isFetchProtocol(resolvedUrl.protocol))
         throw new JspmError(
-          `Found unexpected protocol ${resolvedUrl.protocol}${importedFrom(
-            parentUrl
-          )}`
+          `Found unexpected protocol ${resolvedUrl.protocol}${importedFrom(parentUrl)}`
         );
       const resolvedHref = resolvedUrl.href;
       let finalized = await this.resolver.realPath(
-        await this.resolver.finalizeResolve(
-          resolvedHref,
-          parentIsCjs,
-          false,
-          parentPkgUrl
-        )
+        await this.resolver.finalizeResolve(resolvedHref, parentIsCjs, false, parentPkgUrl)
       );
 
       // handle URL mappings
@@ -414,52 +340,40 @@ export default class TraceMap {
       // TODO: avoid this hack - perhaps solved by conditional maps
       if (
         urlResolved !== finalized &&
-        !urlResolved.startsWith("node:") &&
-        !urlResolved.startsWith("deno:")
+        !urlResolved.startsWith('node:') &&
+        !urlResolved.startsWith('deno:')
       ) {
         finalized = urlResolved;
       }
       if (finalized !== resolvedHref) {
         // unless it is a package resolve operation
-        if (!finalized.endsWith("/"))
+        if (!finalized.endsWith('/'))
           this.inputMap.set(
-            resolvedHref.endsWith("/")
-              ? resolvedHref.slice(0, -1)
-              : resolvedHref,
+            resolvedHref.endsWith('/') ? resolvedHref.slice(0, -1) : resolvedHref,
             finalized
           );
         resolvedUrl = new URL(finalized);
       }
-      this.log(
-        "tracemap/resolve",
-        `${specifier} ${parentUrl} -> ${resolvedUrl} (URL resolution)`
-      );
+      this.log('tracemap/resolve', `${specifier} ${parentUrl} -> ${resolvedUrl} (URL resolution)`);
       return resolvedUrl.href;
     }
 
     // Subscope override
-    const scopeMatches = getScopeMatches(
-      parentUrl,
-      this.inputMap.scopes,
-      this.inputMap.mapUrl
-    );
-    const pkgSubscopes = scopeMatches.filter(([, url]) =>
-      url.startsWith(parentPkgUrl)
-    );
+    const scopeMatches = getScopeMatches(parentUrl, this.inputMap.scopes, this.inputMap.mapUrl);
+    const pkgSubscopes = scopeMatches.filter(([, url]) => url.startsWith(parentPkgUrl));
     if (pkgSubscopes.length) {
       for (const [scope] of pkgSubscopes) {
         const mapMatch = getMapMatch(specifier, this.inputMap.scopes[scope]);
         if (mapMatch) {
           const resolved = await this.resolver.realPath(
             resolveUrl(
-              this.inputMap.scopes[scope][mapMatch] +
-                specifier.slice(mapMatch.length),
+              this.inputMap.scopes[scope][mapMatch] + specifier.slice(mapMatch.length),
               this.inputMap.mapUrl,
               this.inputMap.rootUrl
             )
           );
           this.log(
-            "tracemap/resolve",
+            'tracemap/resolve',
             `${specifier} ${parentUrl} -> ${resolved} (subscope resolution)`
           );
           return resolved;
@@ -476,8 +390,7 @@ export default class TraceMap {
       const userImportsResolved = userImportsMatch
         ? await this.resolver.realPath(
             resolveUrl(
-              imports[userImportsMatch] +
-                specifier.slice(userImportsMatch.length),
+              imports[userImportsMatch] + specifier.slice(userImportsMatch.length),
               this.inputMap.mapUrl,
               this.inputMap.rootUrl
             )
@@ -485,7 +398,7 @@ export default class TraceMap {
         : null;
       if (userImportsResolved) {
         this.log(
-          "tracemap/resolve",
+          'tracemap/resolve',
           `${specifier} ${parentUrl} -> ${userImportsResolved} (scope resolution)`
         );
         return userImportsResolved;
@@ -497,8 +410,7 @@ export default class TraceMap {
     const userImportsResolved = userImportsMatch
       ? await this.resolver.realPath(
           resolveUrl(
-            this.inputMap.imports[userImportsMatch] +
-              specifier.slice(userImportsMatch.length),
+            this.inputMap.imports[userImportsMatch] + specifier.slice(userImportsMatch.length),
             this.inputMap.mapUrl,
             this.inputMap.rootUrl
           )
@@ -506,7 +418,7 @@ export default class TraceMap {
       : null;
     if (userImportsResolved) {
       this.log(
-        "tracemap/resolve",
+        'tracemap/resolve',
         `${specifier} ${parentUrl} -> ${userImportsResolved} (imports resolution)`
       );
       return userImportsResolved;
@@ -530,20 +442,18 @@ export default class TraceMap {
         )
       );
       this.log(
-        "tracemap/resolve",
+        'tracemap/resolve',
         `${specifier} ${parentUrl} -> ${resolved} (package own-name resolution)`
       );
       return resolved;
     }
 
     // Imports
-    if (pcfg.imports && pkgName[0] === "#") {
+    if (pcfg.imports && pkgName[0] === '#') {
       const match = getMapMatch(specifier, pcfg.imports);
       if (!match)
         throw new JspmError(
-          `No '${specifier}' import defined in ${parentPkgUrl}${importedFrom(
-            parentUrl
-          )}.`
+          `No '${specifier}' import defined in ${parentPkgUrl}${importedFrom(parentUrl)}.`
         );
       const target = this.resolver.resolvePackageTarget(
         pcfg.imports[match],
@@ -557,7 +467,7 @@ export default class TraceMap {
       }
       const resolved = await this.resolver.realPath(target);
       this.log(
-        "tracemap/resolve",
+        'tracemap/resolve',
         `${specifier} ${parentUrl} -> ${resolved} (package imports resolution)`
       );
       return resolved;
@@ -571,7 +481,7 @@ export default class TraceMap {
       subpath,
       parentUrl
     );
-    if (typeof installed === "string") {
+    if (typeof installed === 'string') {
       return installed;
     } else if (installed) {
       const { installUrl, installSubpath } = installed;
@@ -580,9 +490,7 @@ export default class TraceMap {
           installUrl,
           combineSubpaths(
             installSubpath,
-            parentIsCjs && subpath.endsWith("/")
-              ? (subpath.slice(0, -1) as `./${string}`)
-              : subpath
+            parentIsCjs && subpath.endsWith('/') ? (subpath.slice(0, -1) as `./${string}`) : subpath
           ),
           cjsEnv,
           parentIsCjs,
@@ -591,14 +499,12 @@ export default class TraceMap {
         )
       );
       this.log(
-        "tracemap/resolve",
+        'tracemap/resolve',
         `${specifier} ${parentUrl} -> ${resolved} (installation resolution)`
       );
       return resolved;
     }
 
-    throw new JspmError(
-      `No resolution in map for ${specifier}${importedFrom(parentUrl)}`
-    );
+    throw new JspmError(`No resolution in map for ${specifier}${importedFrom(parentUrl)}`);
   }
 }

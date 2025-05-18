@@ -1,12 +1,12 @@
-import { JspmError } from "../common/err.js";
-import { importedFrom } from "../common/url.js";
-import { ExactPackage, LatestPackageTarget } from "../install/package.js";
-import { ProviderContext } from "./index.js";
-import { fetchVersions } from "./jspm.js";
+import { JspmError } from '../common/err.js';
+import { importedFrom } from '../common/url.js';
+import { ExactPackage, LatestPackageTarget } from '../install/package.js';
+import { ProviderContext } from './index.js';
+import { fetchVersions } from './jspm.js';
 // @ts-ignore
-import { SemverRange } from "sver";
+import { SemverRange } from 'sver';
 
-const cdnUrl = "https://cdn.skypack.dev/";
+const cdnUrl = 'https://cdn.skypack.dev/';
 
 export async function pkgToUrl(pkg: ExactPackage): Promise<`${string}/`> {
   return `${cdnUrl}${pkg.name}@${pkg.version}/`;
@@ -18,7 +18,7 @@ export function parseUrlPkg(url: string) {
   if (!url.startsWith(cdnUrl)) return;
   const [, name, version] = url.slice(cdnUrl.length).match(exactPkgRegEx) || [];
   if (!name || !version) return;
-  return { registry: "npm", name, version };
+  return { registry: 'npm', name, version };
 }
 
 export async function resolveLatestTarget(
@@ -29,14 +29,12 @@ export async function resolveLatestTarget(
 ): Promise<ExactPackage | null> {
   const { registry, name, range, unstable } = target;
   const versions = await fetchVersions.call(this, name);
-  const semverRange = new SemverRange(String(range) || "*", unstable);
+  const semverRange = new SemverRange(String(range) || '*', unstable);
   const version = semverRange.bestMatch(versions, unstable);
   if (version) {
     return { registry, name, version: version.toString() };
   }
   throw new JspmError(
-    `Unable to resolve ${registry}:${name}@${range} to a valid version${importedFrom(
-      parentUrl
-    )}`
+    `Unable to resolve ${registry}:${name}@${range} to a valid version${importedFrom(parentUrl)}`
   );
 }

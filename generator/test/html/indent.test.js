@@ -1,17 +1,17 @@
-import { Generator } from "@jspm/generator";
-import assert from "assert";
-import { SemverRange } from "sver";
+import { Generator } from '@jspm/generator';
+import assert from 'assert';
+import { SemverRange } from 'sver';
 
 let generator = new Generator({
-  rootUrl: new URL("./local", import.meta.url),
-  env: ["production", "browser"],
+  rootUrl: new URL('./local', import.meta.url),
+  env: ['production', 'browser'],
   resolutions: {
-    react: "17",
-  },
+    react: '17'
+  }
 });
 
 const esmsPkg = await generator.traceMap.resolver.pm.resolveLatestTarget(
-  { name: "es-module-shims", registry: "npm", ranges: [new SemverRange("*")] },
+  { name: 'es-module-shims', registry: 'npm', ranges: [new SemverRange('*')] },
   generator.traceMap.installer.defaultProvider,
   undefined,
   generator.traceMap.resolver
@@ -22,15 +22,15 @@ const esmsUrl =
     esmsPkg,
     generator.traceMap.installer.defaultProvider.provider,
     generator.traceMap.installer.defaultProvider.layer
-  )) + "dist/es-module-shims.js";
+  )) + 'dist/es-module-shims.js';
 
 async function checkIndent(html, expected) {
   generator = new Generator({
-    rootUrl: new URL("./local", import.meta.url),
-    env: ["production", "browser"],
+    rootUrl: new URL('./local', import.meta.url),
+    env: ['production', 'browser'],
     resolutions: {
-      react: "17",
-    },
+      react: '17'
+    }
   });
 
   const pins = await generator.addMappings(html);

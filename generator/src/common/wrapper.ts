@@ -1,5 +1,5 @@
-import { fetch } from "../common/fetch.js";
-import { parse, init } from "es-module-lexer";
+import { fetch } from '../common/fetch.js';
+import { parse, init } from 'es-module-lexer';
 
 export async function getMaybeWrapperUrl(moduleUrl, fetchOpts) {
   await init;

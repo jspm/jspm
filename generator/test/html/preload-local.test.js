@@ -1,13 +1,13 @@
-import { Generator } from "@jspm/generator";
-import assert from "assert";
-import { fileURLToPath } from "url";
+import { Generator } from '@jspm/generator';
+import assert from 'assert';
+import { fileURLToPath } from 'url';
 
 const generator = new Generator({
   mapUrl: import.meta.url,
-  defaultProvider: "nodemodules",
+  defaultProvider: 'nodemodules'
 });
 
-const htmlUrl = new URL("./preload-local/index.html", import.meta.url);
+const htmlUrl = new URL('./preload-local/index.html', import.meta.url);
 const html = `
 <!doctype html>
 <html>
@@ -30,10 +30,10 @@ const result = await generator.htmlInject(html, {
   pins,
   htmlUrl,
   preload: true,
-  esModuleShims: false,
+  esModuleShims: false
 });
 
-const root = new URL("../..", import.meta.url);
+const root = new URL('../..', import.meta.url);
 const re = /"modulepreload" *href="(.*)"/g;
 const preloads = result.matchAll(re);
 for (const preload of preloads) {

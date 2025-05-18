@@ -1,11 +1,11 @@
-import { Generator } from "@jspm/generator";
-import assert from "assert";
+import { Generator } from '@jspm/generator';
+import assert from 'assert';
 
 const generator = new Generator({
-  mapUrl: import.meta.url,
+  mapUrl: import.meta.url
 });
 
-await generator.install("object-inspect@1.12.0");
+await generator.install('object-inspect@1.12.0');
 
 const json = generator.getMap();
 

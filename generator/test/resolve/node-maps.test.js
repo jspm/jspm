@@ -1,15 +1,12 @@
-import { Generator } from "@jspm/generator";
-import assert from "assert";
+import { Generator } from '@jspm/generator';
+import assert from 'assert';
 
 const generator = new Generator({
-  env: ["node", "development"],
+  env: ['node', 'development']
 });
 
-await generator.install("react-dom");
+await generator.install('react-dom');
 
 const json = generator.getMap();
 
-assert.strictEqual(
-  json.scopes["https://ga.jspm.io/"]["node:process"],
-  undefined
-);
+assert.strictEqual(json.scopes['https://ga.jspm.io/']['node:process'], undefined);

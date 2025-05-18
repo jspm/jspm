@@ -1,6 +1,6 @@
 export function createLogger() {
   let resolveQueue: () => void;
-  let queuePromise = new Promise<void>((resolve) => (resolveQueue = resolve));
+  let queuePromise = new Promise<void>(resolve => (resolveQueue = resolve));
   let queue: { type: string; message: string }[] = [];
 
   const logStream = async function* () {
@@ -16,7 +16,7 @@ export function createLogger() {
     } else {
       queue = [{ type, message }];
       const _resolveQueue = resolveQueue;
-      queuePromise = new Promise<void>((resolve) => (resolveQueue = resolve));
+      queuePromise = new Promise<void>(resolve => (resolveQueue = resolve));
       _resolveQueue();
     }
   }
@@ -33,8 +33,4 @@ export function createLogger() {
 }
 
 export type Log = (type: string, message: string) => void;
-export type LogStream = () => AsyncGenerator<
-  { type: string; message: string },
-  never,
-  unknown
->;
+export type LogStream = () => AsyncGenerator<{ type: string; message: string }, never, unknown>;

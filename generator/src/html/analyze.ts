@@ -1,12 +1,12 @@
-import { parseStyled } from "../common/json.js";
-import { defaultStyle, SourceStyle } from "../common/source-style.js";
-import { baseUrl, isPlain } from "../common/url.js";
-import { isWs, ParsedAttribute, ParsedTag, parseHtml } from "./lexer.js";
+import { parseStyled } from '../common/json.js';
+import { defaultStyle, SourceStyle } from '../common/source-style.js';
+import { baseUrl, isPlain } from '../common/url.js';
+import { isWs, ParsedAttribute, ParsedTag, parseHtml } from './lexer.js';
 // @ts-ignore
-import { parse } from "es-module-lexer/js";
+import { parse } from 'es-module-lexer/js';
 
 export interface HtmlAttr {
-  quote: '"' | "'" | "";
+  quote: '"' | "'" | '';
   name: string;
   value: string | null;
   start: number;
@@ -49,28 +49,23 @@ export interface HtmlTag {
 
 const esmsSrcRegEx = /(^|\/)(es-module-shims|esms)(\.min)?\.js$/;
 
-function toHtmlAttrs(
-  source: string,
-  attributes: ParsedAttribute[]
-): Record<string, HtmlAttr> {
+function toHtmlAttrs(source: string, attributes: ParsedAttribute[]): Record<string, HtmlAttr> {
   return Object.fromEntries(
-    attributes
-      .map((attr) => readAttr(source, attr))
-      .map((attr) => [attr.name, attr])
+    attributes.map(attr => readAttr(source, attr)).map(attr => [attr.name, attr])
   );
 }
 
 export function analyzeHtml(source: string, url: URL = baseUrl): HtmlAnalysis {
   const analysis: HtmlAnalysis = {
     base: url,
-    newlineTab: "\n",
+    newlineTab: '\n',
     map: {
       json: null,
       style: null,
       start: -1,
       end: -1,
       newScript: false,
-      attrs: null,
+      attrs: null
     },
     staticImports: new Set<string>(),
     dynamicImports: new Set<string>(),
@@ -79,31 +74,31 @@ export function analyzeHtml(source: string, url: URL = baseUrl): HtmlAnalysis {
     inlineModules: [],
     scripts: [],
     esModuleShims: null,
-    comments: [],
+    comments: []
   };
 
-  const tags = parseHtml(source, ["!--", "base", "script", "link"]);
+  const tags = parseHtml(source, ['!--', 'base', 'script', 'link']);
 
   let createdInjectionPoint = false;
   for (const tag of tags) {
     switch (tag.tagName) {
-      case "!--":
+      case '!--':
         analysis.comments.push({ start: tag.start, end: tag.end, attrs: {} });
         break;
 
-      case "base":
-        const href = getAttr(source, tag, "href");
+      case 'base':
+        const href = getAttr(source, tag, 'href');
         if (href) analysis.base = new URL(href, url);
         break;
 
-      case "script":
-        const type = getAttr(source, tag, "type");
-        if (type === "importmap") {
+      case 'script':
+        const type = getAttr(source, tag, 'type');
+        if (type === 'importmap') {
           const mapText = source.slice(tag.innerStart, tag.innerEnd);
           const emptyMap = mapText.trim().length === 0;
           const { json, style } = emptyMap
             ? { json: {}, style: defaultStyle }
-            : parseStyled(mapText, url.href + "#importmap");
+            : parseStyled(mapText, url.href + '#importmap');
           const { start, end } = tag;
           const attrs = toHtmlAttrs(source, tag.attributes);
 
@@ -112,64 +107,58 @@ export function analyzeHtml(source: string, url: URL = baseUrl): HtmlAnalysis {
           analysis.newlineTab = detectIndent(source, lastChar + 1);
           analysis.map = { json, style, start, end, attrs, newScript: false };
           createdInjectionPoint = true;
-        } else if (type === "module") {
-          const src = getAttr(source, tag, "src");
+        } else if (type === 'module') {
+          const src = getAttr(source, tag, 'src');
           if (src) {
             if (esmsSrcRegEx.test(src)) {
               analysis.esModuleShims = {
                 start: tag.start,
                 end: tag.end,
-                attrs: toHtmlAttrs(source, tag.attributes),
+                attrs: toHtmlAttrs(source, tag.attributes)
               };
             } else {
-              analysis.staticImports.add(isPlain(src) ? "./" + src : src);
+              analysis.staticImports.add(isPlain(src) ? './' + src : src);
               analysis.modules.push({
                 start: tag.start,
                 end: tag.end,
-                attrs: toHtmlAttrs(source, tag.attributes),
+                attrs: toHtmlAttrs(source, tag.attributes)
               });
             }
           } else {
-            const [imports, , facade] =
-              parse(source.slice(tag.innerStart, tag.innerEnd)) || [];
+            const [imports, , facade] = parse(source.slice(tag.innerStart, tag.innerEnd)) || [];
             for (const { n, d } of imports) {
               if (!n) continue;
-              (d === -1 ? analysis.staticImports : analysis.dynamicImports).add(
-                n
-              );
+              (d === -1 ? analysis.staticImports : analysis.dynamicImports).add(n);
             }
             if (!facade) {
               analysis.inlineModules.push({
                 start: tag.start,
                 end: tag.end,
-                attrs: toHtmlAttrs(source, tag.attributes),
+                attrs: toHtmlAttrs(source, tag.attributes)
               });
             }
           }
-        } else if (!type || type === "javascript") {
-          const src = getAttr(source, tag, "src");
+        } else if (!type || type === 'javascript') {
+          const src = getAttr(source, tag, 'src');
           if (src) {
             if (esmsSrcRegEx.test(src)) {
               analysis.esModuleShims = {
                 start: tag.start,
                 end: tag.end,
-                attrs: toHtmlAttrs(source, tag.attributes),
+                attrs: toHtmlAttrs(source, tag.attributes)
               };
             } else {
               analysis.scripts.push({
                 start: tag.start,
                 end: tag.end,
-                attrs: toHtmlAttrs(source, tag.attributes),
+                attrs: toHtmlAttrs(source, tag.attributes)
               });
             }
           } else {
-            const [imports] =
-              parse(source.slice(tag.innerStart, tag.innerEnd)) || [];
+            const [imports] = parse(source.slice(tag.innerStart, tag.innerEnd)) || [];
             for (const { n, d } of imports) {
               if (!n) continue;
-              (d === -1 ? analysis.staticImports : analysis.dynamicImports).add(
-                n
-              );
+              (d === -1 ? analysis.staticImports : analysis.dynamicImports).add(n);
             }
           }
         }
@@ -183,8 +172,8 @@ export function analyzeHtml(source: string, url: URL = baseUrl): HtmlAnalysis {
 
         break;
 
-      case "link":
-        if (getAttr(source, tag, "rel") === "modulepreload") {
+      case 'link':
+        if (getAttr(source, tag, 'rel') === 'modulepreload') {
           const { start, end } = tag;
           const attrs = toHtmlAttrs(source, tag.attributes);
           analysis.preloads.push({ start, end, attrs });
@@ -202,17 +191,11 @@ export function analyzeHtml(source: string, url: URL = baseUrl): HtmlAnalysis {
   // If we haven't found an existing import map to base the injection on, we
   // fall back to injecting into the head:
   if (!createdInjectionPoint) {
-    const head = parseHtml(source, ["head"])?.[0];
+    const head = parseHtml(source, ['head'])?.[0];
     if (head) {
       let injectionPoint = head.innerStart;
-      while (source[injectionPoint] !== "<") injectionPoint++;
-      createInjectionPoint(
-        source,
-        injectionPoint,
-        analysis.map,
-        head,
-        analysis
-      );
+      while (source[injectionPoint] !== '<') injectionPoint++;
+      createInjectionPoint(source, injectionPoint, analysis.map, head, analysis);
       createdInjectionPoint = true;
     }
   }
@@ -224,12 +207,12 @@ export function analyzeHtml(source: string, url: URL = baseUrl): HtmlAnalysis {
       source.length,
       analysis.map,
       {
-        tagName: "html",
+        tagName: 'html',
         start: source.length,
         end: source.length,
         attributes: [],
         innerStart: source.length,
-        innerEnd: source.length,
+        innerEnd: source.length
       },
       analysis
     );
@@ -248,7 +231,7 @@ function createInjectionPoint(
   let lastChar = injectionPoint;
   while (isWs(source.charCodeAt(--lastChar)));
   analysis.newlineTab = detectIndent(source, lastChar + 1);
-  if (analysis.newlineTab.indexOf("\n") === -1) {
+  if (analysis.newlineTab.indexOf('\n') === -1) {
     lastChar = tag.start;
     while (isWs(source.charCodeAt(--lastChar)));
     analysis.newlineTab = detectIndent(source, lastChar + 1);
@@ -266,20 +249,19 @@ function readAttr(
     start: nameStart,
     end: valueEnd !== -1 ? valueEnd : nameEnd,
     quote:
-      valueStart !== -1 &&
-      (source[valueStart - 1] === '"' || source[valueStart - 1] === "'")
+      valueStart !== -1 && (source[valueStart - 1] === '"' || source[valueStart - 1] === "'")
         ? (source[valueStart - 1] as '"' | "'")
-        : "",
+        : '',
     name: source.slice(nameStart, nameEnd),
-    value: valueStart === -1 ? null : source.slice(valueStart, valueEnd),
+    value: valueStart === -1 ? null : source.slice(valueStart, valueEnd)
   };
 }
 
 function detectIndent(source: string, atIndex: number) {
-  if (source === "" || atIndex === -1) return "";
+  if (source === '' || atIndex === -1) return '';
   const nlIndex = atIndex;
-  if (source[atIndex] === "\r" && source[atIndex + 1] === "\n") atIndex++;
-  if (source[atIndex] === "\n") atIndex++;
-  while (source[atIndex] === " " || source[atIndex] === "\t") atIndex++;
-  return source.slice(nlIndex, atIndex) || "";
+  if (source[atIndex] === '\r' && source[atIndex + 1] === '\n') atIndex++;
+  if (source[atIndex] === '\n') atIndex++;
+  while (source[atIndex] === ' ' || source[atIndex] === '\t') atIndex++;
+  return source.slice(nlIndex, atIndex) || '';
 }

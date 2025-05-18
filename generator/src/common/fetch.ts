@@ -1,5 +1,5 @@
 // @ts-ignore
-import { fetch as fetchImpl, clearCache } from "#fetch";
+import { fetch as fetchImpl, clearCache } from '#fetch';
 
 export type FetchFn = (
   url: URL | string,
@@ -48,20 +48,17 @@ const virtualSources: Record<string, SourceData> = {};
  * Allows virtual sources to be defined into the wrapped fetch implementation.
  */
 export function setVirtualSourceData(urlBase: string, sourceData: SourceData) {
-  virtualSources[urlBase.endsWith("/") ? urlBase : urlBase + "/"] = sourceData;
+  virtualSources[urlBase.endsWith('/') ? urlBase : urlBase + '/'] = sourceData;
 }
 
 const emptyHeaders = new Headers();
-const jsonHeaders = new Headers([["content-type", "application/json"]]);
+const jsonHeaders = new Headers([['content-type', 'application/json']]);
 
-function sourceResponse(
-  url: string,
-  buffer: string | ArrayBuffer
-): WrappedResponse {
+function sourceResponse(url: string, buffer: string | ArrayBuffer): WrappedResponse {
   return {
     url,
     ok: true,
-    headers: url.endsWith(".json") ? jsonHeaders : emptyHeaders,
+    headers: url.endsWith('.json') ? jsonHeaders : emptyHeaders,
     status: 200,
     async text() {
       return buffer.toString();
@@ -70,10 +67,9 @@ function sourceResponse(
       return JSON.parse(buffer.toString());
     },
     arrayBuffer() {
-      if (typeof buffer === "string")
-        return new TextEncoder().encode(buffer.toString()).buffer;
+      if (typeof buffer === 'string') return new TextEncoder().encode(buffer.toString()).buffer;
       return new Uint8Array(buffer);
-    },
+    }
   };
 }
 
@@ -99,13 +95,13 @@ function wrappedFetch(fetch: FetchFn): WrappedFetch {
         // check if we have files within this virtual source path as a folder
         // and if so return the file listing as a 204 listing (internal non-public convention)
         let dirFiles: string[] | null = null;
-        if (!subdir.endsWith("/") && subdir.length) subdir += "/";
+        if (!subdir.endsWith('/') && subdir.length) subdir += '/';
         for (const file of Object.keys(virtualFileData)) {
           if (file.startsWith(subdir)) {
             dirFiles = dirFiles || [];
             let filename = file.slice(subdir.length);
-            if (filename.indexOf("/") !== -1) {
-              filename = filename.slice(0, filename.indexOf("/"));
+            if (filename.indexOf('/') !== -1) {
+              filename = filename.slice(0, filename.indexOf('/'));
               if (dirFiles.includes(filename)) continue;
             }
             dirFiles.push(filename);
@@ -120,14 +116,14 @@ function wrappedFetch(fetch: FetchFn): WrappedFetch {
             status: 204,
             headers: emptyHeaders,
             async text() {
-              return "";
+              return '';
             },
             async json() {
               return dirFiles;
             },
             arrayBuffer() {
               return new ArrayBuffer(0);
-            },
+            }
           } as WrappedResponse;
         }
 
@@ -143,7 +139,7 @@ function wrappedFetch(fetch: FetchFn): WrappedFetch {
         ok: false,
         headers: emptyHeaders,
         status: 404,
-        statusText: "Virtual source not found",
+        statusText: 'Virtual source not found'
       };
     }
     let retries = 0;
@@ -167,7 +163,7 @@ function wrappedFetch(fetch: FetchFn): WrappedFetch {
 let p = [];
 let c = 0;
 function pushFetchPool() {
-  if (++c > poolSize) return new Promise((r) => p.push(r));
+  if (++c > poolSize) return new Promise(r => p.push(r));
 }
 function popFetchPool() {
   c--;

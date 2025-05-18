@@ -1,5 +1,13 @@
 {
+  "name": "build-test",
+  "exports": {
+    ".": "./app.js",
+    "./utils": "./utils.js"
+  },
+  "dependencies": {
+    "react": "17"
+  },
   "devDependencies": {
-    "rollup-plugin-banner": "^0.2.1"
+    "lit-element": "3.2.1"
   }
 }

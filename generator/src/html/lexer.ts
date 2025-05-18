@@ -16,12 +16,9 @@ export interface ParsedAttribute {
   valueEnd: number;
 }
 
-const alwaysSelfClosing = ["link", "base"];
+const alwaysSelfClosing = ['link', 'base'];
 
-export function parseHtml(
-  _source: string,
-  tagNames: string[] = ["script", "link", "base", "!--"]
-) {
+export function parseHtml(_source: string, tagNames: string[] = ['script', 'link', 'base', '!--']) {
   const scripts: ParsedTag[] = [];
   source = _source;
   i = 0;
@@ -32,14 +29,13 @@ export function parseHtml(
     end: -1,
     attributes: [],
     innerStart: -1,
-    innerEnd: -1,
+    innerEnd: -1
   };
   while (i < source.length) {
-    while (source.charCodeAt(i++) !== 60 /*<*/)
-      if (i === source.length) return scripts;
+    while (source.charCodeAt(i++) !== 60 /*<*/) if (i === source.length) return scripts;
     const start = i - 1;
     const tagName = readTagName()?.toLowerCase();
-    if (tagName === "!--") {
+    if (tagName === '!--') {
       while (
         source.charCodeAt(i) !== 45 /*-*/ ||
         source.charCodeAt(i + 1) !== 45 /*-*/ ||
@@ -47,12 +43,12 @@ export function parseHtml(
       )
         if (++i === source.length) return scripts;
       scripts.push({
-        tagName: "!--",
+        tagName: '!--',
         start: start,
         end: i + 3,
         attributes: [],
         innerStart: start + 3,
-        innerEnd: i,
+        innerEnd: i
       });
       i += 3;
     } else if (tagName === undefined) {
@@ -64,18 +60,14 @@ export function parseHtml(
       let attr;
       while ((attr = scanAttr())) attributes.push(attr);
       let selfClosing = alwaysSelfClosing.includes(tagName);
-      if (
-        source.charCodeAt(i - 2) === 47 /*/*/ &&
-        source.charCodeAt(i - 1) === 62 /*>*/
-      )
+      if (source.charCodeAt(i - 2) === 47 /*/*/ && source.charCodeAt(i - 1) === 62 /*>*/)
         selfClosing = true;
       if (selfClosing) {
         curScript.end = i;
       } else {
         curScript.innerStart = i;
         while (true) {
-          while (source.charCodeAt(i++) !== 60 /*<*/)
-            if (i === source.length) return scripts;
+          while (source.charCodeAt(i++) !== 60 /*<*/) if (i === source.length) return scripts;
           const tag = readTagName();
           if (tag === undefined) return scripts;
           if (tag === `/${curScript.tagName}`) {
@@ -93,7 +85,7 @@ export function parseHtml(
         end: -1,
         attributes: [],
         innerStart: -1,
-        innerEnd: -1,
+        innerEnd: -1
       };
     } else {
       while (scanAttr());
@@ -112,12 +104,8 @@ function readTagName(): string | null {
 
 function scanAttr(): ParsedAttribute | null {
   let ch;
-  while (isWs((ch = source.charCodeAt(i))))
-    if (++i === source.length) return null;
-  if (
-    ch === 62 /*>*/ ||
-    (ch === 47 /*/*/ && (ch = source.charCodeAt(++i)) === 62) /*>*/
-  ) {
+  while (isWs((ch = source.charCodeAt(i)))) if (++i === source.length) return null;
+  if (ch === 62 /*>*/ || (ch === 47 /*/*/ && (ch = source.charCodeAt(++i)) === 62) /*>*/) {
     i++;
     return null;
   }
@@ -125,8 +113,7 @@ function scanAttr(): ParsedAttribute | null {
   while (!isWs((ch = source.charCodeAt(i++))) && ch !== 61 /*=*/) {
     if (i === source.length) return null;
     if (ch === 62 /*>*/) {
-      if (nameStart + 2 === i && source.charCodeAt(nameStart) === 47 /*/*/)
-        return null;
+      if (nameStart + 2 === i && source.charCodeAt(nameStart) === 47 /*/*/) return null;
       return { nameStart, nameEnd: --i, valueStart: -1, valueEnd: -1 };
     }
   }
@@ -136,8 +123,7 @@ function scanAttr(): ParsedAttribute | null {
       if (++i === source.length) return null;
       if (ch === 62 /*>*/) return null;
     }
-    if (ch !== 61 /*=*/)
-      return { nameStart, nameEnd, valueStart: -1, valueEnd: -1 };
+    if (ch !== 61 /*=*/) return { nameStart, nameEnd, valueStart: -1, valueEnd: -1 };
   }
   while (isWs((ch = source.charCodeAt(i++)))) {
     if (i === source.length) return null;
@@ -145,13 +131,11 @@ function scanAttr(): ParsedAttribute | null {
   }
   if (ch === 34 /*"*/) {
     const valueStart = i;
-    while (source.charCodeAt(i++) !== 34 /*"*/)
-      if (i === source.length) return null;
+    while (source.charCodeAt(i++) !== 34 /*"*/) if (i === source.length) return null;
     return { nameStart, nameEnd, valueStart, valueEnd: i - 1 };
   } else if (ch === 39 /*'*/) {
     const valueStart = i;
-    while (source.charCodeAt(i++) !== 39 /*'*/)
-      if (i === source.length) return null;
+    while (source.charCodeAt(i++) !== 39 /*'*/) if (i === source.length) return null;
     return { nameStart, nameEnd, valueStart, valueEnd: i - 1 };
   } else {
     const valueStart = i - 1;

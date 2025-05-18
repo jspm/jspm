@@ -14,55 +14,53 @@
  *    limitations under the License.
  */
 
-import { describe, it } from "node:test";
-import { strict as assert } from "node:assert";
-import { getPackageConfig, lookup } from "@jspm/generator";
-import ls from "../src/ls.ts";
+import { describe, it } from 'node:test';
+import { strict as assert } from 'node:assert';
+import { getPackageConfig, lookup } from '@jspm/generator';
+import ls from '../src/ls.ts';
 
-describe("ls command", () => {
-  it("should successfully lookup and get exports for a package", async () => {
+describe('ls command', () => {
+  it('should successfully lookup and get exports for a package', async () => {
     // Test with lit which is known to have exports
-    const packageName = "lit@2.7.0";
+    const packageName = 'lit@2.7.0';
     const originalConsoleLog = console.log;
 
     // Track console.log calls
     const logCalls: string[] = [];
     console.log = (...args) => {
-      logCalls.push(args.join(" "));
+      logCalls.push(args.join(' '));
     };
 
     try {
       await ls(packageName, { quiet: false });
 
       // Verify version is displayed
-      const versionDisplayed = logCalls.some((log) => log.includes("2.7.0"));
-      assert.ok(versionDisplayed, "Should display the resolved version");
+      const versionDisplayed = logCalls.some(log => log.includes('2.7.0'));
+      assert.ok(versionDisplayed, 'Should display the resolved version');
     } finally {
       // Restore console.log
       console.log = originalConsoleLog;
     }
   });
 
-  it("should filter exports based on provided filter", async () => {
+  it('should filter exports based on provided filter', async () => {
     // Test package with multiple exports
-    const packageName = "lit@2.7.0";
+    const packageName = 'lit@2.7.0';
     const originalConsoleLog = console.log;
 
     // Track console.log calls
     let logCalls: string[] = [];
     console.log = (...args) => {
-      logCalls.push(args.join(" "));
+      logCalls.push(args.join(' '));
     };
 
     try {
       // Test with filter that should match some exports
-      await ls(packageName, { quiet: false, filter: "decorators" });
+      await ls(packageName, { quiet: false, filter: 'decorators' });
 
       // Verify only filtered exports are displayed
-      const hasFilteredExports = logCalls.some((log) =>
-        log.includes("decorators")
-      );
-      assert.ok(hasFilteredExports, "Should display exports matching filter");
+      const hasFilteredExports = logCalls.some(log => log.includes('decorators'));
+      assert.ok(hasFilteredExports, 'Should display exports matching filter');
 
       // Reset log calls for next test
       logCalls = [];
@@ -70,44 +68,36 @@ describe("ls command", () => {
       // Test with filter that shouldn't match any exports
       await ls(packageName, {
         quiet: false,
-        filter: "nonexistent-pattern-xyz",
+        filter: 'nonexistent-pattern-xyz'
       });
 
       // Verify message about no matching exports
-      const noMatchMessage = logCalls.some((log) =>
-        log.includes("No exports match the filter")
-      );
-      assert.ok(
-        noMatchMessage,
-        "Should show message when no exports match filter"
-      );
+      const noMatchMessage = logCalls.some(log => log.includes('No exports match the filter'));
+      assert.ok(noMatchMessage, 'Should show message when no exports match filter');
     } finally {
       // Restore console.log
       console.log = originalConsoleLog;
     }
   });
 
-  it("should look up a package without version and show resolved version", async () => {
-    const packageName = "lit"; // No version specified
+  it('should look up a package without version and show resolved version', async () => {
+    const packageName = 'lit'; // No version specified
     const originalConsoleLog = console.log;
 
     // Track console.log calls
     const logCalls: string[] = [];
     console.log = (...args) => {
-      logCalls.push(args.join(" "));
+      logCalls.push(args.join(' '));
     };
 
     try {
       await ls(packageName, { quiet: false });
 
       // Verify export information contains a version
-      const versionDisplayed = logCalls.some((log) => {
+      const versionDisplayed = logCalls.some(log => {
         return /\d+\.\d+\.\d+/.test(log);
       });
-      assert.ok(
-        versionDisplayed,
-        "Should display resolved version when version not specified"
-      );
+      assert.ok(versionDisplayed, 'Should display resolved version when version not specified');
     } finally {
       // Restore console.log
       console.log = originalConsoleLog;
@@ -115,13 +105,13 @@ describe("ls command", () => {
   });
 
   // This test is for providing info to the user about tests that might fail
-  it("can directly use the JSPM API to verify functionality", async () => {
-    const lookupResult = await lookup("lit@2.7.0");
-    assert.ok(lookupResult, "Should get a lookup result");
-    assert.ok(lookupResult.resolved, "Should get resolved package info");
+  it('can directly use the JSPM API to verify functionality', async () => {
+    const lookupResult = await lookup('lit@2.7.0');
+    assert.ok(lookupResult, 'Should get a lookup result');
+    assert.ok(lookupResult.resolved, 'Should get resolved package info');
 
     const pjson = await getPackageConfig(lookupResult.resolved);
-    assert.ok(pjson, "Should get package config");
-    assert.ok(pjson.exports, "Package should have exports");
+    assert.ok(pjson, 'Should get package config');
+    assert.ok(pjson.exports, 'Package should have exports');
   });
 });

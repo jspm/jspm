@@ -1,0 +1,6 @@
+version = 0.1
+
+[[task]]
+name = 'test'
+run = '..\node_modules\.bin\mocha -u tdd --timeout 30000 .\test\chunked.js'
+# env = { JSPM_GENERATOR_LOG  = '1' }

@@ -1,5 +1,5 @@
-import c from "picocolors";
-import type { GenerateOutputFlags } from "./cli.ts";
+import c from 'picocolors';
+import type { GenerateOutputFlags } from './cli.ts';
 import {
   JspmError,
   getEnv,
@@ -7,18 +7,15 @@ import {
   getInputMap,
   startSpinner,
   stopSpinner,
-  writeOutput,
-} from "./utils.ts";
-import { withType } from "./logger.ts";
-import { initProject } from "./init.ts";
+  writeOutput
+} from './utils.ts';
+import { withType } from './logger.ts';
+import { initProject } from './init.ts';
 
-export default async function update(
-  packages: string[],
-  flags: GenerateOutputFlags
-) {
-  const log = withType("update/update");
+export default async function update(packages: string[], flags: GenerateOutputFlags) {
+  const log = withType('update/update');
 
-  log(`Updating packages: ${packages.join(", ")}`);
+  log(`Updating packages: ${packages.join(', ')}`);
   log(`Flags: ${JSON.stringify(flags)}`);
 
   const env = await getEnv(flags);
@@ -27,7 +24,7 @@ export default async function update(
   // Read in any import maps or inline modules in the input:
   let inputPins: string[] = [];
   const input = await getInputMap(flags);
-  if (typeof input !== "undefined") {
+  if (typeof input !== 'undefined') {
     inputPins = await generator.addMappings(input);
   }
 
@@ -37,7 +34,7 @@ export default async function update(
     !flags.quiet &&
       console.warn(
         `${c.red(
-          "Warning:"
+          'Warning:'
         )} Nothing to update. Please provide a list of packages or a non-empty input file.`
       );
 
@@ -45,26 +42,20 @@ export default async function update(
     try {
       const projectConfig = await initProject({
         quiet: flags.quiet,
-        dir: process.cwd(),
+        dir: process.cwd()
       });
 
       !flags.quiet &&
-        console.log(
-          `${c.blue("Info:")} Current project: ${c.bold(projectConfig.name)}`
-        );
+        console.log(`${c.blue('Info:')} Current project: ${c.bold(projectConfig.name)}`);
 
       if (projectConfig.version) {
         !flags.quiet &&
-          console.log(
-            `${c.blue("Info:")} Project version: ${c.bold(
-              projectConfig.version
-            )}`
-          );
+          console.log(`${c.blue('Info:')} Project version: ${c.bold(projectConfig.version)}`);
       }
     } catch (e) {
       // Just for validation, so we can continue
       if (e instanceof JspmError && !flags.quiet) {
-        console.warn(`${c.yellow("Warning:")} ${e.message}`);
+        console.warn(`${c.yellow('Warning:')} ${e.message}`);
       }
     }
 
@@ -74,21 +65,21 @@ export default async function update(
     try {
       const projectConfig = await initProject({
         quiet: flags.quiet,
-        dir: process.cwd(),
+        dir: process.cwd()
       });
       log(`Project validated: ${projectConfig.name}`);
     } catch (e) {
       // Just log warnings for project validation issues but continue with update
       if (e instanceof JspmError && !flags.quiet) {
-        console.warn(`${c.yellow("Warning:")} ${e.message}`);
+        console.warn(`${c.yellow('Warning:')} ${e.message}`);
       }
     }
 
     !flags.quiet &&
       startSpinner(
-        `Updating ${c.bold(
-          packages.length ? packages.join(", ") : "everything"
-        )}. (${env.join(", ")})`
+        `Updating ${c.bold(packages.length ? packages.join(', ') : 'everything')}. (${env.join(
+          ', '
+        )})`
       );
     await generator.update(packages.length ? packages : undefined);
     stopSpinner();

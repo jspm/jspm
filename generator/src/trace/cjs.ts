@@ -1,14 +1,8 @@
-import { getIntegrity } from "../common/integrity.js";
-import { Analysis } from "./analysis.js";
+import { getIntegrity } from '../common/integrity.js';
+import { Analysis } from './analysis.js';
 
 // See: https://nodejs.org/docs/latest/api/modules.html#the-module-scope
-const cjsGlobals: string[] = [
-  "__dirname",
-  "__filename",
-  "exports",
-  "module",
-  "require",
-];
+const cjsGlobals: string[] = ['__dirname', '__filename', 'exports', 'module', 'require'];
 
 let babel;
 
@@ -21,7 +15,7 @@ export async function createCjsAnalysis(
   source: string,
   url: string
 ): Promise<Analysis> {
-  if (!babel) babel = await import("@babel/core");
+  if (!babel) babel = await import('@babel/core');
 
   const requires = new Set<string>();
   const lazy = new Set<string>();
@@ -36,11 +30,11 @@ export async function createCjsAnalysis(
     configFile: false,
     highlightCode: false,
     compact: false,
-    sourceType: "script",
+    sourceType: 'script',
     parserOpts: {
       allowReturnOutsideFunction: true,
       // plugins: stage3Syntax,
-      errorRecovery: true,
+      errorRecovery: true
     },
     plugins: [
       ({ types: t }) => {
@@ -51,21 +45,18 @@ export async function createCjsAnalysis(
             },
             CallExpression(path, state) {
               if (
-                t.isIdentifier(path.node.callee, { name: "require" }) ||
-                (t.isIdentifier(path.node.callee.object, { name: "require" }) &&
+                t.isIdentifier(path.node.callee, { name: 'require' }) ||
+                (t.isIdentifier(path.node.callee.object, { name: 'require' }) &&
                   t.isIdentifier(path.node.callee.property, {
-                    name: "resolve",
+                    name: 'resolve'
                   })) ||
                 (t.isMemberExpression(path.node.callee) &&
-                  t.isIdentifier(path.node.callee.object, { name: "module" }) &&
+                  t.isIdentifier(path.node.callee.object, { name: 'module' }) &&
                   t.isIdentifier(path.node.callee.property, {
-                    name: "require",
+                    name: 'require'
                   }))
               ) {
-                const req = buildDynamicString(
-                  path.get("arguments.0").node,
-                  url
-                );
+                const req = buildDynamicString(path.get('arguments.0').node, url);
                 requires.add(req);
                 if (state.functionDepth > 0) lazy.add(req);
               }
@@ -82,15 +73,15 @@ export async function createCjsAnalysis(
               },
               exit(path, state) {
                 if (t.isFunction(path.scope.block)) state.functionDepth--;
-              },
-            },
+              }
+            }
             // Import (path) {
             //   dynamicImports.add(buildDynamicString(path.parentPath.get('arguments.0').node, url, true));
             // }
-          },
+          }
         };
-      },
-    ],
+      }
+    ]
   });
 
   // Check if the module actually uses any CJS-specific globals, as otherwise
@@ -105,26 +96,21 @@ export async function createCjsAnalysis(
 
   return {
     deps: [...requires],
-    dynamicDeps: imports.filter((impt) => impt.n).map((impt) => impt.n),
+    dynamicDeps: imports.filter(impt => impt.n).map(impt => impt.n),
     cjsLazyDeps: [...lazy],
     size: source.length,
-    format: "commonjs",
+    format: 'commonjs',
     usesCjs,
-    integrity: await getIntegrity(source),
+    integrity: await getIntegrity(source)
   };
 }
 
-function buildDynamicString(
-  node,
-  fileName,
-  isEsm = false,
-  lastIsWildcard = false
-): string {
-  if (node.type === "StringLiteral") {
+function buildDynamicString(node, fileName, isEsm = false, lastIsWildcard = false): string {
+  if (node.type === 'StringLiteral') {
     return node.value;
   }
-  if (node.type === "TemplateLiteral") {
-    let str = "";
+  if (node.type === 'TemplateLiteral') {
+    let str = '';
     for (let i = 0; i < node.quasis.length; i++) {
       const quasiStr = node.quasis[i].value.cooked;
       if (quasiStr.length) {
@@ -133,39 +119,24 @@ function buildDynamicString(
       }
       const nextNode = node.expressions[i];
       if (nextNode) {
-        const nextStr = buildDynamicString(
-          nextNode,
-          fileName,
-          isEsm,
-          lastIsWildcard
-        );
+        const nextStr = buildDynamicString(nextNode, fileName, isEsm, lastIsWildcard);
         if (nextStr.length) {
-          lastIsWildcard = nextStr.endsWith("*");
+          lastIsWildcard = nextStr.endsWith('*');
           str += nextStr;
         }
       }
     }
     return str;
   }
-  if (node.type === "BinaryExpression" && node.operator === "+") {
-    const leftResolved = buildDynamicString(
-      node.left,
-      fileName,
-      isEsm,
-      lastIsWildcard
-    );
-    if (leftResolved.length) lastIsWildcard = leftResolved.endsWith("*");
-    const rightResolved = buildDynamicString(
-      node.right,
-      fileName,
-      isEsm,
-      lastIsWildcard
-    );
+  if (node.type === 'BinaryExpression' && node.operator === '+') {
+    const leftResolved = buildDynamicString(node.left, fileName, isEsm, lastIsWildcard);
+    if (leftResolved.length) lastIsWildcard = leftResolved.endsWith('*');
+    const rightResolved = buildDynamicString(node.right, fileName, isEsm, lastIsWildcard);
     return leftResolved + rightResolved;
   }
-  if (node.type === "Identifier") {
-    if (node.name === "__dirname") return ".";
-    if (node.name === "__filename") return "./" + fileName;
+  if (node.type === 'Identifier') {
+    if (node.name === '__dirname') return '.';
+    if (node.name === '__filename') return './' + fileName;
   }
   // TODO: proper expression support
   // new URL('...', import.meta.url).href | new URL('...', import.meta.url).toString() | new URL('...', import.meta.url).pathname
@@ -177,5 +148,5 @@ function buildDynamicString(
       return './' + fileName;
     }
   }*/
-  return lastIsWildcard ? "" : "*";
+  return lastIsWildcard ? '' : '*';
 }

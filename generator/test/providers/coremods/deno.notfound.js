@@ -1,1 +1,1 @@
-import "deno:notfound";
+import 'deno:notfound';

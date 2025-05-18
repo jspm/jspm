@@ -30,9 +30,10 @@ jspm init [directory] [options]
     
 
 ### Options
-* `-q, --quiet`            Quiet output (default: false)
-* `-d, --dir` _&lt;directory&gt;_  Package directory to operate on (defaults to working directory) 
-* `-h, --help`             Display this help (add --all for extended command list) 
+* `-q, --quiet`                   Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                    Display this help (add --all for extended command list) 
 
 ### Examples
 
@@ -70,12 +71,13 @@ When run with a package name:
 By default, output is limited to 20 items. Use --limit to see more items.
 
 ### Options
-* `-f, --filter` _&lt;pattern&gt;_     Filter exports by pattern (case-insensitive substring match) 
-* `-l, --limit` _&lt;number&gt;_       Limit the number of exports displayed (default: 20) 
-* `-p, --provider` &lt;[providers](#providers)&gt;  Provider to use for package resolution. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
-* `-q, --quiet`                Quiet output (default: false)
-* `-d, --dir` _&lt;directory&gt;_      Package directory to operate on (defaults to working directory) 
-* `-h, --help`                 Display this help (add --all for extended command list) 
+* `-f, --filter` _&lt;pattern&gt;_        Filter exports by pattern (case-insensitive substring match) 
+* `-l, --limit` _&lt;number&gt;_          Limit the number of exports displayed (default: 20) 
+* `-p, --provider` &lt;[providers](#providers)&gt;     Provider to use for package resolution. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
+* `-q, --quiet`                   Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                    Display this help (add --all for extended command list) 
 
 ### Examples
 
@@ -154,6 +156,7 @@ Enhanced Security and Performance:
 * `-o, --out` _&lt;file&gt;_                 File to inject the final import map into (default: --map / importmap.js). For JS files outputs an injection wrapper script, for JSON files, the import map only, and for HTML files embeds the import map. 
 * `-q, --quiet`                      Quiet output (default: false)
 * `-d, --dir` _&lt;directory&gt;_            Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                       Display this help (add --all for extended command list) 
 
 ### Examples
@@ -215,6 +218,7 @@ the same options as the 'jspm install' command with no arguments.
 * `-o, --out` _&lt;file&gt;_                 File to inject the final import map into (default: --map / importmap.js). For JS files outputs an injection wrapper script, for JSON files, the import map only, and for HTML files embeds the import map. 
 * `-q, --quiet`                      Quiet output (default: false)
 * `-d, --dir` _&lt;directory&gt;_            Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                       Display this help (add --all for extended command list) 
 
 ### Examples
@@ -251,37 +255,38 @@ Start a server that does not generate the import map on startup, perform type st
 ### Usage
   
 ```
-jspm build [entries] [options]
+jspm build [options]
 ```
-Builds a module and its dependencies using the import map for resolution. Uses RollupJS under the hood to create optimized bundles.
+Builds a package and its dependencies using the JSPM import map and dependency resolution.
+Uses RollupJS under the hood to create optimized bundles.
 
-The entry point can be:
-  - A local JavaScript file path (e.g., "./src/index.js")
-  - A module specifier resolvable in the import map
-  - Not specified, in which case it attempts to use the main entry point from package.json
+By default the package entry points as defined in the package.json "exports" field
+are built.
 
-The import map (--map) is used to resolve all module specifiers during the build process.
-A custom Rollup configuration can be provided with --config for advanced build scenarios.
 
 ### Options
-* `-r, --resolution` &lt;[resolutions](#resolutions)&gt;  Comma-separated dependency resolution overrides 
-* `-m, --map` _&lt;file&gt;_                File containing initial import map (defaults to importmap.js, or importmap.json if it exists, or the input HTML if linking an HTML file) 
-* `--config` _&lt;file&gt;_                 Path to a RollupJS config file 
-* `-o, --out` _&lt;dir&gt;_                 Path to the RollupJS output directory 
-* `-q, --quiet`                     Quiet output (default: false)
-* `-d, --dir` _&lt;directory&gt;_           Package directory to operate on (defaults to working directory) 
-* `-h, --help`                      Display this help (add --all for extended command list) 
+* `--no-minify`                      Disable build minification (default: true)
+* `-o, --out` _&lt;dir&gt;_                  Path to the output directory for the build (default: dist)
+* `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
+* `-C, --conditions` &lt;[environments](#environments)&gt;  Comma-separated environment condition overrides (default: browser,production,module)
+* `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
+* `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
+* `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
+* `-q, --quiet`                      Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_            Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                       Display this help (add --all for extended command list) 
 ## deploy
 
 ### Usage
   
 ```
-jspm deploy [directory|package] [options]
+jspm deploy [options]
 ```
 Manages deployments to the JSPM CDN.
 
 For publishing (default):
-  jspm deploy [directory]
+  jspm deploy
 
   The package must have a valid package.json with name and version fields.
   The package.json "files" and "ignore" arrays will be respected.
@@ -289,7 +294,7 @@ For publishing (default):
   Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
 
 For ejecting a published package:
-  jspm deploy _&lt;package&gt;_ --eject --dir _&lt;directory&gt;_
+  jspm deploy --eject <packagename@packageversion> --dir _&lt;directory&gt;_
 
   Ejects a deployed package into a local directory, stitching its deployment import map into the current import map.
   The --dir flag is required to specify the output directory when using --eject.
@@ -299,8 +304,7 @@ For ejecting a published package:
 * `--no-usage`                       Disable printing the usage code snippet for the deployment (default: true)
 * `-w, --watch`                      Watch for changes and redeploy (experimental) (default: false)
 * `-n, --name` _&lt;name&gt;_                Publish with a custom name instead of the name from package.json 
-* `--eject`                          Eject a deployed package instead of publishing (default: false)
-* `-o, --out` _&lt;directory&gt;_            Output directory to eject into (required when using --eject) 
+* `--eject` _&lt;package&gt;_                Eject a deployed package instead of publishing 
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
 * `-C, --conditions` &lt;[environments](#environments)&gt;  Comma-separated environment condition overrides (default: browser,production,module)
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
@@ -316,6 +320,7 @@ For ejecting a published package:
 * `-o, --out` _&lt;file&gt;_                 File to inject the final import map into (default: --map / importmap.js). For JS files outputs an injection wrapper script, for JSON files, the import map only, and for HTML files embeds the import map. 
 * `-q, --quiet`                      Quiet output (default: false)
 * `-d, --dir` _&lt;directory&gt;_            Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                       Display this help (add --all for extended command list) 
 
 ### Examples
@@ -329,28 +334,28 @@ Deploy the current directory as a package to the JSPM CDN.
 
 
 ```
-jspm deploy dist
+jspm deploy --dir dist
 ```
 Deploy the ./dist directory as a package to the JSPM CDN.
 
 
 
 ```
-jspm deploy dist --version dev-feat-2 --watch
+jspm deploy --dir dist --version dev-feat-2 --watch
 ```
 Start a watched deployment to a custom mutable version tag (dev-feat-2) instead of the version from package.json.
 
 
 
 ```
-jspm deploy app:foo@bar --eject --out foo
+jspm deploy --eject app:foo@bar --dir foo
 ```
 Download the application package foo@bar into the folder foo, merging its import map into importmap.js.
 
 
 
 ```
-jspm deploy app:foo@bar --eject --dir foo -o test.html
+jspm deploy --eject app:foo@bar --dir foo -o test.html
 ```
 Download the application package foo@bar into the folder foo, merging its import map into the provided HTML file.
 
@@ -369,11 +374,12 @@ Manages authentication for JSPM providers.
 
 
 ### Options
-* `-u, --username` _&lt;username&gt;_  Username for authentication (if required) 
-* `--no-open`                  Disable automatically opening the authorization URL (default: true)
-* `-q, --quiet`                Quiet output (default: false)
-* `-d, --dir` _&lt;directory&gt;_      Package directory to operate on (defaults to working directory) 
-* `-h, --help`                 Display this help (add --all for extended command list) 
+* `-u, --username` _&lt;username&gt;_     Username for authentication (if required) 
+* `--no-open`                     Disable automatically opening the authorization URL (default: true)
+* `-q, --quiet`                   Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                    Display this help (add --all for extended command list) 
 
 ### Examples
 
@@ -400,9 +406,10 @@ jspm clear-cache
 Clears the global module fetch cache, for situations where the contents of a dependency may have changed without a version bump. This can happen during local development, for instance.
 
 ### Options
-* `-q, --quiet`            Quiet output (default: false)
-* `-d, --dir` _&lt;directory&gt;_  Package directory to operate on (defaults to working directory) 
-* `-h, --help`             Display this help (add --all for extended command list) 
+* `-q, --quiet`                   Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                    Display this help (add --all for extended command list) 
 
 # Configuration
 

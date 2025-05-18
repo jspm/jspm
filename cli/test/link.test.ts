@@ -1,155 +1,155 @@
-import { test } from "node:test";
-import assert from "assert";
-import { mapFile, run } from "./scenarios.ts";
+import { test } from 'node:test';
+import assert from 'assert';
+import { mapFile, run } from './scenarios.ts';
 
-const scripts = await mapFile(["fixtures/a.js", "fixtures/b.js"]);
-const importMap = await mapFile("fixtures/importmap.js");
-const htmlFile = await mapFile("fixtures/index.html");
-const inlineModules = await mapFile("fixtures/inlinemodules.html");
-const inlineHtml = await mapFile("fixtures/inlinehtml.js");
-const indexScript = await mapFile("fixtures/index.js");
+const scripts = await mapFile(['fixtures/a.js', 'fixtures/b.js']);
+const importMap = await mapFile('fixtures/importmap.js');
+const htmlFile = await mapFile('fixtures/index.html');
+const inlineModules = await mapFile('fixtures/inlinemodules.html');
+const inlineHtml = await mapFile('fixtures/inlinehtml.js');
+const indexScript = await mapFile('fixtures/index.js');
 
-test("Basic link from a package without an existing import map", async () => {
+test('Basic link from a package without an existing import map', async () => {
   await run({
     files: scripts,
-    commands: ["jspm link ./a.js -o importmap.json"],
+    commands: ['jspm link ./a.js -o importmap.json'],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json")!);
-      assert(map.imports["react-dom"]); // transitive dependency
-    },
+      const map = JSON.parse(files.get('importmap.json')!);
+      assert(map.imports['react-dom']); // transitive dependency
+    }
   });
 });
 
-test("Dependency constraints are picked up from input map", async () => {
+test('Dependency constraints are picked up from input map', async () => {
   await run({
     files: new Map([...scripts, ...importMap]),
-    commands: ["jspm link ./a.js -o importmap.json -C production"],
+    commands: ['jspm link ./a.js -o importmap.json -C production'],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json")!);
-      assert(map.imports["react-dom"]); // transitive dependency
+      const map = JSON.parse(files.get('importmap.json')!);
+      assert(map.imports['react-dom']); // transitive dependency
       assert.strictEqual(
-        map.imports["react-dom"],
-        "https://ga.jspm.io/npm:react-dom@17.0.1/index.js"
+        map.imports['react-dom'],
+        'https://ga.jspm.io/npm:react-dom@17.0.1/index.js'
       );
-    },
+    }
   });
 });
 
-test("Injecting the output into a non-existent HTML file should create one", async () => {
+test('Injecting the output into a non-existent HTML file should create one', async () => {
   await run({
     files: new Map([...scripts, ...importMap]),
-    commands: ["jspm link ./a.js -o index.html"],
+    commands: ['jspm link ./a.js -o index.html'],
     validationFn: async (files: Map<string, string>) => {
-      const html = files.get("index.html");
-      assert(html && html.includes("react-dom@17.0.1"));
-    },
+      const html = files.get('index.html');
+      assert(html && html.includes('react-dom@17.0.1'));
+    }
   });
 });
 
-test("Injecting the output into an existing HTML file should maintain content", async () => {
+test('Injecting the output into an existing HTML file should maintain content', async () => {
   await run({
     files: new Map([...scripts, ...importMap, ...htmlFile]),
-    commands: ["jspm link ./a.js -o index.html"],
+    commands: ['jspm link ./a.js -o index.html'],
     validationFn: async (files: Map<string, string>) => {
-      const html = files.get("index.html");
-      assert(html && html.includes("react-dom@17.0.1"));
-      assert(html && html.includes("<title>Test</title>"));
-    },
+      const html = files.get('index.html');
+      assert(html && html.includes('react-dom@17.0.1'));
+      assert(html && html.includes('<title>Test</title>'));
+    }
   });
 });
 
-test("Running a link on an HTML file should trace package entries", async () => {
+test('Running a link on an HTML file should trace package entries', async () => {
   await run({
     files: new Map([...scripts, ...importMap, ...inlineModules]),
-    commands: ["jspm link -m inlinemodules.html inlinemodules.html"],
+    commands: ['jspm link -m inlinemodules.html inlinemodules.html'],
     validationFn: async (files: Map<string, string>) => {
       // No version information because "-m index.html" sets the input/output
       // source files to "index.html", so "importmap.json" is ignored:
-      const html = files.get("inlinemodules.html");
-      assert(html && html.includes("react-dom")); // from ./a.js
-    },
+      const html = files.get('inlinemodules.html');
+      assert(html && html.includes('react-dom')); // from ./a.js
+    }
   });
 });
 
-test("Link with output to HTML file should include versions from importmap", async () => {
+test('Link with output to HTML file should include versions from importmap', async () => {
   await run({
     files: new Map([...scripts, ...importMap, ...inlineModules]),
-    commands: ["jspm link -o inlinemodules.html"],
+    commands: ['jspm link -o inlinemodules.html'],
     validationFn: async (files: Map<string, string>) => {
-      const html = files.get("inlinemodules.html");
-      assert(html && html.includes("react-dom@17.0.1")); // from ./a.js
-    },
+      const html = files.get('inlinemodules.html');
+      assert(html && html.includes('react-dom@17.0.1')); // from ./a.js
+    }
   });
 });
 
 test("Linking 'index.js' when no local file exists should link against npm package", async () => {
   await run({
-    commands: ["jspm link index.js -o importmap.json"],
+    commands: ['jspm link index.js -o importmap.json'],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json")!);
-      assert(map.imports["index.js"]);
-    },
+      const map = JSON.parse(files.get('importmap.json')!);
+      assert(map.imports['index.js']);
+    }
   });
 });
 
 test("Linking 'index.js' when local file exists should link against local file", async () => {
   await run({
     files: indexScript,
-    commands: ["jspm link index.js -o importmap.json"],
+    commands: ['jspm link index.js -o importmap.json'],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json")!);
-      assert(!map.imports["index.js"]);
+      const map = JSON.parse(files.get('importmap.json')!);
+      assert(!map.imports['index.js']);
       assert(map.imports.react); // transitive dependency
-    },
+    }
   });
 });
 
 test("Linking '%index.js' should link against npm package even when local file exists", async () => {
   await run({
     files: indexScript,
-    commands: ["jspm link %index.js -o importmap.json"],
+    commands: ['jspm link %index.js -o importmap.json'],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json")!);
-      assert(map.imports["index.js"]);
+      const map = JSON.parse(files.get('importmap.json')!);
+      assert(map.imports['index.js']);
       assert(!map.imports.react);
-    },
+    }
   });
 });
 
-test("Linking HTML file directly should link all inline modules", async () => {
+test('Linking HTML file directly should link all inline modules', async () => {
   await run({
     files: new Map([...scripts, ...inlineModules, ...importMap]),
-    commands: ["jspm link inlinemodules.html -o importmap.json -C production"],
+    commands: ['jspm link inlinemodules.html -o importmap.json -C production'],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json")!);
-      assert(map.imports["react-dom"]); // transitive dependency
+      const map = JSON.parse(files.get('importmap.json')!);
+      assert(map.imports['react-dom']); // transitive dependency
       assert.strictEqual(
-        map.imports["react-dom"],
-        "https://ga.jspm.io/npm:react-dom@17.0.1/index.js"
+        map.imports['react-dom'],
+        'https://ga.jspm.io/npm:react-dom@17.0.1/index.js'
       );
-    },
+    }
   });
 });
 
 test("CLI shouldn't be confused by JS file with inline HTML string", async () => {
   await run({
     files: new Map([...scripts, ...inlineModules, ...inlineHtml]),
-    commands: ["jspm link inlinehtml.js -o importmap.json"],
+    commands: ['jspm link inlinehtml.js -o importmap.json'],
     validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get("importmap.json")!);
+      const map = JSON.parse(files.get('importmap.json')!);
 
       // Should _not_ have linked the module in the inline HTML string:
-      assert(!map.imports?.["react-dom"]);
-    },
+      assert(!map.imports?.['react-dom']);
+    }
   });
 });
 
-test("Support HTML as import map when no importmap.json exists", async () => {
+test('Support HTML as import map when no importmap.json exists', async () => {
   await run({
-    files: new Map([...htmlFile, ["app.js", 'import "react"']]),
-    commands: ["jspm link index.html -o index.html --integrity"],
+    files: new Map([...htmlFile, ['app.js', 'import "react"']]),
+    commands: ['jspm link index.html -o index.html --integrity'],
     validationFn: async (files: Map<string, string>) => {
-      const source = files.get("index.html")!;
+      const source = files.get('index.html')!;
       assert(source.includes('"integrity"'));
       assert(
         source.includes(
@@ -161,6 +161,6 @@ test("Support HTML as import map when no importmap.json exists", async () => {
           '"https://ga.jspm.io/npm:react@18.2.0/dev.index.js": "sha384-eSJrEMXot96AKVLYz8C1nY3CpLMuBMHIAiYhs7vfM09SQo+5X+1w6t3Ldpnw+VWU"'
         )
       );
-    },
+    }
   });
 });

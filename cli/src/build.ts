@@ -1,118 +1,22 @@
-import { relative, dirname, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { copyFile, mkdir, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { rollup } from 'rollup';
 import jspmRollup from '@jspm/plugin-rollup';
-import { createFilter } from '@rollup/pluginutils';
 import c from 'picocolors';
-import fs from 'node:fs/promises';
-import mkdirp from 'mkdirp';
-import path from 'node:path';
-
 import {
   JspmError,
   getEnv,
   getExportsEntries,
   getFilesRecursively,
   getGenerator,
-  getInputMap,
+  sanitizeTemplateStr,
   startSpinner,
   stopSpinner
 } from './utils.ts';
 import type { BuildFlags } from './cli.ts';
 import { initProject } from './init.ts';
-
-// CSS Import Plugin implementation
-function createCssPlugin(options: any = {}) {
-  if (!options.transform) options.transform = (code: string) => code;
-
-  const styles: Record<string, string> = {};
-  const alwaysOutput = options.alwaysOutput ?? false;
-  const filter = createFilter(options.include ?? ['**/*.css'], options.exclude ?? []);
-
-  /* function to sort the css imports in order - credit to rollup-plugin-postcss */
-  const getRecursiveImportOrder = (id: string, getModuleInfo: Function, seen = new Set()) => {
-    if (seen.has(id)) return [];
-
-    seen.add(id);
-
-    const result = [id];
-    const moduleInfo = getModuleInfo(id);
-
-    if (moduleInfo) {
-      getModuleInfo(id).importedIds.forEach((importFile: string) => {
-        result.push(...getRecursiveImportOrder(importFile, getModuleInfo, seen));
-      });
-    }
-
-    return result;
-  };
-
-  /* minify css */
-  const minifyCSS = (content: string) => {
-    const calc_functions: string[] = [];
-    const calc_regex = /\bcalc\(([^)]+)\)/g;
-    const comments = /("(?:[^"\\]+|\\.)*"|'(?:[^'\\]+|\\.)*')|\/\*[\s\S]*?\*\//g;
-    const syntax =
-      /("(?:[^"\\]+|\\.)*"|'(?:[^'\\]+|\\.)*')|\s*([{};,>~])\s*|\s*([*$~^|]?=)\s*|\s+([+-])(?=.*\{)|([[(:])\s+|\s+([\])])|\s+(:)(?![^}]*\{)|^\s+|\s+$|(\s)\s+(?![^(]*\))/g;
-
-    return content
-      .replace(calc_regex, (_, group) => {
-        calc_functions.push(group);
-        return '__CALC__';
-      })
-      .replace(comments, '$1')
-      .replace(syntax, '$1$2$3$4$5$6$7$8')
-      .replace(/__CALC__/g, () => `calc(${calc_functions.shift()})`)
-      .replace(/\n+/g, ' ');
-  };
-
-  return {
-    name: 'import-css',
-
-    /* convert the css file to a module and save the code for a file output */
-    async transform(code: string, id: string) {
-      if (!filter(id)) return;
-
-      const transformedCode = options.minify
-        ? minifyCSS(await options.transform(code))
-        : await options.transform(code);
-
-      /* cache the result */
-      if (!styles[id] || styles[id] != transformedCode) {
-        styles[id] = transformedCode;
-      }
-
-      /* Only support imports with assert { type: 'css' } / with type: 'css' */
-      const moduleInfo = this.getModuleInfo(id);
-      const attributes =
-        moduleInfo.assertions != undefined ? moduleInfo.assertions : moduleInfo.attributes;
-      
-      if (attributes?.type == 'css') {
-        return {
-          code: `const sheet = new CSSStyleSheet();sheet.replaceSync(${JSON.stringify(
-            transformedCode
-          )});export default sheet;`,
-          map: { mappings: '' }
-        };
-      }
-
-      // For any other CSS imports, warn and skip
-      this.warn(`CSS file "${id}" imported without 'with { type: "css" }' assertion. Only CSSStyleSheet imports are supported.`);
-      
-      return {
-        code: `console.warn("CSS file was imported without 'with { type: \\"css\\" }' assertion.");
-        export default {};`,
-        map: { mappings: '' }
-      };
-    },
-
-    /* We don't need to generate any separate CSS files anymore, as all CSS is now directly
-       embedded in the CSSStyleSheet objects. This method is kept for compatibility with potential future updates. */
-    generateBundle() {
-      // Empty implementation - all CSS is now embedded in JavaScript modules
-    }
-  };
-}
 
 export default async function build(flags: BuildFlags) {
   // Try to validate the project configuration
@@ -121,7 +25,15 @@ export default async function build(flags: BuildFlags) {
 
   // Get entrypoints from package.json
   const currentFileList = (
-    await getFilesRecursively(projectConfig.projectPath, projectConfig.ignore, projectConfig.files)
+    await getFilesRecursively(
+      projectConfig.projectPath,
+      [
+        ...(projectConfig.ignore || []),
+        // always ignore the outdir itself to avoid recursive nesting
+        relative(projectConfig.projectPath, resolve(flags.out!)).replace(/\\/g, '/')
+      ],
+      projectConfig.files
+    )
   ).map(key => relative(projectConfig.projectPath, key).replace(/\\/g, '/'));
   const entries = getExportsEntries(
     projectConfig.name,
@@ -149,7 +61,7 @@ export default async function build(flags: BuildFlags) {
   try {
     if (!flags.quiet) startSpinner(`Building package ${c.cyan(projectConfig.name)}...`);
 
-    // @ts-ignore
+    const baseUrl = pathToFileURL(projectConfig.projectPath).href;
     const externalPackages = Object.keys(projectConfig.dependencies || {});
     const bundle = await rollup({
       external: mod => {
@@ -160,13 +72,15 @@ export default async function build(flags: BuildFlags) {
       input,
       plugins: [
         jspmRollup({
-          // @ts-ignore
+          // @ts-expect-error untyped plugin interface
           generator,
-          baseUrl: pathToFileURL(projectConfig.projectPath).href,
-          env
+          baseUrl,
+          env,
+          minify: flags.minify
         }) as any,
         createCssPlugin({
-          minify: true,
+          baseUrl,
+          minify: flags.minify
           // Only support CSSStyleSheet imports:
           // import styles from './styles.css' with { type: 'css' }
         })
@@ -175,14 +89,15 @@ export default async function build(flags: BuildFlags) {
 
     const { output } = await bundle.generate({
       format: 'esm',
-      assetFileNames: '[name]',
+      assetFileNames: '[name][extname]',
       entryFileNames: '[name]',
       chunkFileNames: '[name]',
-      sourcemap: true
+      sourcemap: true,
+      compact: flags.minify
     });
 
     // Create output directory if it doesn't exist
-    await mkdirp(flags.out!);
+    await mkdir(flags.out!, { recursive: true });
 
     // Write all generated chunks to the output directory
     for (const chunk of output) {
@@ -190,14 +105,14 @@ export default async function build(flags: BuildFlags) {
       const outDir = dirname(outPath);
 
       // Ensure the directory exists
-      await mkdirp(outDir);
+      await mkdir(outDir, { recursive: true });
 
       // Write the chunk
-      await fs.writeFile(outPath, chunk.type === 'chunk' ? chunk.code : chunk.source);
+      await writeFile(outPath, chunk.type === 'chunk' ? chunk.code : chunk.source);
 
       // Write the source map if available
       if (chunk.type === 'chunk' && chunk.map) {
-        await fs.writeFile(`${outPath}.map`, JSON.stringify(chunk.map));
+        await writeFile(`${outPath}.map`, JSON.stringify(chunk.map));
       }
     }
 
@@ -211,10 +126,10 @@ export default async function build(flags: BuildFlags) {
         const outDir = dirname(outPath);
 
         // Ensure the directory exists
-        await mkdirp(outDir);
+        await mkdir(outDir, { recursive: true });
 
         // Copy the file
-        await fs.copyFile(sourcePath, outPath);
+        await copyFile(sourcePath, outPath);
       }
     }
 
@@ -224,4 +139,63 @@ export default async function build(flags: BuildFlags) {
   } finally {
     stopSpinner();
   }
+}
+
+function createCssPlugin({ minify, baseUrl }) {
+  const basePath = fileURLToPath(baseUrl);
+
+  const minifyCSS = (content: string) => {
+    const calc_functions: string[] = [];
+    const calc_regex = /\bcalc\(([^)]+)\)/g;
+    const comments = /("(?:[^"\\]+|\\.)*"|'(?:[^'\\]+|\\.)*')|\/\*[\s\S]*?\*\//g;
+    const syntax =
+      /("(?:[^"\\]+|\\.)*"|'(?:[^'\\]+|\\.)*')|\s*([{};,>~])\s*|\s*([*$~^|]?=)\s*|\s+([+-])(?=.*\{)|([[(:])\s+|\s+([\])])|\s+(:)(?![^}]*\{)|^\s+|\s+$|(\s)\s+(?![^(]*\))/g;
+
+    return content
+      .replace(calc_regex, (_, group) => {
+        calc_functions.push(group);
+        return '__CALC__';
+      })
+      .replace(comments, '$1')
+      .replace(syntax, '$1$2$3$4$5$6$7$8')
+      .replace(/__CALC__/g, () => `calc(${calc_functions.shift()})`)
+      .replace(/\n+/g, ' ');
+  };
+
+  return {
+    async transform(code: string, id: string) {
+      if (!id.endsWith('.css')) return;
+      const moduleInfo = this.getModuleInfo(id);
+      if (moduleInfo.attributes?.type !== 'css')
+        throw new Error(
+          `CSS file "${id}" imported without 'with { type: "css" }' assertion. Only CSSStyleSheet imports are supported.`
+        );
+
+      const cssUrlRegEx = /url\(\s*(?:(["'])((?:\\.|[^\n\\"'])+)\1|((?:\\.|[^\s,"'()\\])+))\s*\)/g;
+
+      // Rebase all relative URLs in the CSS
+      const processedCode = code.replace(cssUrlRegEx, (match, quotes = '', relUrl1, relUrl2) => {
+        const resolved = new URL(relUrl1 || relUrl2, id).href;
+        if (!resolved.startsWith('file:')) return match;
+        const fileId = this.emitFile({
+          type: 'asset',
+          name: relative(basePath, fileURLToPath(resolved)).replace(/\\/g, '/'),
+          source: readFileSync(fileURLToPath(resolved))
+        });
+        return `url(${quotes}import.meta.ROLLUP_FILE_URL_${fileId}}${quotes})`;
+      });
+
+      const transformedCode = minify ? minifyCSS(processedCode) : processedCode;
+
+      return {
+        code: `const sheet = new CSSStyleSheet();sheet.replaceSync(\`${sanitizeTemplateStr(
+          transformedCode
+        ).replace(
+          /import\.meta\.ROLLUP_FILE_URL_/g,
+          '${import.meta.ROLLUP_FILE_URL_'
+        )}\`);export default sheet;`,
+        map: { mappings: '' }
+      };
+    }
+  };
 }

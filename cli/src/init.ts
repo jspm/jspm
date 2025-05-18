@@ -11,6 +11,7 @@ import {
   isDirectory
 } from './utils.ts';
 import type { BaseFlags } from './cli.ts';
+import { getOption } from './terminal-utils.ts';
 
 /**
  * ProjectConfig interface representing validated package.json contents
@@ -72,6 +73,7 @@ export async function initCreate(
     output: process.stdout,
     terminal: true // This helps prevent character echo issues on Windows
   });
+  let closed = false;
   readline.on('SIGINT', () => {
     process.exit(0);
   });
@@ -121,7 +123,7 @@ export async function initCreate(
 
     // Initialize variables for optional features
     let useTypeScript = false;
-    let shouldCreateClaudeMd = false;
+    let createdAiFile: string | null = null;
     let shouldCreateHtml = false;
     let shouldCreateGitignore = false;
 
@@ -162,15 +164,6 @@ export async function initCreate(
         createGitignore.toLowerCase() === 'y' ||
         createGitignore.toLowerCase() === 'yes' ||
         createGitignore === '';
-
-      // Ask about creating claude.md file
-      const createClaudeMd = await readline.question(
-        `${c.cyan('Create a claude.md file? ')}${c.bold('(y/n)')} `
-      );
-      shouldCreateClaudeMd =
-        createClaudeMd.toLowerCase() === 'y' ||
-        createClaudeMd.toLowerCase() === 'yes' ||
-        createClaudeMd === '';
     }
 
     // Ask about creating index.html example app
@@ -186,6 +179,25 @@ export async function initCreate(
         createHtmlExample === '';
     }
 
+    // Close readline interface before using terminal-utils
+    closed = true;
+    readline.close();
+
+    // Ask about creating AI rules file
+    if (mode === 'Creating') {
+      // Show AI rules file selection options
+      const aiRuleOptions = [
+        { name: '.cursorrules', description: 'Cursor' },
+        { name: '.windsurfrules', description: 'Windsurf' },
+        { name: '.clinerules', description: 'Cline' },
+        { name: 'CLAUDE.md', description: 'Anthropic Claude' },
+        { name: 'AGENTS.md', description: 'OpenAI Codex' },
+        { name: 'none', description: 'No AI file' }
+      ];
+
+      createdAiFile = await getOption('Create an AI prompt file?', aiRuleOptions);
+    }
+
     // Create the package.json content, preserving other fields
     const packageJson: any = {
       ...existingPackageJson,
@@ -195,20 +207,16 @@ export async function initCreate(
       type: 'module'
     };
 
-    // Track which files are newly created
-    let entrypointCreated = false;
-    let tsconfigCreated = false;
-    let claudeMdCreated = false;
-    let htmlCreated = false;
-    let landingCreated = false;
-    let gitignoreCreated = false;
-
     // Add exports if the user wants them
     let exportsValue: string | undefined;
     if (defaultExport !== false) {
       exportsValue = exportPath || (useTypeScript ? 'src/index.ts' : defaultExport);
       packageJson.exports = { '.': `./${exportsValue}` };
     }
+
+    const projectDirRel = relative(process.cwd(), projectDir).replace(/\\/g, '/');
+
+    if (!flags.quiet) console.log('');
 
     // Create tsconfig.json if TypeScript is enabled
     if (useTypeScript) {
@@ -232,19 +240,10 @@ export async function initCreate(
         );
 
         await writeFile(tsconfigPath, tsconfigContent);
-        tsconfigCreated = true;
-      }
-    }
-
-    // Create claude.md if requested
-    if (shouldCreateClaudeMd) {
-      const claudeMdPath = join(projectDir, 'claude.md');
-      const claudeMdExists = exists(claudeMdPath);
-
-      if (!claudeMdExists) {
-        const claudeMdContent = claudeMd(useTypeScript);
-        await writeFile(claudeMdPath, claudeMdContent);
-        claudeMdCreated = true;
+        if (!flags.quiet)
+          console.log(
+            `${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/tsconfig.json`)} created`
+          );
       }
     }
 
@@ -256,7 +255,9 @@ export async function initCreate(
       if (!gitignoreExists) {
         const gitignoreContent = createGitignore(useTypeScript);
         await writeFile(gitignorePath, gitignoreContent);
-        gitignoreCreated = true;
+
+        if (!flags.quiet)
+          console.log(`${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/.gitignore`)} created`);
       }
     }
 
@@ -265,7 +266,8 @@ export async function initCreate(
       const htmlContent = await createExampleHtml(packageJson, exportsValue !== undefined);
 
       await writeFile(htmlPath, htmlContent);
-      htmlCreated = true;
+      if (!flags.quiet)
+        console.log(`${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/index.html`)} created`);
 
       // Check if entry point file exists, create it if not
       if (exportsValue) {
@@ -278,24 +280,51 @@ export async function initCreate(
         const entrypointDir =
           lastSeparatorIndex > 0 ? entrypointPath.substring(0, lastSeparatorIndex) : null;
 
-        const entrypointExists = exists(entrypointPath);
+        if (!exists(entrypointPath) && mode === 'Creating') {
+          if (entrypointDir && entrypointDir !== projectDir && !exists(entrypointDir))
+            await mkdir(entrypointDir, { recursive: true });
+          await writeFile(entrypointPath, exampleEntry());
 
-        // Create the directory for the entry point if it doesn't exist
-        if (entrypointDir && entrypointDir !== projectDir && !exists(entrypointDir)) {
-          await mkdir(entrypointDir, { recursive: true });
-        }
-
-        if (!entrypointExists && mode === 'Creating') {
-          // Create a basic entry point file
-          const fileContent = exampleEntry();
-          await writeFile(entrypointPath, fileContent);
-          entrypointCreated = true;
+          if (!flags.quiet)
+            console.log(
+              `${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/${exportsValue}`)} created`
+            );
 
           // Also write the example landing component
           await writeFile(join(dirname(entrypointPath), 'landing.js'), exampleLandingJs);
           await writeFile(join(dirname(entrypointPath), 'landing.css'), exampleLandingCss);
-          landingCreated = true;
+          if (!flags.quiet)
+            console.log(
+              `${c.green('✓')}  ${c.cyan(
+                `${projectDirRel || '.'}/${join(dirname(exportsValue), 'landing.js').replace(
+                  /\\/g,
+                  '/'
+                )}`
+              )} created`
+            );
+
+          if (!flags.quiet)
+            console.log(
+              `${c.green('✓')}  ${c.cyan(
+                `${projectDirRel || '.'}/${join(dirname(exportsValue), 'landing.css').replace(
+                  /\\/g,
+                  '/'
+                )}`
+              )} created`
+            );
         }
+      }
+    }
+
+    // Create selected AI rules file
+    if (createdAiFile && createdAiFile !== 'none') {
+      const aiRulePath = join(projectDir, createdAiFile);
+      if (!exists(aiRulePath)) {
+        await writeFile(aiRulePath, aiFile(useTypeScript));
+
+        const aiRuleFileRel = relative(process.cwd(), aiRulePath).replace(/\\/g, '/');
+
+        if (!flags.quiet) console.log(`${c.green('✓')}  ${c.cyan(aiRuleFileRel)} created`);
       }
     }
 
@@ -303,65 +332,13 @@ export async function initCreate(
     await writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2), {
       encoding: 'utf8'
     });
+    console.log(
+      `${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/package.json`)} ${mode
+        .toLowerCase()
+        .replace('ing', 'ed')}`
+    );
 
-    // Display a summary of created files if not in quiet mode
-    const projectDirRel = relative(process.cwd(), projectDir).replace(/\\/g, '/');
-    if (!flags.quiet) {
-      console.log('');
-      console.log(
-        `${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/package.json`)} ${mode
-          .toLowerCase()
-          .replace('ing', 'ed')}`
-      );
-
-      // Show only files that were actually created
-      if (defaultExport !== false && exportsValue && entrypointCreated) {
-        console.log(
-          `${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/${exportsValue}`)} created`
-        );
-      }
-
-      if (defaultExport !== false && exportsValue && landingCreated) {
-        console.log(
-          `${c.green('✓')}  ${c.cyan(
-            `${projectDirRel || '.'}/${join(dirname(exportsValue), 'landing.js').replace(
-              /\\/g,
-              '/'
-            )}`
-          )} created`
-        );
-      }
-
-      if (defaultExport !== false && exportsValue && landingCreated) {
-        console.log(
-          `${c.green('✓')}  ${c.cyan(
-            `${projectDirRel || '.'}/${join(dirname(exportsValue), 'landing.css').replace(
-              /\\/g,
-              '/'
-            )}`
-          )} created`
-        );
-      }
-
-      if (shouldCreateGitignore && gitignoreCreated) {
-        console.log(`${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/.gitignore`)} created`);
-      }
-
-      if (useTypeScript && tsconfigCreated) {
-        console.log(`${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/tsconfig.json`)} created`);
-      }
-
-      if (shouldCreateClaudeMd && claudeMdCreated) {
-        console.log(`${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/claude.md`)} created`);
-      }
-
-      if (shouldCreateHtml && htmlCreated) {
-        console.log(`${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/index.html`)} created`);
-      }
-
-      console.log(); // Add empty line at the end
-    }
-    console.log(`${c.green('Ok:')} Initialization complete.`);
+    console.log(`\n${c.green('Ok:')} Initialization complete.`);
     console.log(
       `${c.blue('Info:')} Next, run ${
         projectDirRel ? `${c.bold(`cd ${projectDirRel}`)} and ` : ''
@@ -382,8 +359,7 @@ export async function initCreate(
 
     return config;
   } finally {
-    // Close readline interface
-    readline.close();
+    if (!closed) readline.close();
   }
 }
 
@@ -520,7 +496,7 @@ const createExampleHtml = async (packageJson, hasEntry: boolean) => {
 `;
 };
 
-const claudeMd = (tsEnabled: boolean) => `
+const aiFile = (tsEnabled: boolean) => `
 # Claude Configuration
 
 ## JSPM Conventions

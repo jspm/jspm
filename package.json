@@ -3,6 +3,6 @@
     "cli",
     "generator",
     "import-map",
-    "rollup-plugin-jspm"
+    "plugin-rollup"
   ]
 }

@@ -654,6 +654,67 @@ function canWrite(file: string) {
   }
 }
 
+/**
+ * Creates a relative URL path from one URL to another
+ * If they are not on the same origin, returns the absolute URL
+ * @param fromUrl The base URL (URL instance)
+ * @param toUrl The target URL (URL instance)
+ * @returns A relative URL path or absolute URL
+ */
+export function relativeUrl(fromUrl: URL, toUrl: URL): string {
+  // If not on same origin, return the absolute URL
+  if (fromUrl.origin !== toUrl.origin) {
+    return toUrl.href;
+  }
+
+  // Get the pathname parts of both URLs
+  const fromParts = fromUrl.pathname.split('/').filter(Boolean);
+  const toParts = toUrl.pathname.split('/').filter(Boolean);
+
+  // Find the common path prefix
+  let commonParts = 0;
+  const minLength = Math.min(fromParts.length, toParts.length);
+  for (let i = 0; i < minLength; i++) {
+    if (fromParts[i] === toParts[i]) {
+      commonParts++;
+    } else {
+      break;
+    }
+  }
+
+  // For the fromUrl, we need to use directory parts (remove filename if it's a file)
+  // We're assuming the last segment is a filename if it contains a dot
+  const fromDirParts = fromParts.slice(
+    0,
+    fromParts.length - (fromParts[fromParts.length - 1]?.includes('.') ? 1 : 0)
+  );
+
+  // Calculate steps to go back
+  const backSteps = Math.max(0, fromDirParts.length - commonParts);
+
+  // Calculate the parts to go forward
+  const forwardParts = toParts.slice(commonParts);
+
+  // Build the relative URL
+  let relPath = '';
+  if (backSteps === 0 && forwardParts.length === 0) {
+    relPath = './';
+  } else {
+    relPath = backSteps > 0 ? '../'.repeat(backSteps) : './';
+    relPath += forwardParts.join('/');
+  }
+
+  // Add query and hash parts if present
+  if (toUrl.search) {
+    relPath += toUrl.search;
+  }
+  if (toUrl.hash) {
+    relPath += toUrl.hash;
+  }
+
+  return relPath;
+}
+
 export function copyToClipboard(text) {
   try {
     switch (platform()) {
@@ -691,7 +752,9 @@ const defaultIgnore = [
   'test',
   '**/package-lock.json',
   '**/tsconfig.json',
-  '**/chompfile.toml'
+  '**/chompfile.toml',
+  'CLAUDE.md',
+  'AGENTS.md'
 ];
 export async function getFilesRecursively(
   directory: string,
@@ -1089,6 +1152,116 @@ function expandExportsTarget(
  * Expands the exports resolution set of a package against the filesystem
  * Returns the record mapping packagename/subpath entries to file paths
  */
+/**
+ * Interactive selection menu with arrow keys
+ * @param options Array of options with name and description
+ * @param defaultIndex Default selected option index (0-based)
+ * @returns Promise resolving to the selected option
+ */
+export async function querySelection(
+  options: { name: string; description?: string }[],
+  defaultIndex = 0
+): Promise<{ name: string; description?: string; index: number }> {
+  if (!options || !options.length) {
+    throw new JspmError('No options provided for selection');
+  }
+
+  let selectedIndex = defaultIndex;
+
+  // Function to clear previous render and move cursor
+  const clearPrevious = () => {
+    process.stdout.write(`\x1B[${options.length + 1}A`); // Move up to start of options
+    process.stdout.write('\x1B[0J'); // Clear from cursor to end of screen
+  };
+
+  // Function to render options
+  const renderOptions = () => {
+    console.log(c.cyan('Select an option:'));
+    options.forEach((option, index) => {
+      const isSelected = index === selectedIndex;
+      const prefix = isSelected ? c.green('❯ ') : '  ';
+      const optionText = isSelected ? c.bold(option.name) : option.name;
+      const suffix = option.description ? ` - ${option.description}` : '';
+      const selectedSuffix = isSelected ? c.dim(' [selected]') : '';
+      console.log(`${prefix}${optionText}${suffix}${selectedSuffix}`);
+    });
+  };
+
+  // Initial render
+  renderOptions();
+
+  // Create a promise that will resolve when selection is made
+  const selectionPromise = new Promise<{ name: string; description?: string; index: number }>(
+    resolve => {
+      // Setup raw mode for arrow key input
+      process.stdin.setRawMode(true);
+
+      // Handle keypress events
+      const handleKeypress = (str, key) => {
+        if (!key) return;
+
+        if (key.name === 'up' && selectedIndex > 0) {
+          selectedIndex--;
+          clearPrevious();
+          renderOptions();
+        } else if (key.name === 'down' && selectedIndex < options.length - 1) {
+          selectedIndex++;
+          clearPrevious();
+          renderOptions();
+        } else if (key.name === 'return') {
+          // Clean up on Enter key
+          process.stdin.removeListener('keypress', handleKeypress);
+
+          // Restore terminal settings
+          process.stdin.setRawMode(false);
+
+          // Clear the selection UI
+          clearPrevious();
+
+          // Show selected option
+          console.log(c.cyan('Selected: ') + c.bold(options[selectedIndex].name));
+
+          // Important: Don't close the readline interface here!
+          // Instead, let the parent code continue
+
+          // Just remove our listener and resolve
+          resolve({ ...options[selectedIndex], index: selectedIndex });
+        } else if (key.name === 'escape' || (key.name === 'c' && key.ctrl)) {
+          // Handle escape or ctrl+c
+          process.stdin.removeListener('keypress', handleKeypress);
+          process.stdin.setRawMode(false);
+          process.exit(0);
+        }
+      };
+
+      // Set up keypress listener
+      process.stdin.on('keypress', handleKeypress);
+    }
+  );
+
+  // Wait for the selection to be made
+  const result = await selectionPromise;
+
+  // Write a blank line to keep the spacing consistent
+  console.log();
+
+  return result;
+}
+
+/**
+ * Sanitizes a string for use within template literals (backticks)
+ * Escapes backticks, backslashes, and ${} template expressions
+ *
+ * @param str The string to sanitize
+ * @returns A string safe to use within template literals
+ */
+export function sanitizeTemplateStr(str: string): string {
+  return str
+    .replace(/\\/g, '\\\\') // Replace backslashes first
+    .replace(/`/g, '\\`') // Escape backticks
+    .replace(/\${/g, '\\${'); // Escape template expressions
+}
+
 export function getExportsEntries(
   name: string,
   exports: any,

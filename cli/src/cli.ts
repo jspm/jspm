@@ -388,6 +388,9 @@ the same options as the 'jspm install' command with no arguments.
 generateOpts(
   cli
     .command('build', 'Build package')
+    .option('--no-minify', 'Disable build minification', {
+      default: true
+    })
     .option('-o, --out <dir>', 'Path to the output directory for the build', {
       default: 'dist'
     }),
@@ -407,6 +410,7 @@ are built.
 
 export interface BuildFlags extends BaseFlags {
   out?: string;
+  minify?: boolean;
 }
 
 // Deploy command - main command is now just deploy with --eject flag for eject functionality

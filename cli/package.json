@@ -15,14 +15,14 @@
     "test": "chomp test"
   },
   "dependencies": {
+    "@babel/core": "^7.24.7",
     "@jspm/generator": "^2.5.1",
+    "@jspm/plugin-rollup": "^1.1.0",
     "ora": "^8.2.0",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^0.34.2",
-    "@babel/core": "^7.24.7",
-    "@rollup/pluginutils": "^5.1.0",
     "@types/node": "^18.15.11",
     "amaro": "^0.5.3",
     "cac": "^6.7.14",

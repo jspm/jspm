@@ -58,7 +58,11 @@ deps = [
     'src/**/*.ts',
     'npm:install',
 ]
-run = '../node_modules/.bin/esbuild src/cli.ts --bundle --platform=node --external:fsevents --external:@jspm/generator --external:ora --external:picocolors --external:@babel/core --format=esm --outfile=$TARGET'
+run = """
+../node_modules/.bin/esbuild src/cli.ts --bundle --platform=node --format=esm --outfile=$TARGET \
+    --external:@jspm/generator --external:ora --external:picocolors --external:@babel/core \
+    --external:@jspm/plugin-rollup
+"""
 
 [[task]]
 name = 'docs'

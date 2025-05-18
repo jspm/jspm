@@ -230,6 +230,8 @@ export async function initCreate(
               target: 'esnext',
               module: 'nodenext',
               lib: ['esnext', 'DOM', 'DOM.Iterable'],
+              allowArbitraryExtensions: true,
+              resolveJsonModule: true,
               rewriteRelativeImportExtensions: true,
               erasableSyntaxOnly: true,
               verbatimModuleSyntax: true

@@ -557,7 +557,7 @@ export interface BuildFlags extends GenerateFlags {
 outputOpts(
   generateOpts(
     cli
-      .command('deploy', `Deploy package to a provider (limited availability)`)
+      .command('deploy', `Deploy package to a provider (experimental)`)
       .option(
         '--no-usage',
         'Disable printing HTML/JS import code examples after successful deployment',
@@ -621,13 +621,13 @@ Download the application package foo@bar into the folder foo, merging its import
   .usage(
     `deploy [options]
 
-Manages deployments to the JSPM providers.
+Manages deployments to the JSPM providers, currently in experimental preview.
 
 For publishing (default):
 
   jspm deploy
 
-  - The provider flag is always required, with limited availability only on the jspm.io provider currently
+  - The provider flag is always required, with limited signups only available on the jspm.io provider currently
   - The package must have a valid package.json with name and version fields.
   - The package.json "files" and "ignore" arrays will be respected.
   - Semver versions are always immutable deployments that cannot be redeployed.

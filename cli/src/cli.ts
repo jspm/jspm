@@ -109,6 +109,7 @@ export interface BaseFlags {
   quiet?: boolean;
   showVersion?: boolean;
   dir?: string;
+  disableWarning?: string[] | string;
 }
 
 cli
@@ -116,6 +117,11 @@ cli
   .option(
     '-d, --dir <directory>',
     'Package directory to operate on (defaults to working directory)',
+    {}
+  )
+  .option(
+    '--disable-warning <warnings>',
+    'Disable specific warnings (comma-separated list, e.g. file-count)',
     {}
   )
   .help(defaultHelpCb);
@@ -144,9 +150,9 @@ cli
   .command('init [directory]', 'Initialize a new JSPM project')
   .usage(
     `init [directory] [options]
-    
-    Initializes a JSPM project in the current or specified directory.
-    `
+
+Initializes a JSPM project in the current or specified directory.
+`
   )
   .example(
     name => `
@@ -230,7 +236,7 @@ By default, output is limited to 20 items. Use --limit to see more items.`
   )
   .action(wrapCommand(ls));
 
-outputOpts(generateOpts(cli.command('link [...modules]', 'link modules').alias('trace')))
+outputOpts(generateOpts(cli.command('link [...modules]', 'Link modules').alias('trace')))
   .example(
     name => `Link a local module
   $ ${name} link ./src/cli.js
@@ -244,12 +250,21 @@ outputOpts(generateOpts(cli.command('link [...modules]', 'link modules').alias('
   .usage(
     `link [flags] [...modules]
 
-Traces and installs all dependencies necessary to execute the given modules into an import map, including both static and dynamic module imports. The given modules can be:
-  1. Paths to local JavaScript modules, such as "./src/my-module.mjs".
-  2. Paths to local HTML files, such as "index.html", in which case all module scripts in the file are linked.
-  3. Valid remote URLs, in which case their dependencies will be linked in turn into the import map.
+Traces and installs all dependencies necessary to execute the given modules into an import map, including both static and dynamic module imports.
 
-If no modules are given, all "imports" in the initial map are relinked.`
+Input Types:
+  - Paths to local JavaScript modules (e.g., "./src/my-module.mjs")
+  - Paths to local HTML files (e.g., "index.html"), which links all module scripts in the file
+  - Valid remote URLs, which also links their dependencies into the import map
+
+Import Map Handling:
+  - If no modules are given, all "imports" in the initial map are relinked
+  - Takes an input import map (--map) and produces an updated output map (--out)
+  - Works with the same map formats as install (JSON, JS, HTML)
+  
+Security and Performance Options:
+  - Use --integrity to add SRI integrity hashes to the import map
+  - Use --preload to generate preload link tags when using HTML output`
   )
   .action(wrapCommand(link));
 
@@ -271,9 +286,9 @@ Import Map Handling:
   - --map can point to JSON, JS, or HTML files, and maps will be extracted appropriately
   - Maps behave like lockfiles; versions are locked to resolutions from the input map
   - Output map is controlled by --out flag, supporting the same file types:
-    • JSON: Just the import map
-    • JS: An import map injection script that can be included with a script tag (recommended)
-    • HTML: The import map is injected directly into the HTML file contents
+    - JSON: Just the import map
+    - JS: An import map injection script that can be included with a script tag (recommended)
+    - HTML: The import map is injected directly into the HTML file contents
   
 Enhanced Security and Performance:
   - Use --integrity to add SRI (Subresource Integrity) hashes to the import map
@@ -282,7 +297,7 @@ Enhanced Security and Performance:
   )
   .action(wrapCommand(install));
 
-outputOpts(generateOpts(cli.command('update [...packages]', 'update packages').alias('upgrade')))
+outputOpts(generateOpts(cli.command('update [...packages]', 'Update packages').alias('upgrade')))
   .example(
     name => `
 $ ${name} update react-dom
@@ -293,7 +308,7 @@ Update the react-dom package.
   .usage(
     `update [flags] [...packages]
 
-Updates packages in an import map to the latest versions that are compatible with the local \`package.json\`. The given packages must be valid package specifiers, such as \`npm:react@18.0.0\`, \`denoland:oak\` or \`lit\`, and must be present in the initial import map.
+Updates packages in an import map to the latest versions that are compatible with the local "package.json". The given packages must be valid package specifiers, such as "npm:react@18.0.0", "denoland:oak" or "lit", and must be present in the initial import map.
 
 Import Map Handling:
   - Takes an input import map (--map) and produces an updated output map (--out)
@@ -357,8 +372,8 @@ Start a server that does not generate the import map on startup, perform type st
   .usage(
     `serve [directory] [options]
     
-Starts a standards-based development server for the specified directory. If no directory is specified, 
-the current directory is used. The server provides directory listings and serves files with 
+Starts a standards-based development server for the specified directory. If no directory is specified,
+the current directory is used. The server provides directory listings and serves files with
 appropriate MIME types.
 
 This is an intentionally minimal, opinionated server focused on standards-based workflows:
@@ -396,14 +411,44 @@ generateOpts(
     }),
   true
 )
+  .example(
+    name => `
+$ ${name} build
+
+Build the current package using default options.
+`
+  )
+  .example(
+    name => `
+$ ${name} build --no-minify
+
+Build the package without minification for better debugging.
+`
+  )
+  .example(
+    name => `
+$ ${name} build -o lib
+
+Build the package to the lib directory instead of the default dist directory.
+`
+  )
+  .example(
+    name => `
+$ ${name} build --map custom-map.json
+
+Build using a custom import map file.
+`
+  )
   .usage(
     `build [options]
 
 Builds a package and its dependencies using the JSPM import map and dependency resolution.
 Uses RollupJS under the hood to create optimized bundles.
 
-By default the package entry points as defined in the package.json "exports" field
-are built.
+The package entry points as defined in the package.json "exports" field are built, with the
+entire package copied into the output directory. As such, it is a whole-package transformation.
+Includes and ignores can be specified using the package.json "files" and "ignore" fields,
+optionally using the JSPM overrides for these via the "jspm" property in the package.json.
 `
   )
   .action(wrapCommand(build));
@@ -418,9 +463,13 @@ outputOpts(
   generateOpts(
     cli
       .command('deploy', `Deploy package to a provider (experimental)`)
-      .option('--no-usage', 'Disable printing the usage code snippet for the deployment', {
-        default: true
-      })
+      .option(
+        '--no-usage',
+        'Disable printing HTML/JS import code examples after successful deployment',
+        {
+          default: true
+        }
+      )
       .option('-w, --watch', 'Watch for changes and redeploy (experimental)', {
         default: false
       })
@@ -710,7 +759,8 @@ function defaultHelpCb(helpSections: HelpSection[]) {
             l.includes('uninstall') ||
             l.includes('update') ||
             l.includes('auth') ||
-            l.includes('clear-cache')
+            l.includes('clear-cache') ||
+            l.includes('deploy')
           );
         })
         .join('\n');

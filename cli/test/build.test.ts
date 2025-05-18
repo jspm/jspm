@@ -43,13 +43,13 @@ test('build with rollup config', async () => {
 
       // Check that URLs have been rebased correctly
       ok(
-        appJs.includes(`url('\${new URL('images/background.png', import.meta.url).href}')`),
+        appJs.includes(`url('\${new URL("images/background.png",import.meta.url).href}')`),
         'CSS URLs should be rebased to use proper relative paths'
       );
 
       // Verify JSON data imports are correctly handled
       ok(appJs.includes('"Test Component Data"'), 'Built app.js should include imported JSON data');
-      ok(appJs.includes('"theme": "light"'), 'Built app.js should include settings from JSON data');
+      ok(appJs.includes('theme:"light"'), 'Built app.js should include settings from JSON data');
 
       // Verify TypeScript compilation
       ok(
@@ -57,20 +57,20 @@ test('build with rollup config', async () => {
         'Built app.js should include the UserManager class from TypeScript'
       );
       ok(appJs.includes('getActiveUsers'), 'Built app.js should include TypeScript class methods');
-      ok(appJs.includes('TYPESCRIPT_VERSION'), 'Built app.js should include TypeScript constants');
+      ok(appJs.includes('5.0.4'), 'Built app.js should include TypeScript constants');
       ok(
         appJs.includes('getAllUsers'),
         'Built app.js should include correctly compiled TypeScript code'
       );
       ok(
-        appJs.includes('filter(user => user.isActive)'),
+        appJs.match(/=>\w+\.isActive\)/),
         'Built app.js should include TypeScript arrow functions'
       );
 
       // Verify the utils export point is handled correctly
       const utilsJs = files.get('dist/utils.js')!;
-      ok(utilsJs.includes('export { add }'), 'Utils.js should be correctly built with exports');
-      ok(utilsJs.includes("import 'react'"), 'Utils.js should have react external');
+      ok(utilsJs.match(/export{\w as add}/), 'Utils.js should be correctly built with exports');
+      ok(utilsJs.includes('import"react"'), 'Utils.js should have react external');
     }
   });
 });

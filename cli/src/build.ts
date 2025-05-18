@@ -7,6 +7,7 @@ import jspmRollup from '@jspm/plugin-rollup';
 import c from 'picocolors';
 import {
   JspmError,
+  getDisabledWarnings,
   getEnv,
   getExportsEntries,
   getFilesRecursively,
@@ -32,7 +33,8 @@ export default async function build(flags: BuildFlags) {
         // always ignore the outdir itself to avoid recursive nesting
         relative(projectConfig.projectPath, resolve(flags.out!)).replace(/\\/g, '/')
       ],
-      projectConfig.files
+      projectConfig.files,
+      getDisabledWarnings(flags)
     )
   ).map(key => relative(projectConfig.projectPath, key).replace(/\\/g, '/'));
   const entries = getExportsEntries(
@@ -78,11 +80,9 @@ export default async function build(flags: BuildFlags) {
           env,
           minify: flags.minify
         }) as any,
-        createCssPlugin({
+        cssPlugin({
           baseUrl,
           minify: flags.minify
-          // Only support CSSStyleSheet imports:
-          // import styles from './styles.css' with { type: 'css' }
         })
       ]
     });
@@ -141,7 +141,8 @@ export default async function build(flags: BuildFlags) {
   }
 }
 
-function createCssPlugin({ minify, baseUrl }) {
+// Taken from https://github.com/jleeson/rollup-plugin-import-css, Jacob Leeson, MIT
+function cssPlugin({ minify, baseUrl }) {
   const basePath = fileURLToPath(baseUrl);
 
   const minifyCSS = (content: string) => {
@@ -166,7 +167,7 @@ function createCssPlugin({ minify, baseUrl }) {
     async transform(code: string, id: string) {
       if (!id.endsWith('.css')) return;
       const moduleInfo = this.getModuleInfo(id);
-      if (moduleInfo.attributes?.type !== 'css')
+      if ((moduleInfo.attributes || moduleInfo.assertions)?.type !== 'css')
         throw new Error(
           `CSS file "${id}" imported without 'with { type: "css" }' assertion. Only CSSStyleSheet imports are supported.`
         );

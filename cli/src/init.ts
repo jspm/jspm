@@ -187,11 +187,11 @@ export async function initCreate(
     if (mode === 'Creating') {
       // Show AI rules file selection options
       const aiRuleOptions = [
+        { name: 'AGENTS.md', description: 'OpenAI' },
+        { name: 'CLAUDE.md', description: 'Anthropic Claude' },
+        { name: '.clinerules', description: 'Cline' },
         { name: '.cursorrules', description: 'Cursor' },
         { name: '.windsurfrules', description: 'Windsurf' },
-        { name: '.clinerules', description: 'Cline' },
-        { name: 'CLAUDE.md', description: 'Anthropic Claude' },
-        { name: 'AGENTS.md', description: 'OpenAI Codex' },
         { name: 'none', description: 'No AI file' }
       ];
 

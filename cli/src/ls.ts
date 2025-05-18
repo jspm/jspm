@@ -19,6 +19,7 @@ import { getPackageConfig, lookup } from '@jspm/generator';
 import c from 'picocolors';
 import {
   JspmError,
+  getDisabledWarnings,
   getExportsEntries,
   getFilesRecursively,
   startSpinner,
@@ -58,7 +59,8 @@ async function listCurrentProjectExports(flags: LsFlags) {
     const files = await getFilesRecursively(
       projectConfig.projectPath,
       projectConfig.ignore,
-      projectConfig.files
+      projectConfig.files,
+      getDisabledWarnings(flags)
     );
     const fileList = files.map(file => relative(projectConfig.projectPath, file));
 

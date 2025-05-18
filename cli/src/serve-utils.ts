@@ -126,7 +126,7 @@ export async function getFileMtimes(
 ) {
   const fileMTimes = new Map<string, number>();
   // Initialize the file MTimes map
-  const initialFileList = await getFilesRecursively(directory, watchIgnore, watchInclude);
+  const initialFileList = await getFilesRecursively(directory, watchIgnore, watchInclude, {});
   for (const filePath of initialFileList) {
     try {
       const stats = await stat(filePath);

@@ -217,7 +217,7 @@ test('deploy and eject', async () => {
   await run({
     files: new Map(), // Start with clean files
     commands: [
-      `jspm deploy -p jspm.io ${deployedPackage} --eject -o importmap.json --dir ${ejectDir}`
+      `jspm deploy -p jspm.io --eject ${deployedPackage} --dir ${ejectDir} -o importmap.json`
     ],
     validationFn: async updatedFiles => {
       // Verify ejected files

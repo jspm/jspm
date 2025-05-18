@@ -487,9 +487,10 @@ function getRootUrl(flags: GenerateOutputFlags): URL | undefined {
 const excludeDefinitions = {
   production: ['development'],
   development: ['production'],
-  node: ['browser', 'deno'],
-  deno: ['node', 'browser'],
-  browser: ['node', 'deno']
+  node: ['browser', 'deno', 'bun'],
+  deno: ['browser'],
+  browser: ['node', 'deno', 'bun'],
+  bun: ['browser', 'deno']
 };
 
 function removeEnvs(env: string[], removeEnvs: string[]) {
@@ -528,7 +529,6 @@ export async function getEnv(flags: GenerateFlags) {
     env,
     envFlags.filter(env => !env.startsWith('no-'))
   );
-
   return removeNonStaticEnvKeys(env);
 }
 
@@ -753,13 +753,43 @@ const defaultIgnore = [
   '**/package-lock.json',
   '**/tsconfig.json',
   '**/chompfile.toml',
+  '**/target',
   'CLAUDE.md',
   'AGENTS.md'
 ];
+// Interface for disabled warnings
+export interface DisabledWarnings {
+  fileCount?: boolean;
+  [key: string]: boolean | undefined;
+}
+
+// Function to parse flags for disabled warnings
+export function getDisabledWarnings(flags: any): DisabledWarnings {
+  const disabledWarnings: DisabledWarnings = {};
+
+  if (flags && flags.disableWarning) {
+    // Handle array of warnings
+    const warnings = Array.isArray(flags.disableWarning)
+      ? flags.disableWarning
+      : [flags.disableWarning];
+
+    for (const warning of warnings) {
+      if (warning === 'file-count') {
+        disabledWarnings.fileCount = true;
+      } else {
+        disabledWarnings[warning] = true;
+      }
+    }
+  }
+
+  return disabledWarnings;
+}
+
 export async function getFilesRecursively(
   directory: string,
   ignore: string[] = [],
-  include: string[] = []
+  include: string[] = [],
+  disabledWarnings: DisabledWarnings = {}
 ): Promise<string[]> {
   const files: string[] = [];
 
@@ -794,6 +824,16 @@ export async function getFilesRecursively(
   }
 
   await processDirectory(directory, false);
+
+  // Display warning if file count exceeds threshold
+  if (files.length > 150 && !disabledWarnings.fileCount) {
+    console.warn(
+      `${c.yellow(
+        'Warning:'
+      )} Processing over 150 files, disable this warning with --disable-warning=file-count`
+    );
+  }
+
   return files;
 }
 

@@ -8,6 +8,7 @@ import { analyzeHtml } from '@jspm/generator';
 import { transformSync } from 'amaro';
 import {
   JspmError,
+  getDisabledWarnings,
   getEnv,
   getExportsEntries,
   getFilesRecursively,
@@ -499,7 +500,12 @@ ${error.snippet}`
         if (processing) return;
 
         const changes: string[] = [];
-        const currentFileList = await getFilesRecursively(resolvedDir, watchIgnore, watchInclude);
+        const currentFileList = await getFilesRecursively(
+          resolvedDir,
+          watchIgnore,
+          watchInclude,
+          getDisabledWarnings(flags)
+        );
 
         // Check for new or modified files
         for (const filePath of currentFileList) {

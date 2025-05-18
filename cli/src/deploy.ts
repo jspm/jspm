@@ -24,6 +24,7 @@ import {
   cliHtmlHighlight,
   copyToClipboard,
   exists,
+  getDisabledWarnings,
   getEnv,
   getFilesRecursively,
   getGenerator,
@@ -271,7 +272,12 @@ async function startWatchMode(
 
   await watchLoop(true);
 
-  const initialFileList = await getFilesRecursively(directory, ignore, include);
+  const initialFileList = await getFilesRecursively(
+    directory,
+    ignore,
+    include,
+    getDisabledWarnings(flags)
+  );
   for (const filePath of initialFileList) {
     try {
       const stats = await fs.stat(filePath);
@@ -334,7 +340,12 @@ async function startWatchMode(
       }
 
       const changes: string[] = [];
-      const currentFileList = await getFilesRecursively(directory, ignore, include);
+      const currentFileList = await getFilesRecursively(
+        directory,
+        ignore,
+        include,
+        getDisabledWarnings(flags)
+      );
 
       // Check for new or modified files
       for (const filePath of currentFileList) {

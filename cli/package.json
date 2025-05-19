@@ -1,7 +1,7 @@
 {
   "name": "jspm",
   "type": "module",
-  "version": "3.3.5",
+  "version": "4.0.0",
   "description": "Import Map Package Manager",
   "license": "Apache-2.0",
   "bin": {
@@ -16,8 +16,8 @@
   },
   "dependencies": {
     "@babel/core": "^7.24.7",
-    "@jspm/generator": "^2.5.1",
-    "@jspm/plugin-rollup": "^1.1.0",
+    "@jspm/generator": "^2.6.0",
+    "@jspm/plugin-rollup": "^1.2.2",
     "ora": "^8.2.0",
     "picocolors": "^1.1.1"
   },

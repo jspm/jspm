@@ -1,6 +1,6 @@
 import { ImportMap } from "@jspm/import-map";
 import babel from "@babel/core";
-import dewTransformPlugin from "babel-plugin-transform-cjs-dew";
+import dewTransformPlugin from "./transform-cjs-dew.cjs";
 import path from "path";
 import { Generator, fetch } from "@jspm/generator";
 import * as cjsModuleLexer from "cjs-module-lexer";

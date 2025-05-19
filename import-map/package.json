@@ -2,7 +2,7 @@
   "name": "@jspm/import-map",
   "description": "Package Import Map Utility",
   "license": "MIT",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "types": "lib/map.d.ts",
   "type": "module",
   "exports": {

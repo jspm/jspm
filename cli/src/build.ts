@@ -53,8 +53,12 @@ export default async function build(flags: BuildFlags) {
   const input: Record<string, string> = {};
   for (const [, files] of Object.entries(entries)) {
     for (const file of files) {
-      input[relative(projectConfig.projectPath, file).replace(/\\/g, '/')] =
-        pathToFileURL(file).href;
+      input[
+        relative(projectConfig.projectPath, file)
+          .replace(/\\/g, '/')
+          .replace(/\.ts$/, '.js')
+          .replace(/\.mts$/, '.mjs')
+      ] = pathToFileURL(file).href;
     }
   }
 
@@ -118,6 +122,26 @@ export default async function build(flags: BuildFlags) {
     // Copy all files from currentFileList to output directory (unless they already exist as chunks)
     const generatedFiles = new Set(output.map(chunk => chunk.fileName));
 
+    // Copy the package.json across with the "exports" field patched for .ts -> .js renames
+    {
+      // already read it previously so this should pass
+      const pjson = JSON.parse(
+        readFileSync(join(projectConfig.projectPath, 'package.json'), 'utf8')
+      );
+      // TODO: do this properly!
+      pjson.exports = JSON.parse(
+        JSON.stringify(pjson.exports)
+          .replace(/\.ts"/g, '.js"')
+          .replace(/\.mts"/g, '.mjs"')
+      );
+      const outPath = join(flags.out!, 'package.json');
+      const outDir = dirname(outPath);
+      await mkdir(outDir, { recursive: true });
+      await writeFile(outPath, JSON.stringify(pjson, null, 2));
+      generatedFiles.add('package.json');
+    }
+    generatedFiles.add('importmap.js');
+
     for (const file of currentFileList) {
       if (!generatedFiles.has(file)) {
         const sourcePath = join(projectConfig.projectPath, file);
@@ -132,11 +156,14 @@ export default async function build(flags: BuildFlags) {
       }
     }
 
+    stopSpinner();
+
     if (!flags.quiet) {
       console.log(`${c.green('✓')} Built ${c.cyan(projectConfig.name)} to ${c.cyan(flags.out!)}`);
     }
-  } finally {
+  } catch (e) {
     stopSpinner();
+    throw e;
   }
 }
 

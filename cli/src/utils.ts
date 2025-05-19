@@ -321,7 +321,7 @@ export async function getGenerator(
   const log = withType('utils/getGenerator');
   const mapUrl = getOutputMapUrl(flags);
   const rootUrl = getRootUrl(flags);
-  const baseUrl = new URL(path.dirname(mapUrl.href));
+  const baseUrl = pathToFileURL(resolve(flags.dir || process.cwd()));
   log(`Creating generator with mapUrl ${mapUrl}, baseUrl ${baseUrl}, rootUrl ${rootUrl}`);
 
   // Load configuration

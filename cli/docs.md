@@ -2,7 +2,7 @@ The JSPM CLI is the main command-line import map package management tool for JSP
 
 > For a complete guide and introduction to the JSPM CLI and import map package management, see the [getting started guide](/getting-started).
 
-For import map generation API usage or in other environments, see the low-level [Generator API](/docs/generator/stable/) which is the internal import map package management and generation API which this CLI project wraps. The [Generator API documentation](/docs/generator/stable/) also provides a more thorough details of the operations.
+For import map generation API usage or in other environments, see the low-level Generator project which is the internal import map package management and generation API which this CLI project wraps. The [Generator API documentation](/docs/generator) also provides a more thorough details of the operations.
 
 ## Installation
 
@@ -16,8 +16,16 @@ npm install -g jspm
 
 For a full list of commands and supported options, run `jspm --help`. For help with a specific command, add the `-h` or `--help` flag to the command invocation.
 
-By default, JSPM operates on `importmap.json` which is automatically created if it does not exist. This is considered the main import map on which link and install operations are being performed, and can be customized with the `--map` option.
+## JSPM Install Explained
 
+By default, JSPM operates on `importmap.js` which is automatically created if it does not exist. This is considered the main import map on which install, serve and build operations are performed.
+
+The `jspm install` operation will read this `importmap.js`, operate on it, and then save it back. Options can be used to customize how the import map is resolved and used to link the application, and also how it is rendered.
+
+To customize the location of the import map, the `--map` flag can be used. For example to load from `my-import-map.json` instead use `jspm install --map my-import-map.json`. This file will then be saved back.
+
+To customize the location of the output import map, the `--out` flag can be used. For example, `jspm install --map my-import-map.json --out app.js` will read the import map from the JSON file, perform all install operations from that source of truth for version operations, and then save the result as an import map injection in `app.js`.
+ 
 ## Init
 
 **Usage**
@@ -447,33 +455,13 @@ Clears the global module fetch cache, for situations where the contents of a dep
 
 # Configuration
 
-## Environments
+## Conditions
 
-Environments allow for configuring the conditional resolutions (ie [conditional exports](https://nodejs.org/dist/latest-v19.x/docs/api/packages.html#conditional-exports) and imports) for resolved packages.
+Conditions allow for configuring the conditional resolutions (ie [conditional exports](https://nodejs.org/dist/latest/docs/api/packages.html#conditional-exports) and imports) for resolved packages.
 
 The default environments for all operations are `development`, `browser` and `module`.
 
-To configure different environments, you can provide one or more `-e` or `--env` flags with additional environment names to resolve. Environments like `development` and `production` are _modal_, meaning that setting one will override the other. To disable the default `browser` or `module` environments, you can set the `no-browser` or `no-module` environments respectively.
-
-The environments used to generate a particular import map are recorded in the resulting map, so specifying the environments for a series of operations is only necessary for the first one.
-
-### Examples
-
-Compareing the import maps for `axios` in a browser environment (the default), and a non-browser environment:
-
-```
-diff <(jspm i axios --stdout) <(jspm i axios -e no-browser --stdout)
-```
-
-```
-[...]
-<       "#lib/adapters/http.js": "https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.js",
-<       "#lib/platform/node/classes/FormData.js": "https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.js",
-<       "#lib/platform/node/index.js": "https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.js"
----
->       "#lib/": "https://ga.jspm.io/npm:axios@1.3.4/lib/",
-[...]
-```
+To configure different environments, you can provide one or more `-C` or `--conditions` flags with additional environment names to resolve. Environments like `development` and `production` are mutuallly exclusive in that setting one will override the other. To disable the default `browser` or `module` environments, you can set the `no-browser` or `no-module` environments respectively.
 
 ## Providers
 
@@ -490,57 +478,21 @@ The following providers are supported:
 
 Most of these providers will resolve against their corresponding CDNs. For instance, `esm.sh` uses the [esm.sh](https://esm.sh) CDN, `unpkg` uses the [UNPKG](https://unpkg.com) CDN, and so on.
 
-The `jspm.io#system` provider also uses the [jspm.io](https://jspm.io) CDN, but the resolved packages use the [SystemJS](https://github.com/systemjs/systemjs) module format rather than [ESM](https://nodejs.org/api/esm.html).
-
 The `nodemodules` provider resolves packages against the local `node_modules` folder, allowing you to generate import maps for local development. This will only work in the browser if all dependencies are ESM dependencies.
-
-### Examples
-
-```
-jspm install -p nodemodules lit
-```
-
-Installs `lit` into the import map using the `nodemodules` provider, which maps packges against the local `node_modules` directory. Note that this will fail unless `lit` and its dependencies have already been installed locally with `npm`. The resulting import map looks like this:
-
-```json
-{
-  "env": ["browser", "development", "module"],
-  "imports": {
-    "lit": "./node_modules/lit/index.js"
-  },
-  "scopes": {
-    "./node_modules/": {
-      "@lit/reactive-element": "./node_modules/@lit/reactive-element/development/reactive-element.js",
-      "lit-element/lit-element.js": "./node_modules/lit-element/development/lit-element.js",
-      "lit-html": "./node_modules/lit-html/development/lit-html.js",
-      "lit-html/is-server.js": "./node_modules/lit-html/development/is-server.js"
-    }
-  }
-}
-```
 
 ## Resolutions
 
-Resolutions are used to remap package _names_ to particular package _targets_. For instance, the latest version of one of your secondary dependencies may be broken, and you want to pin it to an older version, or even to a different package altogether. To do this, you can provide one or more `-r` or `--resolution` flags, with arguments `[package_name]=[target_version]` or `[package_name]=[registry]:[name]@[target-range]`. Package specifiers can take the full syntax described under [`jspm install`](#jspm-install).
+Resolutions may be used to remap package _names_ to particular package _targets_. For instance, the latest version of one of your secondary dependencies may be broken, and you want to pin it to an older version, or even to a different package altogether. To do this, you can provide one or more `-r` or `--resolution` flags, with arguments `[package_name]=[target_version]` or `[package_name]=[registry]:[name]@[target-range]`. Package specifiers can take the full syntax described under [`jspm install`](#jspm-install).
 
 When a resolution is set, _all_ dependencies on that package will take the given remapping, no matter what the the resolution context is. Note that this may cause packages to break in unexpected ways if you violate their dependency constraints.
 
 ### Examples
 
 ```
-  jspm install react@latest -r react=npm:preact@10.13.2
+  jspm install -r react=npm:preact@10.13.2
 ```
 
-Installs `npm:preact@10.13.2` into the import map under the name `react`. Note that this will happen even though we have specified a particular version for `react`. The resulting import map looks like this:
-
-```json
-{
-  "env": ["browser", "development", "module"],
-  "imports": {
-    "react": "https://ga.jspm.io/npm:preact@10.13.2/dist/preact.module.js"
-  }
-}
-```
+Installs an import of `react` as `npm:preact@10.13.2` into the import map under the name `react`. Note that this will happen even if we have specified a particular version for `react`. Like Node.js resolutions these override all other sources of versioning information.
 
 ### Build
 
@@ -549,16 +501,10 @@ The build command can be used to build a project from the import map, which will
 The command operates in two modes,
 
 ```sh
-jspm build ./app.js --output dir
+jspm build --output dir
 ```
 
-Uses default rollup configuration and builds the project with the importmap.
-
-If you would like to use a custom rollup configuration, you can use the `--build-config` flag.
-
-```sh
-jspm build --config rollup.config.mjs
-```
+Custom Rollup configurations are not yet supported, work is still in progress to abstract the JSPM RollupJS plugin for composition with other build plugins.
 
 ## Preload Tags and Integrity Attributes
 

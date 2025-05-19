@@ -497,7 +497,7 @@ const createExampleHtml = async (packageJson, hasEntry: boolean) => {
   <script async crossorigin="anonymous" src="${esmsUrl}"></script>${
     hasEntry
       ? `
-<script type="module">import '${packageJson.name}';</script>`
+  <script type="module">import '${packageJson.name}';</script>`
       : ''
   }
 </head>

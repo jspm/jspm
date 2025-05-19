@@ -211,7 +211,7 @@ function generateRandomVersion() {
 
   // Test package with mutable version tag
   const mutablePackageName = 'test-mutable-package';
-  const mutableVersion = 'dev-feature'; // Non-semver alphanumeric hyphen-separated tag
+  const mutableVersion = `dev-feature-${Math.round(Math.random() * 100_000)}`; // Non-semver alphanumeric hyphen-separated tag
 
   // Initial package content
   const initialPackage = {

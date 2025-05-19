@@ -115,20 +115,22 @@ export default async function serve(flags: ServeFlags = {}) {
       try {
         const stats = await stat(filePath);
         if (stats.isDirectory()) {
-          if (!reqPath.endsWith('/')) {
+          if (!reqPath.endsWith('/') || reqPath === '/') {
             // Try to see if index.html exists in the directory
             const indexPath = join(filePath, 'index.html');
             try {
               await stat(indexPath);
               // If index.html exists, redirect to it directly
-              res.writeHead(302, { Location: `${reqPath}/index.html` });
+              res.writeHead(302, { Location: `${reqPath === '/' ? '' : reqPath}/index.html` });
               res.end();
               return;
             } catch (err) {
               // If index.html doesn't exist, redirect to the directory with trailing slash
-              res.writeHead(301, { Location: `${reqPath}/` });
-              res.end();
-              return;
+              if (reqPath !== '/') {
+                res.writeHead(301, { Location: `${reqPath === '/' ? '' : reqPath}/` });
+                res.end();
+                return;
+              }
             }
           }
           // Only show directory listing for URLs with trailing slash

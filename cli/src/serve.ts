@@ -57,11 +57,11 @@ export default async function serve(flags: ServeFlags = {}) {
 
   const fileMTimes = await getFileMtimes(resolvedDir, watchInclude, watchIgnore);
 
-  const serverUrl = `http://localhost:${port}/${name}`;
+  const serverUrl = `http://localhost:${port}/`;
 
   const server = createServer(async (req, res) => {
     try {
-      const reqUrl = new URL(req.url || '/', `http://${req.headers.host}`);
+      const reqUrl = new URL(req.url || '', `http://${req.headers.host}`);
       let reqPath = decodeURIComponent(reqUrl.pathname);
 
       // Serve the JSPM logo
@@ -77,7 +77,7 @@ export default async function serve(flags: ServeFlags = {}) {
 
       // Handle Server-Sent Events endpoint for watch mode
       if (
-        flags.watch &&
+        !flags.static &&
         (reqPath === '/_events' || (reqPath === '/' && reqUrl.pathname.endsWith('_events')))
       ) {
         res.writeHead(200, {
@@ -94,23 +94,10 @@ export default async function serve(flags: ServeFlags = {}) {
         return;
       }
 
-      // Redirect the root into the app dir
+      // Serve the root directory directly
       if (reqPath === '/') {
-        res.writeHead(302, { Location: `${`/${name}`}/` });
-        res.end();
-        return;
+        reqPath = '/';
       }
-
-      if (
-        !reqPath.startsWith(`/${name}`) ||
-        (reqPath.length !== name.length + 1 && reqPath[name.length + 1] !== '/')
-      ) {
-        res.writeHead(404);
-        res.end(notFoundPage);
-        return;
-      }
-
-      reqPath = reqPath.substring(`/${name}`.length) || '';
 
       // Rlve to the actual file system path
       let filePath = join(resolvedDir, reqPath);
@@ -128,26 +115,28 @@ export default async function serve(flags: ServeFlags = {}) {
       try {
         const stats = await stat(filePath);
         if (stats.isDirectory()) {
-          if (!reqPath.endsWith('/')) {
+          if (!reqPath.endsWith('/') || reqPath === '/') {
             // Try to see if index.html exists in the directory
             const indexPath = join(filePath, 'index.html');
             try {
               await stat(indexPath);
               // If index.html exists, redirect to it directly
-              res.writeHead(302, { Location: `/${name}${reqPath}/index.html` });
+              res.writeHead(302, { Location: `${reqPath === '/' ? '' : reqPath}/index.html` });
               res.end();
               return;
             } catch (err) {
               // If index.html doesn't exist, redirect to the directory with trailing slash
-              res.writeHead(301, { Location: `/${name}${reqPath}/` });
-              res.end();
-              return;
+              if (reqPath !== '/') {
+                res.writeHead(301, { Location: `${reqPath === '/' ? '' : reqPath}/` });
+                res.end();
+                return;
+              }
             }
           }
           // Only show directory listing for URLs with trailing slash
           res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end(await renderDirectoryListing(filePath, reqPath, `/${name}`));
-        } else if (flags.watch && filePath.endsWith('.js') && filePath === outputMapPath) {
+          res.end(await renderDirectoryListing(filePath, reqPath, ''));
+        } else if (!flags.static && filePath.endsWith('.js') && filePath === outputMapPath) {
           // When watching, we intercept the import map with the hot reloading import map
           const map = readInputMap(outputMapPath);
           res.writeHead(200, { 'Content-Type': 'text/javascript' });
@@ -203,7 +192,7 @@ ${error.snippet}`
             res.end(
               `throw new Error(\`JSPM Server: Error transforming TypeScript file: ${error.message}\`);`
             );
-            showShortcuts(serverUrl, flags.watch);
+            showShortcuts(serverUrl, !flags.static);
           }
         } else if (filePath.endsWith('.html')) {
           // Read HTML file
@@ -257,7 +246,7 @@ ${error.snippet}`
           }
 
           // Rewrite module scripts to use module-shim type when watch mode is enabled
-          if (flags.watch && (analyzed.modules.length > 0 || analyzed.inlineModules.length > 0)) {
+          if (!flags.static && (analyzed.modules.length > 0 || analyzed.inlineModules.length > 0)) {
             let offset = 0;
             for (const module of analyzed.modules) {
               if (module.attrs.type?.value === 'module') {
@@ -417,7 +406,7 @@ ${error.snippet}`
     console.log(`${c.blue('App name:\t')} ${c.dim(name)}`);
     console.log(`${c.blue('Server URL:\t')} ${c.bold(serverUrl)}`);
     console.log(`${c.blue('Serving Path:\t')} ${c.dim(resolvedDir)}`);
-    if (flags.watch) {
+    if (!flags.static) {
       console.log(
         `${c.blue('Watcher:\t')} ${c.dim(
           `Enabled (pass --no-watch to disable)${
@@ -434,7 +423,9 @@ ${error.snippet}`
       console.log(
         `${c.blue('Middleware:\t')} ${c.dim(
           `TypeScript type stripping${
-            flags.watch ? ', hot reloading via importmap.js injection' : ', importmap.js unmodified'
+            !flags.static
+              ? ', hot reloading via importmap.js injection'
+              : ', importmap.js unmodified'
           }`
         )}`
       );
@@ -442,7 +433,7 @@ ${error.snippet}`
       console.log(
         `${c.blue('Middleware:\t')} ${c.dim(
           `Type stripping disabled${
-            flags.watch
+            !flags.static
               ? ', hot reloading via importmap.js injection'
               : ' - the server is performing no content modifications'
           }`
@@ -489,7 +480,7 @@ ${error.snippet}`
       }
     }
 
-    if (flags.watch) {
+    if (!flags.static) {
       let processing = false;
       let mapError = false;
       let lastMap = JSON.stringify(map);
@@ -587,7 +578,7 @@ ${error.snippet}`
       ` → ${c.bold(c.bgBlueBright(c.whiteBright(' q ')))} ${c.dim('Stop server (or Ctrl+C)')}`
     );
     console.log('');
-    showShortcuts(serverUrl, flags.watch);
+    showShortcuts(serverUrl, !flags.static);
   });
 
   server.on('error', (err: any) => {

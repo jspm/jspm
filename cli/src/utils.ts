@@ -1,5 +1,12 @@
 import fs from 'node:fs/promises';
-import { accessSync, existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  accessSync,
+  constants,
+  existsSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync
+} from 'node:fs';
 import path, { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { platform, tmpdir } from 'node:os';
@@ -87,14 +94,7 @@ export const jsTemplate = (map: IImportMap, compact: boolean) => {
   const r = compact ? 'r' : 'resolve';
   const i = compact ? 'i' : 'imports';
   const t = compact ? '' : '  ';
-  return `${
-    compact
-      ? ''
-      : `/** 
-* JSPM Import Map Injection Script
-* Include in any HTML page with <script src="importmap.js"></script>
-*/`
-  }${compact ? '' : '\n'}(${m}${s}=>${s}{${n}${t}${
+  return `(${m}${s}=>${s}{${n}${t}${
     importsRebase || scopesRebase || integrityRebase
       ? `const ${u}${s}=${s}document.currentScript.src;${n}${t}const ${r}${s}=${s}${i}${s}=>${s}Object.fromEntries(Object.entries(${i}${s}).map(([k,${s}v])${s}=>${s}[k,${s}new URL(v,${s}${u}).href]));${n}${t}`
       : ''
@@ -255,9 +255,10 @@ async function writeJsOutput(
   if (!(await canWrite(mapFile)))
     throw new JspmError(`JSPM does not have permission to write to ${mapFile}.`);
 
+  const existing = exists(mapFile);
+
   const jsWrapper = jsTemplate(map, flags.compact || false);
 
-  const existing = exists(mapFile);
   await fs.writeFile(mapFile, jsWrapper);
   const mapFileRel = path.relative(process.cwd(), mapFile);
   !silent &&
@@ -320,7 +321,7 @@ export async function getGenerator(
   const log = withType('utils/getGenerator');
   const mapUrl = getOutputMapUrl(flags);
   const rootUrl = getRootUrl(flags);
-  const baseUrl = new URL(path.dirname(mapUrl.href));
+  const baseUrl = pathToFileURL(resolve(flags.dir || process.cwd()));
   log(`Creating generator with mapUrl ${mapUrl}, baseUrl ${baseUrl}, rootUrl ${rootUrl}`);
 
   // Load configuration
@@ -637,7 +638,7 @@ export async function isDirectory(path: string): Promise<boolean> {
 
 function canRead(file: string) {
   try {
-    accessSync(file, (fs.constants || fs).R_OK);
+    accessSync(file, constants.R_OK);
     return true;
   } catch (e) {
     return false;
@@ -647,7 +648,7 @@ function canRead(file: string) {
 function canWrite(file: string) {
   try {
     if (!exists(file)) return true;
-    accessSync(file, (fs.constants || fs).W_OK);
+    accessSync(file, constants.W_OK);
     return true;
   } catch (e) {
     return false;
@@ -755,7 +756,9 @@ const defaultIgnore = [
   '**/chompfile.toml',
   '**/target',
   'CLAUDE.md',
-  'AGENTS.md'
+  'AGENTS.md',
+  'claude.md',
+  'agents.md'
 ];
 // Interface for disabled warnings
 export interface DisabledWarnings {
@@ -785,6 +788,7 @@ export function getDisabledWarnings(flags: any): DisabledWarnings {
   return disabledWarnings;
 }
 
+const shownWarnings = new Set();
 export async function getFilesRecursively(
   directory: string,
   ignore: string[] = [],
@@ -826,7 +830,8 @@ export async function getFilesRecursively(
   await processDirectory(directory, false);
 
   // Display warning if file count exceeds threshold
-  if (files.length > 150 && !disabledWarnings.fileCount) {
+  if (files.length > 150 && !disabledWarnings.fileCount && !shownWarnings.has('file-count')) {
+    shownWarnings.add('file-count');
     console.warn(
       `${c.yellow(
         'Warning:'
@@ -953,7 +958,6 @@ export async function getLatestEsms(generator: Generator, provider: string) {
       registry: 'npm',
       ranges: [new SemverRange('*')]
     },
-    // @ts-expect-error generator internals
     generator.traceMap.installer.defaultProvider
   );
   return `${await generator.traceMap.resolver.pm.pkgToUrl(

@@ -28,9 +28,10 @@ export interface ProjectConfig {
   ignore?: string[];
   description?: string;
   license?: string;
-  dependencies: Record<string, string>;
-  peerDependencies: Record<string, string>;
-  devDependencies: Record<string, string>;
+  dependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  private?: boolean;
 
   // Path to the project root directory
   projectPath: string;
@@ -70,8 +71,7 @@ export async function initCreate(
   // Use readline for interactive prompts
   const readline = createInterface({
     input: process.stdin,
-    output: process.stdout,
-    terminal: true // This helps prevent character echo issues on Windows
+    output: process.stdout
   });
   let closed = false;
   readline.on('SIGINT', () => {
@@ -87,7 +87,7 @@ export async function initCreate(
     // Use basename to extract just the directory name, not the full path
     const defaultName =
       existingPackageJson?.name || basename(projectDir).replace(/[^a-zA-Z0-9-_]/g, '-');
-    const defaultVersion = existingPackageJson?.version || '0.1.0';
+    const defaultVersion = existingPackageJson?.version || 'dev';
     const defaultDescription = existingPackageJson?.description || '';
 
     // Handle exports/main for default entry point
@@ -179,23 +179,44 @@ export async function initCreate(
         createHtmlExample === '';
     }
 
-    // Close readline interface before using terminal-utils
-    closed = true;
-    readline.close();
+    // Readline is now closed in the AI file section for both modes
 
     // Ask about creating AI rules file
     if (mode === 'Creating') {
-      // Show AI rules file selection options
-      const aiRuleOptions = [
-        { name: 'AGENTS.md', description: 'OpenAI' },
-        { name: 'CLAUDE.md', description: 'Anthropic Claude' },
-        { name: '.clinerules', description: 'Cline' },
-        { name: '.cursorrules', description: 'Cursor' },
-        { name: '.windsurfrules', description: 'Windsurf' },
-        { name: 'none', description: 'No AI file' }
-      ];
+      // First ask a simple yes/no question
+      const createAiFile = await readline.question(
+        `${c.cyan('Create an AI prompt file? ')}${c.bold('(y/n)')} `
+      );
 
-      createdAiFile = await getOption('Create an AI prompt file?', aiRuleOptions);
+      const wantAiFile =
+        createAiFile.toLowerCase() === 'y' ||
+        createAiFile.toLowerCase() === 'yes' ||
+        createAiFile === '';
+
+      // Close the readline interface before using the getOption function
+      closed = true;
+      readline.close();
+
+      if (wantAiFile) {
+        // Show AI rules file selection options
+        const aiRuleOptions = [
+          { name: 'AGENTS.md', description: 'OpenAI' },
+          { name: 'CLAUDE.md', description: 'Anthropic Claude' },
+          { name: '.clinerules', description: 'Cline' },
+          { name: '.cursorrules', description: 'Cursor' },
+          { name: '.windsurfrules', description: 'Windsurf' },
+          { name: 'none', description: 'No AI file' }
+        ];
+
+        createdAiFile = await getOption(
+          'Which AI prompt file would you like to create?',
+          aiRuleOptions
+        );
+      }
+    } else {
+      // Close the readline interface for non-creating mode
+      closed = true;
+      readline.close();
     }
 
     // Create the package.json content, preserving other fields
@@ -230,6 +251,8 @@ export async function initCreate(
               target: 'esnext',
               module: 'nodenext',
               lib: ['esnext', 'DOM', 'DOM.Iterable'],
+              allowArbitraryExtensions: true,
+              resolveJsonModule: true,
               rewriteRelativeImportExtensions: true,
               erasableSyntaxOnly: true,
               verbatimModuleSyntax: true
@@ -399,6 +422,7 @@ export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
       const answer = await readline.question(
         `${c.cyan('No package.json found. Would you like to create one?')} ${c.bold('(y)')} `
       );
+      readline.close();
 
       if (
         answer.toLowerCase() === 'y' ||
@@ -411,8 +435,9 @@ export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
           `No package.json found. Please create a package.json file to continue.`
         );
       }
-    } finally {
+    } catch (e) {
       readline.close();
+      throw e;
     }
   }
 
@@ -424,34 +449,19 @@ export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
     );
   }
 
-  // Base config from package.json
-  const config: ProjectConfig = {
-    name: packageJson.name,
-    version: packageJson.version || undefined,
-    exports: packageJson.exports || undefined,
-    main: packageJson.main || undefined,
-    files: packageJson.files || undefined,
-    registry: packageJson.repository?.url || undefined,
-    projectPath: packagePath,
-    dependencies: packageJson.dependencies,
-    devDependencies: packageJson.devDependencies,
-    peerDependencies: packageJson.peerDependencies
-  };
-
   // Override with jspm field if present
   if (packageJson.jspm) {
     if (typeof packageJson.jspm !== 'object') {
       throw new JspmError("Invalid 'jspm' field in package.json. Expected an object.");
     }
 
-    // Extract JSPM-specific settings
-    if (packageJson.jspm.name) config.name = packageJson.jspm.name;
-    if (packageJson.jspm.version) config.version = packageJson.jspm.version;
-    if (packageJson.jspm.registry) config.registry = packageJson.jspm.registry;
-    if (packageJson.jspm.exports) config.exports = packageJson.jspm.exports;
-    if (packageJson.jspm.files) config.files = packageJson.jspm.files;
-    if (packageJson.jspm.ignore) config.ignore = packageJson.jspm.ignore;
+    Object.assign(packageJson, packageJson.jspm);
   }
+
+  // Base config from package.json
+  const config: ProjectConfig = Object.assign(packageJson as ProjectConfig, {
+    projectPath: packagePath
+  });
 
   // @ts-expect-error exports types
   config.exports =
@@ -487,7 +497,7 @@ const createExampleHtml = async (packageJson, hasEntry: boolean) => {
   <script async crossorigin="anonymous" src="${esmsUrl}"></script>${
     hasEntry
       ? `
-<script type="module">import '${packageJson.name}';</script>`
+  <script type="module">import '${packageJson.name}';</script>`
       : ''
   }
 </head>

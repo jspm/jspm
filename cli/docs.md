@@ -1,9 +1,8 @@
-
 The JSPM CLI is the main command-line import map package management tool for JSPM.
 
 > For a complete guide and introduction to the JSPM CLI and import map package management, see the [getting started guide](/getting-started).
 
-For import map generation API usage or in other environments, see the low-level [Generator API](/docs/generator/stable/) which is the internal import map package management and generation API which this CLI project wraps. The [Generator API documentation](/docs/generator/stable/) also provides a more thorough details of the operations.
+For import map generation API usage or in other environments, see the low-level Generator project which is the internal import map package management and generation API which this CLI project wraps. The [Generator API documentation](/docs/generator) also provides a more thorough details of the operations.
 
 ## Installation
 
@@ -17,25 +16,33 @@ npm install -g jspm
 
 For a full list of commands and supported options, run `jspm --help`. For help with a specific command, add the `-h` or `--help` flag to the command invocation.
 
-By default, JSPM operates on `importmap.json` which is automatically created if it does not exist. This is considered the main import map on which link and install operations are being performed, and can be customized with the `--map` option.
+## JSPM Install Explained
 
-## init
+By default, JSPM operates on `importmap.js` which is automatically created if it does not exist. This is considered the main import map on which install, serve and build operations are performed.
 
-### Usage
+The `jspm install` operation will read this `importmap.js`, operate on it, and then save it back. Options can be used to customize how the import map is resolved and used to link the application, and also how it is rendered.
+
+To customize the location of the import map, the `--map` flag can be used. For example to load from `my-import-map.json` instead use `jspm install --map my-import-map.json`. This file will then be saved back.
+
+To customize the location of the output import map, the `--out` flag can be used. For example, `jspm install --map my-import-map.json --out app.js` will read the import map from the JSON file, perform all install operations from that source of truth for version operations, and then save the result as an import map injection in `app.js`.
+ 
+## Init
+
+**Usage**
   
 ```
 jspm init [directory] [options]
-```    
-    Initializes a JSPM project in the current or specified directory.
-    
+```
+Initializes a JSPM project in the current or specified directory.
 
-### Options
+
+**Options**
 * `-q, --quiet`                   Quiet output (default: false)
 * `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
 * `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                    Display this help (add --all for extended command list) 
 
-### Examples
+**Examples**
 
 
 ```
@@ -50,9 +57,9 @@ jspm init ./my-project
 ```
 Initialize a project in the ./my-project directory.
 
-## ls
+## Ls
 
-### Usage
+**Usage**
   
 ```
 jspm ls [package] [options]
@@ -70,7 +77,7 @@ When run with a package name:
 
 By default, output is limited to 20 items. Use --limit to see more items.
 
-### Options
+**Options**
 * `-f, --filter` _&lt;pattern&gt;_        Filter exports by pattern (case-insensitive substring match) 
 * `-l, --limit` _&lt;number&gt;_          Limit the number of exports displayed (default: 20) 
 * `-p, --provider` &lt;[providers](#providers)&gt;     Provider to use for package resolution. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
@@ -79,7 +86,7 @@ By default, output is limited to 20 items. Use --limit to see more items.
 * `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                    Display this help (add --all for extended command list) 
 
-### Examples
+**Examples**
 
 
 ```
@@ -115,9 +122,9 @@ jspm ls lit@2.7.0 --provider unpkg
 ```
 List exports for the Lit package using the unpkg provider explicitly.
 
-## install
+## Install
 
-### Usage
+**Usage**
   
 ```
 jspm install [flags]
@@ -131,18 +138,18 @@ Import Map Handling:
   - --map can point to JSON, JS, or HTML files, and maps will be extracted appropriately
   - Maps behave like lockfiles; versions are locked to resolutions from the input map
   - Output map is controlled by --out flag, supporting the same file types:
-    ΓÇó JSON: Just the import map
-    ΓÇó JS: An import map injection script that can be included with a script tag (recommended)
-    ΓÇó HTML: The import map is injected directly into the HTML file contents
+    - JSON: Just the import map
+    - JS: An import map injection script that can be included with a script tag (recommended)
+    - HTML: The import map is injected directly into the HTML file contents
   
 Enhanced Security and Performance:
   - Use --integrity to add SRI (Subresource Integrity) hashes to the import map
   - Use --preload to generate preload link tags when using HTML output, improving load performance
   - Preload supports both "static" (explicit imports) and "dynamic" (conditional imports) modes
 
-### Options
+**Options**
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
-* `-C, --conditions` &lt;[environments](#environments)&gt;  Comma-separated environment condition overrides (default: browser,development,module)
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,development,module)
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
@@ -159,31 +166,31 @@ Enhanced Security and Performance:
 * `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                       Display this help (add --all for extended command list) 
 
-### Examples
+**Examples**
 Install packages into the import map tracing the package.json "exports" entry points with "dependencies" constraints
   
 ```
 jspm install
 ```
-## serve
+## Serve
 
-### Usage
+**Usage**
   
 ```
 jspm serve [directory] [options]
 ```    
-Starts a standards-based development server for the specified directory. If no directory is specified, 
-the current directory is used. The server provides directory listings and serves files with 
+Starts a standards-based development server for the specified directory. If no directory is specified,
+the current directory is used. The server provides directory listings and serves files with
 appropriate MIME types.
 
 This is an intentionally minimal, opinionated server focused on standards-based workflows:
-  - Applications are served under their package name (http://localhost:5776/myapp/...)
+  - Applications are served directly from the root (http://localhost:5776/...)
   - TypeScript support with type-only stripping (no transpilation of JSX or other non-standard syntax)
   - Native ES modules only (no bundling or transformation)
   - Import maps for dependency management
 
 Key features:
-  - Serves applications under their package name (derived from package.json)
+  - Serves applications directly from the root path
   - TypeScript type stripping (disable with --no-type-stripping if you prefer to use tsc)
   - Live reload capabilities
   - Full support for import map generation options via -m/--map
@@ -198,13 +205,13 @@ The server will automatically update the import map on changes using the JSPM ge
 the same options as the 'jspm install' command with no arguments.
 
 
-### Options
+**Options**
 * `-p, --port` _&lt;number&gt;_              Port to run the server on (default: 5776)
 * `--no-type-stripping`              Disable TypeScript type stripping (serve .ts files as is) (default: true)
-* `--no-watch`                       Disable watcher hot reloading (default: true)
+* `--static`                         Disable hot reloading and auto installation, providing a static server only (default: false)
 * `--no-install`                     Disable automatic import map installs in watch mode (default: true)
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
-* `-C, --conditions` &lt;[environments](#environments)&gt;  Comma-separated environment condition overrides (default: browser,development,module)
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,development,module)
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
@@ -221,7 +228,7 @@ the same options as the 'jspm install' command with no arguments.
 * `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                       Display this help (add --all for extended command list) 
 
-### Examples
+**Examples**
 
 
 ```
@@ -250,9 +257,9 @@ jspm serve --no-watch --no-install --no-type-stripping
 ```    
 Start a server that does not generate the import map on startup, perform type stripping or provide a hot reload watcher
 
-## build
+## Build
 
-### Usage
+**Usage**
   
 ```
 jspm build [options]
@@ -260,15 +267,17 @@ jspm build [options]
 Builds a package and its dependencies using the JSPM import map and dependency resolution.
 Uses RollupJS under the hood to create optimized bundles.
 
-By default the package entry points as defined in the package.json "exports" field
-are built.
+The package entry points as defined in the package.json "exports" field are built, with the
+entire package copied into the output directory. As such, it is a whole-package transformation.
+Includes and ignores can be specified using the package.json "files" and "ignore" fields,
+optionally using the JSPM overrides for these via the "jspm" property in the package.json.
 
 
-### Options
+**Options**
 * `--no-minify`                      Disable build minification (default: true)
 * `-o, --out` _&lt;dir&gt;_                  Path to the output directory for the build (default: dist)
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
-* `-C, --conditions` &lt;[environments](#environments)&gt;  Comma-separated environment condition overrides (default: browser,production,module)
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,production,module)
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
@@ -276,37 +285,70 @@ are built.
 * `-d, --dir` _&lt;directory&gt;_            Package directory to operate on (defaults to working directory) 
 * `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                       Display this help (add --all for extended command list) 
-## deploy
 
-### Usage
+**Examples**
+
+
+```
+jspm build
+```
+Build the current package using default options.
+
+
+
+```
+jspm build --no-minify
+```
+Build the package without minification for better debugging.
+
+
+
+```
+jspm build -o lib
+```
+Build the package to the lib directory instead of the default dist directory.
+
+
+
+```
+jspm build --map custom-map.json
+```
+Build using a custom import map file.
+
+## Deploy
+
+**Usage**
   
 ```
 jspm deploy [options]
 ```
-Manages deployments to the JSPM CDN.
+Manages deployments to the JSPM providers, currently in experimental preview.
 
 For publishing (default):
+
   jspm deploy
 
-  The package must have a valid package.json with name and version fields.
-  The package.json "files" and "ignore" arrays will be respected.
-  Semver versions are always immutable deployments that cannot be redeployed.
-  Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
+  - The provider flag is always required, with limited signups only available on the jspm.io provider currently
+  - The package must have a valid package.json with name and version fields.
+  - The package.json "files" and "ignore" arrays will be respected.
+  - Semver versions are always immutable deployments that cannot be redeployed.
+  - Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
 
 For ejecting a published package:
+
   jspm deploy --eject <packagename@packageversion> --dir _&lt;directory&gt;_
 
-  Ejects a deployed package into a local directory, stitching its deployment import map into the current import map.
-  The --dir flag is required to specify the output directory when using --eject.
+  - Ejects a deployed package into a local directory, stitching its deployment import map into the target import map.
+  - The --dir flag is required to specify the output project directory when using --eject.
 
 
-### Options
-* `--no-usage`                       Disable printing the usage code snippet for the deployment (default: true)
+**Options**
+* `--no-usage`                       Disable printing HTML/JS import code examples after successful deployment (default: true)
 * `-w, --watch`                      Watch for changes and redeploy (experimental) (default: false)
 * `-n, --name` _&lt;name&gt;_                Publish with a custom name instead of the name from package.json 
 * `--eject` _&lt;package&gt;_                Eject a deployed package instead of publishing 
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
-* `-C, --conditions` &lt;[environments](#environments)&gt;  Comma-separated environment condition overrides (default: browser,production,module)
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,production,module)
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
@@ -323,7 +365,7 @@ For ejecting a published package:
 * `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                       Display this help (add --all for extended command list) 
 
-### Examples
+**Examples**
 
 
 ```
@@ -334,9 +376,9 @@ Deploy the current directory as a package to the JSPM CDN.
 
 
 ```
-jspm deploy --dir dist
+jspm deploy -p jspm.io
 ```
-Deploy the ./dist directory as a package to the JSPM CDN.
+Deploy the current package as a package to the JSPM CDN.
 
 
 
@@ -350,7 +392,7 @@ Start a watched deployment to a custom mutable version tag (dev-feat-2) instead 
 ```
 jspm deploy --eject app:foo@bar --dir foo
 ```
-Download the application package foo@bar into the folder foo, merging its import map into importmap.js.
+Download the application package foo@bar into the folder foo, merging its import map into foo/importmap.js.
 
 
 
@@ -359,21 +401,21 @@ jspm deploy --eject app:foo@bar --dir foo -o test.html
 ```
 Download the application package foo@bar into the folder foo, merging its import map into the provided HTML file.
 
-## auth
+## Auth
 
-### Usage
+**Usage**
   
 ```
 jspm auth [provider] [options]
 ```
 Manages authentication for JSPM providers.
 
-### Usage
+**Usage**
   jspm auth              List all available providers and their authentication status
   jspm auth &lt;[providers](#providers)&gt;   Authenticate with a specific provider
 
 
-### Options
+**Options**
 * `-u, --username` _&lt;username&gt;_     Username for authentication (if required) 
 * `--no-open`                     Disable automatically opening the authorization URL (default: true)
 * `-q, --quiet`                   Quiet output (default: false)
@@ -381,7 +423,7 @@ Manages authentication for JSPM providers.
 * `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                    Display this help (add --all for extended command list) 
 
-### Examples
+**Examples**
 
 
 ```
@@ -396,16 +438,16 @@ jspm auth
 ```
 List all available providers and their authentication status.
 
-## clear-cache
+## Clear Cache
 
-### Usage
+**Usage**
   
 ```
 jspm clear-cache
 ```
 Clears the global module fetch cache, for situations where the contents of a dependency may have changed without a version bump. This can happen during local development, for instance.
 
-### Options
+**Options**
 * `-q, --quiet`                   Quiet output (default: false)
 * `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
 * `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
@@ -413,33 +455,13 @@ Clears the global module fetch cache, for situations where the contents of a dep
 
 # Configuration
 
-## Environments
+## Conditions
 
-Environments allow for configuring the conditional resolutions (ie [conditional exports](https://nodejs.org/dist/latest-v19.x/docs/api/packages.html#conditional-exports) and imports) for resolved packages.
+Conditions allow for configuring the conditional resolutions (ie [conditional exports](https://nodejs.org/dist/latest/docs/api/packages.html#conditional-exports) and imports) for resolved packages.
 
 The default environments for all operations are `development`, `browser` and `module`.
 
-To configure different environments, you can provide one or more `-e` or `--env` flags with additional environment names to resolve. Environments like `development` and `production` are _modal_, meaning that setting one will override the other. To disable the default `browser` or `module` environments, you can set the `no-browser` or `no-module` environments respectively.
-
-The environments used to generate a particular import map are recorded in the resulting map, so specifying the environments for a series of operations is only necessary for the first one.
-
-### Examples
-
-Compareing the import maps for `axios` in a browser environment (the default), and a non-browser environment:
-
-```
-diff <(jspm i axios --stdout) <(jspm i axios -e no-browser --stdout)
-```
-
-```
-[...]
-<       "#lib/adapters/http.js": "https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.js",
-<       "#lib/platform/node/classes/FormData.js": "https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.js",
-<       "#lib/platform/node/index.js": "https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.js"
----
->       "#lib/": "https://ga.jspm.io/npm:axios@1.3.4/lib/",
-[...]
-```
+To configure different environments, you can provide one or more `-C` or `--conditions` flags with additional environment names to resolve. Environments like `development` and `production` are mutuallly exclusive in that setting one will override the other. To disable the default `browser` or `module` environments, you can set the `no-browser` or `no-module` environments respectively.
 
 ## Providers
 
@@ -456,57 +478,21 @@ The following providers are supported:
 
 Most of these providers will resolve against their corresponding CDNs. For instance, `esm.sh` uses the [esm.sh](https://esm.sh) CDN, `unpkg` uses the [UNPKG](https://unpkg.com) CDN, and so on.
 
-The `jspm.io#system` provider also uses the [jspm.io](https://jspm.io) CDN, but the resolved packages use the [SystemJS](https://github.com/systemjs/systemjs) module format rather than [ESM](https://nodejs.org/api/esm.html).
-
 The `nodemodules` provider resolves packages against the local `node_modules` folder, allowing you to generate import maps for local development. This will only work in the browser if all dependencies are ESM dependencies.
-
-### Examples
-
-```
-jspm install -p nodemodules lit
-```
-
-Installs `lit` into the import map using the `nodemodules` provider, which maps packges against the local `node_modules` directory. Note that this will fail unless `lit` and its dependencies have already been installed locally with `npm`. The resulting import map looks like this:
-
-```json
-{
-  "env": ["browser", "development", "module"],
-  "imports": {
-    "lit": "./node_modules/lit/index.js"
-  },
-  "scopes": {
-    "./node_modules/": {
-      "@lit/reactive-element": "./node_modules/@lit/reactive-element/development/reactive-element.js",
-      "lit-element/lit-element.js": "./node_modules/lit-element/development/lit-element.js",
-      "lit-html": "./node_modules/lit-html/development/lit-html.js",
-      "lit-html/is-server.js": "./node_modules/lit-html/development/is-server.js"
-    }
-  }
-}
-```
 
 ## Resolutions
 
-Resolutions are used to remap package _names_ to particular package _targets_. For instance, the latest version of one of your secondary dependencies may be broken, and you want to pin it to an older version, or even to a different package altogether. To do this, you can provide one or more `-r` or `--resolution` flags, with arguments `[package_name]=[target_version]` or `[package_name]=[registry]:[name]@[target-range]`. Package specifiers can take the full syntax described under [`jspm install`](#jspm-install).
+Resolutions may be used to remap package _names_ to particular package _targets_. For instance, the latest version of one of your secondary dependencies may be broken, and you want to pin it to an older version, or even to a different package altogether. To do this, you can provide one or more `-r` or `--resolution` flags, with arguments `[package_name]=[target_version]` or `[package_name]=[registry]:[name]@[target-range]`. Package specifiers can take the full syntax described under [`jspm install`](#jspm-install).
 
 When a resolution is set, _all_ dependencies on that package will take the given remapping, no matter what the the resolution context is. Note that this may cause packages to break in unexpected ways if you violate their dependency constraints.
 
 ### Examples
 
 ```
-  jspm install react@latest -r react=npm:preact@10.13.2
+  jspm install -r react=npm:preact@10.13.2
 ```
 
-Installs `npm:preact@10.13.2` into the import map under the name `react`. Note that this will happen even though we have specified a particular version for `react`. The resulting import map looks like this:
-
-```json
-{
-  "env": ["browser", "development", "module"],
-  "imports": {
-    "react": "https://ga.jspm.io/npm:preact@10.13.2/dist/preact.module.js"
-  }
-}
-```
+Installs an import of `react` as `npm:preact@10.13.2` into the import map under the name `react`. Note that this will happen even if we have specified a particular version for `react`. Like Node.js resolutions these override all other sources of versioning information.
 
 ### Build
 
@@ -515,16 +501,10 @@ The build command can be used to build a project from the import map, which will
 The command operates in two modes,
 
 ```sh
-jspm build ./app.js --output dir
+jspm build --output dir
 ```
 
-Uses default rollup configuration and builds the project with the importmap.
-
-If you would like to use a custom rollup configuration, you can use the `--build-config` flag.
-
-```sh
-jspm build --config rollup.config.mjs
-```
+Custom Rollup configurations are not yet supported, work is still in progress to abstract the JSPM RollupJS plugin for composition with other build plugins.
 
 ## Preload Tags and Integrity Attributes
 

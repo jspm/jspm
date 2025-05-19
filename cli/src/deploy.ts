@@ -105,7 +105,8 @@ export async function eject(flags: EjectFlags) {
   const version = pkg.slice(4 + name.length + 1);
 
   startSpinner(`Ejecting ${c.bold(pkg)}...`);
-  await generator.eject({ name, version, provider }, flags.dir!);
+  // --dir already set the baseUrl in the generator
+  await generator.eject({ name, version, provider }, '.');
   stopSpinner();
 
   startSpinner(`Merging deployment import map for ${c.bold(pkg)}...`);
@@ -128,6 +129,10 @@ export async function publish(flags: DeployFlags = {}) {
       quiet: flags.quiet
     });
     log(`Project initialized: ${projectConfig.name}`);
+
+    if (projectConfig.private) {
+      throw new JspmError(`Unable to publish. Package has "private": true in the package.json.`);
+    }
 
     // Get include from jspm.json, ignore from either source
     const ignore = projectConfig.ignore || [];

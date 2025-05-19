@@ -1,5 +1,5 @@
 import { getIntegrity } from '../common/integrity.js';
-import { Analysis } from './analysis';
+import { Analysis } from './analysis.js';
 
 let babel, babelPresetTs, babelPluginImportAttributes;
 

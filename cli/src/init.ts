@@ -28,9 +28,10 @@ export interface ProjectConfig {
   ignore?: string[];
   description?: string;
   license?: string;
-  dependencies: Record<string, string>;
-  peerDependencies: Record<string, string>;
-  devDependencies: Record<string, string>;
+  dependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  private?: boolean;
 
   // Path to the project root directory
   projectPath: string;
@@ -86,7 +87,7 @@ export async function initCreate(
     // Use basename to extract just the directory name, not the full path
     const defaultName =
       existingPackageJson?.name || basename(projectDir).replace(/[^a-zA-Z0-9-_]/g, '-');
-    const defaultVersion = existingPackageJson?.version || '0.1.0';
+    const defaultVersion = existingPackageJson?.version || 'dev';
     const defaultDescription = existingPackageJson?.description || '';
 
     // Handle exports/main for default entry point
@@ -444,34 +445,19 @@ export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
     );
   }
 
-  // Base config from package.json
-  const config: ProjectConfig = {
-    name: packageJson.name,
-    version: packageJson.version || undefined,
-    exports: packageJson.exports || undefined,
-    main: packageJson.main || undefined,
-    files: packageJson.files || undefined,
-    registry: packageJson.repository?.url || undefined,
-    projectPath: packagePath,
-    dependencies: packageJson.dependencies,
-    devDependencies: packageJson.devDependencies,
-    peerDependencies: packageJson.peerDependencies
-  };
-
   // Override with jspm field if present
   if (packageJson.jspm) {
     if (typeof packageJson.jspm !== 'object') {
       throw new JspmError("Invalid 'jspm' field in package.json. Expected an object.");
     }
 
-    // Extract JSPM-specific settings
-    if (packageJson.jspm.name) config.name = packageJson.jspm.name;
-    if (packageJson.jspm.version) config.version = packageJson.jspm.version;
-    if (packageJson.jspm.registry) config.registry = packageJson.jspm.registry;
-    if (packageJson.jspm.exports) config.exports = packageJson.jspm.exports;
-    if (packageJson.jspm.files) config.files = packageJson.jspm.files;
-    if (packageJson.jspm.ignore) config.ignore = packageJson.jspm.ignore;
+    Object.assign(packageJson, packageJson.jspm);
   }
+
+  // Base config from package.json
+  const config: ProjectConfig = Object.assign(packageJson as ProjectConfig, {
+    projectPath: packagePath
+  });
 
   // @ts-expect-error exports types
   config.exports =

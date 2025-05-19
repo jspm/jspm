@@ -1427,6 +1427,7 @@ export class Generator {
     if (install) {
       await this.install({ alias: name, target: pkg, subpaths: true });
       // we then substitute the package URL with the final deployment URL
+      this.importMap.rebase('about:blank');
       this.importMap.replace(pkg, packageUrl);
     }
 

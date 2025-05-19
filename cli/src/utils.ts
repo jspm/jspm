@@ -762,7 +762,9 @@ const defaultIgnore = [
   '**/chompfile.toml',
   '**/target',
   'CLAUDE.md',
-  'AGENTS.md'
+  'AGENTS.md',
+  'claude.md',
+  'agents.md'
 ];
 // Interface for disabled warnings
 export interface DisabledWarnings {

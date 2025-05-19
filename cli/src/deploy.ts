@@ -129,6 +129,10 @@ export async function publish(flags: DeployFlags = {}) {
     });
     log(`Project initialized: ${projectConfig.name}`);
 
+    if (projectConfig.private) {
+      throw new JspmError(`Unable to publish. Package has "private": true in the package.json.`);
+    }
+
     // Get include from jspm.json, ignore from either source
     const ignore = projectConfig.ignore || [];
     const include = projectConfig.files || [];

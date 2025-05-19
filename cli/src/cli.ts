@@ -420,9 +420,13 @@ outputOpts(
       .option('--no-type-stripping', 'Disable TypeScript type stripping (serve .ts files as is)', {
         default: true
       })
-      .option('--no-watch', 'Disable watcher hot reloading', {
-        default: true
-      })
+      .option(
+        '--static',
+        'Disable hot reloading and auto installation, providing a static server only',
+        {
+          default: false
+        }
+      )
       .option('--no-install', 'Disable automatic import map installs in watch mode', {
         default: true
       })
@@ -712,8 +716,8 @@ export interface ServeFlags extends GenerateOutputFlags {
   port?: number;
   /** Enable/disable TypeScript type stripping (defaults to true) */
   typeStripping?: boolean;
-  /** Enable/disable file watching and hot reloading (defaults to true) */
-  watch?: boolean;
+  /** Disable file watching, auto installs and hot reloading (defaults to false) */
+  static?: boolean;
   /** Enable/disable automatic import map installs in watch mode (defaults to true) */
   install?: boolean;
 }

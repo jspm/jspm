@@ -208,7 +208,7 @@ the same options as the 'jspm install' command with no arguments.
 **Options**
 * `-p, --port` _&lt;number&gt;_              Port to run the server on (default: 5776)
 * `--no-type-stripping`              Disable TypeScript type stripping (serve .ts files as is) (default: true)
-* `--no-watch`                       Disable watcher hot reloading (default: true)
+* `--static`                         Disable hot reloading and auto installation, providing a static server only (default: false)
 * `--no-install`                     Disable automatic import map installs in watch mode (default: true)
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
 * `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,development,module)

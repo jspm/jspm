@@ -105,7 +105,8 @@ export async function eject(flags: EjectFlags) {
   const version = pkg.slice(4 + name.length + 1);
 
   startSpinner(`Ejecting ${c.bold(pkg)}...`);
-  await generator.eject({ name, version, provider }, flags.dir!);
+  // --dir already set the baseUrl in the generator
+  await generator.eject({ name, version, provider }, '.');
   stopSpinner();
 
   startSpinner(`Merging deployment import map for ${c.bold(pkg)}...`);

@@ -77,7 +77,7 @@ export default async function serve(flags: ServeFlags = {}) {
 
       // Handle Server-Sent Events endpoint for watch mode
       if (
-        flags.watch &&
+        !flags.static &&
         (reqPath === '/_events' || (reqPath === '/' && reqUrl.pathname.endsWith('_events')))
       ) {
         res.writeHead(200, {
@@ -136,7 +136,7 @@ export default async function serve(flags: ServeFlags = {}) {
           // Only show directory listing for URLs with trailing slash
           res.writeHead(200, { 'Content-Type': 'text/html' });
           res.end(await renderDirectoryListing(filePath, reqPath, ''));
-        } else if (flags.watch && filePath.endsWith('.js') && filePath === outputMapPath) {
+        } else if (!flags.static && filePath.endsWith('.js') && filePath === outputMapPath) {
           // When watching, we intercept the import map with the hot reloading import map
           const map = readInputMap(outputMapPath);
           res.writeHead(200, { 'Content-Type': 'text/javascript' });
@@ -192,7 +192,7 @@ ${error.snippet}`
             res.end(
               `throw new Error(\`JSPM Server: Error transforming TypeScript file: ${error.message}\`);`
             );
-            showShortcuts(serverUrl, flags.watch);
+            showShortcuts(serverUrl, !flags.static);
           }
         } else if (filePath.endsWith('.html')) {
           // Read HTML file
@@ -246,7 +246,7 @@ ${error.snippet}`
           }
 
           // Rewrite module scripts to use module-shim type when watch mode is enabled
-          if (flags.watch && (analyzed.modules.length > 0 || analyzed.inlineModules.length > 0)) {
+          if (!flags.static && (analyzed.modules.length > 0 || analyzed.inlineModules.length > 0)) {
             let offset = 0;
             for (const module of analyzed.modules) {
               if (module.attrs.type?.value === 'module') {
@@ -406,7 +406,7 @@ ${error.snippet}`
     console.log(`${c.blue('App name:\t')} ${c.dim(name)}`);
     console.log(`${c.blue('Server URL:\t')} ${c.bold(serverUrl)}`);
     console.log(`${c.blue('Serving Path:\t')} ${c.dim(resolvedDir)}`);
-    if (flags.watch) {
+    if (!flags.static) {
       console.log(
         `${c.blue('Watcher:\t')} ${c.dim(
           `Enabled (pass --no-watch to disable)${
@@ -423,7 +423,9 @@ ${error.snippet}`
       console.log(
         `${c.blue('Middleware:\t')} ${c.dim(
           `TypeScript type stripping${
-            flags.watch ? ', hot reloading via importmap.js injection' : ', importmap.js unmodified'
+            !flags.static
+              ? ', hot reloading via importmap.js injection'
+              : ', importmap.js unmodified'
           }`
         )}`
       );
@@ -431,7 +433,7 @@ ${error.snippet}`
       console.log(
         `${c.blue('Middleware:\t')} ${c.dim(
           `Type stripping disabled${
-            flags.watch
+            !flags.static
               ? ', hot reloading via importmap.js injection'
               : ' - the server is performing no content modifications'
           }`
@@ -478,7 +480,7 @@ ${error.snippet}`
       }
     }
 
-    if (flags.watch) {
+    if (!flags.static) {
       let processing = false;
       let mapError = false;
       let lastMap = JSON.stringify(map);
@@ -576,7 +578,7 @@ ${error.snippet}`
       ` → ${c.bold(c.bgBlueBright(c.whiteBright(' q ')))} ${c.dim('Stop server (or Ctrl+C)')}`
     );
     console.log('');
-    showShortcuts(serverUrl, flags.watch);
+    showShortcuts(serverUrl, !flags.static);
   });
 
   server.on('error', (err: any) => {

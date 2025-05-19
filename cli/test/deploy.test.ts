@@ -221,6 +221,7 @@ test('deploy and eject', async () => {
     ],
     validationFn: async updatedFiles => {
       // Verify ejected files
+      console.log(updatedFiles);
       assert(updatedFiles.has(`${ejectDir}/index.js`), 'Should have ejected index.js');
       assert(updatedFiles.has(`${ejectDir}/src/utils.js`), 'Should have ejected src/utils.js');
 

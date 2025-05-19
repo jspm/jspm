@@ -64,7 +64,6 @@ import { getMaybeWrapperUrl } from './common/wrapper.js';
 import { expandExportsResolutions } from './common/package.js';
 import { isNode } from './common/env.js';
 import { minimatch } from 'minimatch';
-import type { ProviderContext } from './providers/index.js';
 import type { ExportsTarget, LatestPackageTarget, PackageTarget } from './install/package.js';
 
 /**

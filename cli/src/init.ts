@@ -71,7 +71,7 @@ export async function initCreate(
   // Use readline for interactive prompts
   const readline = createInterface({
     input: process.stdin,
-    output: process.stdout,
+    output: process.stdout
   });
   let closed = false;
   readline.on('SIGINT', () => {
@@ -187,15 +187,16 @@ export async function initCreate(
       const createAiFile = await readline.question(
         `${c.cyan('Create an AI prompt file? ')}${c.bold('(y/n)')} `
       );
-      
-      const wantAiFile = createAiFile.toLowerCase() === 'y' || 
-                       createAiFile.toLowerCase() === 'yes' || 
-                       createAiFile === '';
-      
+
+      const wantAiFile =
+        createAiFile.toLowerCase() === 'y' ||
+        createAiFile.toLowerCase() === 'yes' ||
+        createAiFile === '';
+
       // Close the readline interface before using the getOption function
       closed = true;
       readline.close();
-      
+
       if (wantAiFile) {
         // Show AI rules file selection options
         const aiRuleOptions = [
@@ -207,7 +208,10 @@ export async function initCreate(
           { name: 'none', description: 'No AI file' }
         ];
 
-        createdAiFile = await getOption('Which AI prompt file would you like to create?', aiRuleOptions);
+        createdAiFile = await getOption(
+          'Which AI prompt file would you like to create?',
+          aiRuleOptions
+        );
       }
     } else {
       // Close the readline interface for non-creating mode
@@ -411,7 +415,7 @@ export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
 
     const readline = createInterface({
       input: process.stdin,
-      output: process.stdout,
+      output: process.stdout
     });
 
     try {

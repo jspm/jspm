@@ -1,6 +1,6 @@
 {
   "name": "@jspm/plugin-rollup",
-  "version": "1.2.2",
+  "version": "1.2.4",
   "description": "Rollup plugin for jspm 2",
   "main": "jspm-rollup.js",
   "exports": "./jspm-rollup.js",
@@ -14,7 +14,7 @@
     "test": "node test/test.js"
   },
   "files": [
-    "babel-plugin-transform-cjs-dew.js",
+    "transform-cjs-dew.cjs",
     "jspm-rollup.js",
     "identifier.js"
   ],

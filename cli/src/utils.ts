@@ -94,14 +94,7 @@ export const jsTemplate = (map: IImportMap, compact: boolean) => {
   const r = compact ? 'r' : 'resolve';
   const i = compact ? 'i' : 'imports';
   const t = compact ? '' : '  ';
-  return `${
-    compact
-      ? ''
-      : `/** 
-* JSPM Import Map Injection Script
-* Include in any HTML page with <script src="importmap.js"></script>
-*/`
-  }${compact ? '' : '\n'}(${m}${s}=>${s}{${n}${t}${
+  return `(${m}${s}=>${s}{${n}${t}${
     importsRebase || scopesRebase || integrityRebase
       ? `const ${u}${s}=${s}document.currentScript.src;${n}${t}const ${r}${s}=${s}${i}${s}=>${s}Object.fromEntries(Object.entries(${i}${s}).map(([k,${s}v])${s}=>${s}[k,${s}new URL(v,${s}${u}).href]));${n}${t}`
       : ''
@@ -262,9 +255,10 @@ async function writeJsOutput(
   if (!(await canWrite(mapFile)))
     throw new JspmError(`JSPM does not have permission to write to ${mapFile}.`);
 
+  const existing = exists(mapFile);
+
   const jsWrapper = jsTemplate(map, flags.compact || false);
 
-  const existing = exists(mapFile);
   await fs.writeFile(mapFile, jsWrapper);
   const mapFileRel = path.relative(process.cwd(), mapFile);
   !silent &&

@@ -34,16 +34,17 @@ export default async function install(flags: GenerateOutputFlags): Promise<{
     // Initialize using the specified package directory or current directory
     const projectConfig = await initProject(flags);
 
-    // Remove all top-level imports as we use the package.json as the authoritiative source for these
-    input.imports = {};
-    // for (const key of Object.keys((input.imports = input.imports || {}))) {
-    //   if (
-    //     key === projectConfig.name ||
-    //     (key.startsWith(projectConfig.name) && key[projectConfig.name.length] === '/')
-    //   ) {
-    //     delete input.imports[key];
-    //   }
-    // }
+    // Remove all local top-level imports as we use the package.json as the authoritiative source for these
+    for (const [key, value] of Object.entries((input.imports = input.imports || {}))) {
+      if (
+        key === projectConfig.name ||
+        (key.startsWith(projectConfig.name) && key[projectConfig.name.length] === '/') ||
+        value.startsWith('./') ||
+        value.startsWith('../')
+      ) {
+        delete input.imports[key];
+      }
+    }
 
     generator = await getGenerator(flags, null, input);
 

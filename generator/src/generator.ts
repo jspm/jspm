@@ -53,7 +53,7 @@ import {
 import { InstallTarget, PackageProvider, type InstallMode } from './install/installer.js';
 import type { LockResolutions } from './install/lock.js';
 import {
-  type DeployOutput,
+  type PublishOutput,
   getDefaultProviderStrings,
   ProviderManager,
   type Provider
@@ -414,33 +414,31 @@ export interface GeneratorOptions {
 }
 
 /**
- * Options for deploying a package
+ * Options for publishing a package
  */
-export interface Deployment {
+export interface Publish {
   /**
-   * Deployment package is a URL containing files to deploy. The package.json file at the base of this path
+   * Publish package is a URL containing files to publish. The package.json file at the base of this path
    * will be respected for the fields "name", "version", "files", and "ignore", as with npm conventions.
    *
-   * Virtual deployments may also be made by providing source data directly as a file path to source buffer record.
+   * Virtual publishes may also be made by providing source data directly as a file path to source buffer record.
    */
   package: string | SourceData;
-
   /**
-   * Optional import map to include for the deployment, deployed as the importmap.json file in the package.
+   * Optional import map to include for the publish, published as the importmap.json file in the package.
    *
    * @default true
    *
-   * Deploys the current generator instance's import map, alongside a link operation of the package
-   * (see the {@link Deployment.install} option for more info). Any URLs in the import map pointing to the
-   * package being deployed will automatically be updated to reflect the deployed URLs.
+   * Publishes the current generator instance's import map, alongside a link operation of the package
+   * (see the {@link Publish.install} option for more info). Any URLs in the import map pointing to the
+   * package being published will automatically be updated to reflect the published URLs.
    *
-   * The benefit of defining the import map separately is that this provides a strong definition of the deployment
+   * The benefit of defining the import map separately is that this provides a strong definition of the publish
    * execution model.
    */
   importMap?: IImportMap | boolean;
-
   /**
-   * Whether to first install the package before deploying, thereby populating the import map for the package.
+   * Whether to first install the package before publishing, thereby populating the import map for the package.
    *
    * By default, when `importMap: true` is set, and an explicit import map is not otherwise passed, install will be applied.
    *
@@ -448,19 +446,16 @@ export interface Deployment {
    * link operation.
    */
   install?: boolean;
-
   /**
-   * Provider to deploy to
+   * Provider to publish to
    */
   provider?: string;
-
   /**
-   * Override the version from the deployment package.json
+   * Override the version from the package.json
    */
   version?: string;
-
   /**
-   * Override the name from the deployment package.json
+   * Override the name from the package.json
    */
   name?: string;
 }
@@ -1275,14 +1270,13 @@ export class Generator {
   }
 
   /**
-   * Deploy a package to a JSPM deployment server
+   * Publish a package to a JSPM provider
    *
-   * This function creates a tarball from the provided files and
-   * uploads it to the configured deployment server.
+   * This function creates a tarball from the provided files and uploads it.
    *
-   * @param options Deployment options
+   * @param options Publish options
    * @returns Promise that resolves with the package URL, map URL, and
-   *          an optional copy-paste code snippet demonstrating deployment usage.
+   *          an optional copy-paste code snippet demonstrating usage.
    *
    * @example
    * ```js
@@ -1291,36 +1285,36 @@ export class Generator {
    * const generator = new Generator({
    *   inputMap: { ...custom import map... }
    * });
-   * const result = await generator.deploy({
+   * const result = await generator.publish({
    *   package: './pkg',
    *   provider: 'jspm.io',
    *   importMap: true,
    *   link: true,
    * });
    *
-   * // URL to the deployed package and deployed import map
+   * // URL to the published package and published import map
    * console.log(result.packageUrl, result.mapUrl);
-   * // HTML code snippets demonstrating how to run the deployment in a browser
+   * // HTML code snippets demonstrating how to run the published code in a browser
    * console.log(result.codeSnippets);
    * ```
    * JSPM will fully link all dependencies when link: true is provided, and
    * populate them into the import map of the generator instance provided
-   * to the deployment.
+   * to the publish.
    *
    * Alternatively, instead of a local package path, package can also be provided
    * as a record of virtual sources.
    *
    */
-  async deploy({
+  async publish({
     package: pkg,
     importMap = true,
     install = importMap === true,
     version,
     name,
     provider = 'jspm.io'
-  }: Deployment): Promise<DeployOutput> {
+  }: Publish): Promise<PublishOutput> {
     if (typeof pkg === 'object') {
-      const virtualUrl = `https://virtual/${name ?? 'deploy'}@${
+      const virtualUrl = `https://virtual/${name ?? 'publish'}@${
         version ?? Math.round(Math.random() * 10_000)
       }`;
       this.setVirtualSourceData(virtualUrl, pkg);
@@ -1402,30 +1396,34 @@ export class Generator {
     }
 
     if (filteredFileList.length === 0 && !importMap)
-      throw new JspmError('At least one file or importMap is required for deployment');
+      throw new JspmError('At least one file or importMap is required for publishing');
 
     if (!name) {
       name = pjson.name;
       if (!name)
         throw new JspmError(
-          `Package name is required for deployment, either in the package.json or as a deploy option.`
+          `Package name is required for publishing, either in the package.json or as a publish option.`
         );
       if (!name.match(/^[a-zA-Z0-9_\-]+$/))
-        throw new JspmError(`Invalid package name for deployment.`);
+        throw new JspmError(`Invalid package name for publish.`);
     }
     if (!version) {
       version = pjson.version;
       if (!version)
         throw new JspmError(
-          `Package version is required for deployment, either in the package.json or as a deploy option.`
+          `Package version is required for publishing, either in the package.json or as a publish option.`
         );
     }
 
-    const { packageUrl } = this.traceMap.resolver.pm.getDeploymentUrl(provider, name, version);
+    const exactPkg = { name, version, registry: 'app' };
+    const packageUrl = await this.traceMap.resolver.pm.pkgToUrl(
+      { name, version, registry: 'app' },
+      provider
+    );
 
     if (install) {
       await this.install({ alias: name, target: pkg, subpaths: true });
-      // we then substitute the package URL with the final deployment URL
+      // we then substitute the package URL with the final publish URL
       this.importMap.rebase('about:blank');
       this.importMap.replace(pkg, packageUrl);
     }
@@ -1443,15 +1441,14 @@ export class Generator {
     }
 
     // If importMap option is set to true, pass a clone of the generator's map
-    return await this.traceMap.resolver.pm.deploy(
-      name,
-      version,
+    return await this.traceMap.resolver.pm.publish(
+      exactPkg,
       provider,
       this.traceMap.pins.sort((a, b) => {
-        const aIsDeployAlias = a === name || (a.startsWith(name) && a[name.length] === '/');
-        const bIsDeployAlias = b === name || (b.startsWith(name) && b[name.length] === '/');
-        if (aIsDeployAlias && !bIsDeployAlias) return -1;
-        else if (bIsDeployAlias && !aIsDeployAlias) return 1;
+        const aIsPublishAlias = a === name || (a.startsWith(name) && a[name.length] === '/');
+        const bIsPublishAlias = b === name || (b.startsWith(name) && b[name.length] === '/');
+        if (aIsPublishAlias && !bIsPublishAlias) return -1;
+        else if (bIsPublishAlias && !aIsPublishAlias) return 1;
         return a > b ? 1 : -1;
       }),
       fileData,
@@ -1481,40 +1478,42 @@ export class Generator {
   }
 
   /**
-   * Eject a deployed package by downloading it to the provided local folder,
+   * Eject a published package by downloading it to the provided local folder,
    * and stitching its import map into the generator import map.
    */
   async eject(
-    { name, version, provider = 'jspm.io' }: { name: string; version: string; provider?: string },
+    {
+      name,
+      version,
+      registry = 'app',
+      provider = 'jspm.io'
+    }: { name: string; version: string; registry?: string; provider?: string },
     outDir: string
   ) {
     if (!isNode) {
       throw new JspmError(`Eject functionality is currently only available on a filesystem`);
     }
-    const { packageUrl, mapUrl } = this.traceMap.resolver.pm.getDeploymentUrl(
-      provider,
-      name,
-      version
+    const pkg = { name, version, registry };
+    const packageUrl = await this.traceMap.resolver.pm.pkgToUrl(
+      { name, version, registry: 'app' },
+      provider
     );
+    const mapUrl = packageUrl + 'importmap.json';
 
-    let deploymentMap: null | IImportMap = null;
+    let publishMap: null | IImportMap = null;
     try {
       const res = await fetch(mapUrl);
       if (res.status !== 404) {
         if (!res.ok && res.status !== 304) {
           throw res.statusText || res.status;
         }
-        deploymentMap = await res.json();
+        publishMap = await res.json();
       }
     } catch (e) {
       throw new JspmError(`Unable to load import map ${mapUrl}: ${e}`);
     }
 
-    const packageFiles = await this.traceMap.resolver.pm.downloadDeployment(
-      provider,
-      name,
-      version
-    );
+    const packageFiles = await this.traceMap.resolver.pm.download(pkg, provider);
 
     const [{ writeFileSync, mkdirSync }, { resolve, dirname }, { fileURLToPath, pathToFileURL }] =
       await Promise.all([
@@ -1529,8 +1528,8 @@ export class Generator {
       writeFileSync(resolved, source);
     }
 
-    if (deploymentMap) {
-      await this.mergeMap(deploymentMap, 'about:blank');
+    if (publishMap) {
+      await this.mergeMap(publishMap, 'about:blank');
     }
 
     this.map.replace(packageUrl, pathToFileURL(outDir).href + '/');
@@ -1657,7 +1656,7 @@ export class Generator {
    * A mapUrl can be provided typically as a file URL corresponding to the location of the import map on the file
    * system. Relative paths to other files on the filesystem will then be tracked as map-relative and
    * output as relative paths, assuming the map retains its relative relation to local modules regardless
-   * of the deployment URLs.
+   * of the publish URLs.
    *
    * When a root URL is provided pointing to a local file URL, `/` prefixed URLs will be used for all
    * modules contained within this file URL base as root URL relative instead of map relative URLs like the above.
@@ -1924,7 +1923,7 @@ export {
 };
 
 export type {
-  DeployOutput,
+  PublishOutput as DeployOutput,
   ExactModule,
   ExactPackage,
   ExportsTarget,

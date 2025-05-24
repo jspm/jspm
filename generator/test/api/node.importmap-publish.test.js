@@ -1,11 +1,11 @@
 import { Generator } from '@jspm/generator';
 import assert from 'assert';
 
-// Test deploying a package with importMap enabled
+// Test publishing a package with importMap enabled
 // First we need to create a generator and install a package
-// Then deploy with importMap: true
+// Then publish with importMap: true
 
-// Create a generator instance with a test deployment server
+// Create a generator instance with a test publish server
 const generator = new Generator({
   mapUrl: new URL('./local/latest/', import.meta.url),
   providerConfig: {
@@ -18,7 +18,7 @@ const generator = new Generator({
 // Install a package to populate the import map
 await generator.install({ alias: 'myapp', target: './' });
 
-// Test package details for deployment
+// Test package details for publish
 const packageName = 'test-importmap-deploy';
 const packageVersion = generateRandomSemver();
 
@@ -46,47 +46,47 @@ export default function App() {
 }`
 };
 
-// Now deploy with importMap: true
-const deployResult = await generator.deploy({
+// Now publish with importMap: true
+const publishResult = await generator.publish({
   package: packageFiles,
   importMap: true
 });
 
-// Verify deployment URL is returned
-assert.ok(deployResult.packageUrl, 'Deployment should return a URL');
+// Verify publish URL is returned
+assert.ok(publishResult.packageUrl, 'Publish should return a URL');
 assert.ok(
-  deployResult.packageUrl.includes(packageName),
-  'Deployment URL should include the package name'
+  publishResult.packageUrl.includes(packageName),
+  'Publish URL should include the package name'
 );
 assert.ok(
-  deployResult.packageUrl.includes(packageVersion),
-  'Deployment URL should include the package version'
+  publishResult.packageUrl.includes(packageVersion),
+  'Publish URL should include the package version'
 );
 
-// Use the direct URL to the deployed package
-const resolvedUrl = `${deployResult.packageUrl}/index.js`;
+// Use the direct URL to the published package
+const resolvedUrl = `${publishResult.packageUrl}/index.js`;
 
 // Fetch the package to verify the content
 try {
   const response = await fetch(resolvedUrl);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch deployed package: ${response.status}`);
+    throw new Error(`Failed to fetch published package: ${response.status}`);
   }
 
   const content = await response.text();
 
-  // Verify content matches what we deployed
+  // Verify content matches what we published
   assert.ok(
     content.includes("import React from 'react'"),
-    'Deployed content should match the original content'
+    'Published content should match the original content'
   );
 
-  // Fetch the deployed import map
-  const importMapResponse = await fetch(deployResult.packageUrl + '/importmap.json');
+  // Fetch the published import map
+  const importMapResponse = await fetch(publishResult.packageUrl + '/importmap.json');
 
   if (!importMapResponse.ok) {
-    throw new Error(`Failed to fetch deployed import map: ${importMapResponse.status}`);
+    throw new Error(`Failed to fetch published import map: ${importMapResponse.status}`);
   }
 
   const outMap = await importMapResponse.json();
@@ -96,6 +96,6 @@ try {
   );
   assert.ok(Object.keys(outMap.scopes).includes('https://jspm.io/'));
 } catch (error) {
-  console.error('Failed to verify deployed package:', error);
+  console.error('Failed to verify published package:', error);
   throw error;
 }

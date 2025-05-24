@@ -18,7 +18,7 @@
  * @module jspm
  *
  * JSPM CLI is a command-line tool for package management using import maps.
- * It provides commands for installing, linking, updating, building, and deploying
+ * It provides commands for installing, linking, updating, building, and publishing
  * JavaScript/TypeScript packages using standard ES modules.
  *
  * The CLI supports various workflows including:
@@ -40,7 +40,7 @@ import update from './update.ts';
 import configCmd from './config-cmd.ts';
 import { JspmError, availableProviders, wrapCommand } from './utils.ts';
 import build from './build.ts';
-import { eject, publish } from './deploy.ts';
+import { eject, publish } from './publish.ts';
 import * as auth from './auth.ts';
 import serve from './serve.ts';
 import ls from './ls.ts';
@@ -85,7 +85,7 @@ const generateOpts: OptionGroup = (cac, production = false) =>
  * - {@link https://jspm.org/docs/cli/#update jspm update}
  * - {@link https://jspm.org/docs/cli/#serve jspm serve}
  * - {@link https://jspm.org/docs/cli/#build jspm build}
- * - {@link https://jspm.org/docs/cli/#deploy jspm deploy}
+ * - {@link https://jspm.org/docs/cli/#publish jspm publish}
  */
 export interface GenerateFlags extends BaseFlags {
   /**
@@ -151,7 +151,7 @@ const outputOpts: OptionGroup = (cac, production = false) =>
  * - {@link https://jspm.org/docs/cli/#link jspm link}
  * - {@link https://jspm.org/docs/cli/#update jspm update}
  * - {@link https://jspm.org/docs/cli/#serve jspm serve}
- * - {@link https://jspm.org/docs/cli/#deploy jspm deploy}
+ * - {@link https://jspm.org/docs/cli/#publish jspm publish}
  */
 export interface GenerateOutputFlags extends GenerateFlags {
   /** URL to treat as server root for rebasing import maps (defaults to current directory) */
@@ -557,19 +557,19 @@ export interface BuildFlags extends GenerateFlags {
   minify?: boolean;
 }
 
-// Deploy command - main command is now just deploy with --eject flag for eject functionality
+// Publish command - main command is now just publish with --eject flag for eject functionality
 outputOpts(
   generateOpts(
     cli
-      .command('deploy', `Deploy package to a provider (experimental)`)
+      .command('publish', `Publish package to a provider (experimental)`)
       .option(
         '--no-usage',
-        'Disable printing HTML/JS import code examples after successful deployment',
+        'Disable printing HTML/JS import code examples after successful publish',
         {
           default: true
         }
       )
-      .option('-w, --watch', 'Watch for changes and redeploy (experimental)', {
+      .option('-w, --watch', 'Watch for changes and republish (experimental)', {
         default: false
       })
       .option(
@@ -582,66 +582,66 @@ outputOpts(
         'Publish with a custom version instead of the version from package.json',
         {}
       )
-      .option('--eject <package>', 'Eject a deployed package instead of publishing', {}),
+      .option('--eject <package>', 'Eject a published package instead of publishing', {}),
     true
   ),
   true
 )
   .example(
     name => `
-$ ${name} deploy
+$ ${name} publish
 
-Deploy the current directory as a package to the JSPM CDN.
+Publish the current directory as a package to the JSPM CDN.
 `
   )
   .example(
     name => `
-$ ${name} deploy -p jspm.io
+$ ${name} publish -p jspm.io
 
-Deploy the current package as a package to the JSPM CDN.
+Publish the current package as a package to the JSPM CDN.
 `
   )
   .example(
     name => `
-$ ${name} deploy --dir dist --version dev-feat-2 --watch
+$ ${name} publish --dir dist --version dev-feat-2 --watch
 
-Start a watched deployment to a custom mutable version tag (dev-feat-2) instead of the version from package.json.
+Start a watched publish to a custom mutable version tag (dev-feat-2) instead of the version from package.json.
 `
   )
   .example(
     name => `
-$ ${name} deploy --eject app:foo@bar --dir foo
+$ ${name} publish --eject app:foo@bar --dir foo
 
 Download the application package foo@bar into the folder foo, merging its import map into foo/importmap.js.
 `
   )
   .example(
     name => `
-$ ${name} deploy --eject app:foo@bar --dir foo -o test.html
+$ ${name} publish --eject app:foo@bar --dir foo -o test.html
 
 Download the application package foo@bar into the folder foo, merging its import map into the provided HTML file.
 `
   )
   .usage(
-    `deploy [options]
+    `publish [options]
 
-Manages deployments to the JSPM providers, currently in experimental preview.
+Manages publishes to the JSPM providers, currently in experimental preview.
 
 For publishing (default):
 
-  jspm deploy
+  jspm publish
 
   - The provider flag is always required, with limited signups only available on the jspm.io provider currently
   - The package must have a valid package.json with name and version fields.
   - The package.json "files" and "ignore" arrays will be respected.
-  - Semver versions are always immutable deployments that cannot be redeployed.
-  - Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
+  - Semver versions are always immutable publishes that cannot be republished.
+  - Mutable versions supporting republishing must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
 
 For ejecting a published package:
 
-  jspm deploy --eject <packagename@packageversion> --dir <directory>
+  jspm download --eject <packagename@packageversion> --dir <directory>
 
-  - Ejects a deployed package into a local directory, stitching its deployment import map into the target import map.
+  - Ejects a published package into a local directory, stitching its published import map into the target import map.
   - The --dir flag is required to specify the output project directory when using --eject.
 `
   )
@@ -660,13 +660,13 @@ For ejecting a published package:
     })
   );
 
-// The eject command has been moved to be a subcommand of deploy
+// The eject command has been moved to be a subcommand of publish
 
 /**
- * Flags for ejecting deployed packages.
+ * Flags for ejecting published packages.
  *
- * Used with {@link https://jspm.org/docs/cli/#deploy jspm deploy --eject}
- * to download deployed packages into local directories.
+ * Used with {@link https://jspm.org/docs/cli/#publish jspm publish --eject}
+ * to download published packages into local directories.
  */
 export interface EjectFlags extends GenerateFlags {
   /** Package to eject in the format "[provider:]package[@version]" (required) */
@@ -674,21 +674,21 @@ export interface EjectFlags extends GenerateFlags {
 }
 
 /**
- * Flags for deploying packages to providers.
+ * Flags for publishing packages to providers.
  *
- * Used by the {@link https://jspm.org/docs/cli/#deploy jspm deploy} command
+ * Used by the {@link https://jspm.org/docs/cli/#publish jspm publish} command
  * to publish packages to JSPM providers.
  */
-export interface DeployFlags extends GenerateFlags {
-  /** Watch for changes and redeploy (experimental, defaults to false) */
+export interface PublishFlags extends GenerateFlags {
+  /** Watch for changes and republish (experimental, defaults to false) */
   watch?: boolean;
   /** Custom name to use instead of package.json name (defaults to name in package.json) */
   name?: string;
   /** Custom version to use instead of package.json version (defaults to version in package.json) */
   version?: string;
-  /** Print HTML/JS import code examples after successful deployment (defaults to true) */
+  /** Print HTML/JS import code examples after successful publish (defaults to true) */
   usage?: boolean;
-  /** Eject a deployed package instead of publishing (defaults to false) */
+  /** Eject a published package instead of publishing (defaults to false) */
   eject?: boolean;
 }
 

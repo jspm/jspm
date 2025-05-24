@@ -1,6 +1,14 @@
 import { Generator } from '@jspm/generator';
 import assert from 'assert';
 
+if (!process.env.JSPM_AUTH_TOKEN) {
+  throw new Error(`!!! JSPM CI CONFIGURATION ERROR !!!
+
+Publish tests require the test auth token`);
+}
+
+function generateRandomName() {}
+
 function generateRandomVersion() {
   const major = Math.floor(Math.random() * 10);
   const minor = Math.floor(Math.random() * 100);
@@ -27,7 +35,7 @@ function generateRandomVersion() {
     'index.js': indexContent
   };
 
-  // Test deployment
+  // Test publish
   const generator = new Generator({
     providerConfig: {
       'jspm.io': {
@@ -35,23 +43,20 @@ function generateRandomVersion() {
       }
     }
   });
-  const deployResult = await generator.deploy({
+  const publishResult = await generator.publish({
     package: packageFiles
   });
 
-  // Verify deployment URL is returned
-  assert.ok(deployResult.packageUrl, 'Deployment should return a URL');
+  // Verify Publish URL is returned
+  assert.ok(publishResult.packageUrl, 'Publish should return a URL');
+  assert.ok(publishResult.packageUrl.includes(name), 'Publish URL should include the package name');
   assert.ok(
-    deployResult.packageUrl.includes(name),
-    'Deployment URL should include the package name'
-  );
-  assert.ok(
-    deployResult.packageUrl.includes(version),
-    'Deployment URL should include the package version'
+    publishResult.packageUrl.includes(version),
+    'Publish URL should include the package version'
   );
 
-  // Use the direct URL to the deployed package
-  const resolvedUrl = `${deployResult.packageUrl}/index.js`;
+  // Use the direct URL to the published package
+  const resolvedUrl = `${publishResult.packageUrl}/index.js`;
 
   assert.ok(resolvedUrl, 'Package should be resolved in the import map');
 
@@ -60,18 +65,18 @@ function generateRandomVersion() {
     const response = await fetch(resolvedUrl);
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch deployed package ${resolvedUrl}: ${response.status}`);
+      throw new Error(`Failed to fetch published package ${resolvedUrl}: ${response.status}`);
     }
 
     const content = await response.text();
 
-    // Verify content matches what we deployed
+    // Verify content matches what we published
     assert.ok(
       content.includes(indexContent.trim()),
-      'Deployed content should match the original content'
+      'Published content should match the original content'
     );
   } catch (error) {
-    console.error('Failed to verify deployed package:', error);
+    console.error('Failed to verify published package:', error);
     throw error;
   }
 
@@ -124,7 +129,7 @@ function generateRandomVersion() {
       }
     }
   });
-  // Test complex package deployment with multiple files and directories
+  // Test complex package publish with multiple files and directories
   const complexPackageName = 'test-complex-package';
   const complexPackageVersion = generateRandomVersion();
 
@@ -153,21 +158,21 @@ function generateRandomVersion() {
     return str.toUpperCase();
   }`,
     'styles/main.css': 'body { font-family: sans-serif; }',
-    'README.md': '# Test Complex Package\n\nThis is a test package for JSPM deployment.'
+    'README.md': '# Test Complex Package\n\nThis is a test package for JSPM publish.'
   };
-  const complexDeployResult = await generator.deploy({
+  const complexPublishResult = await generator.publish({
     package: complexPackage
   });
 
-  assert.ok(complexDeployResult.packageUrl, 'Deployment should return a URL');
+  assert.ok(complexPublishResult.packageUrl, 'Publish should return a URL');
 
-  // Wait a short time for the deployment to be available
+  // Wait a short time for the publish to be available
   await new Promise(resolve => setTimeout(resolve, 1000));
 
-  // For now, skip using generator.install and directly fetch from the deployed URL
-  const mainUrl = `${complexDeployResult.packageUrl}/index.js`;
-  const utilsUrl = `${complexDeployResult.packageUrl}/utils/index.js`;
-  const stylesUrl = `${complexDeployResult.packageUrl}/styles/main.css`;
+  // For now, skip using generator.install and directly fetch from the published URL
+  const mainUrl = `${complexPublishResult.packageUrl}/index.js`;
+  const utilsUrl = `${complexPublishResult.packageUrl}/utils/index.js`;
+  const stylesUrl = `${complexPublishResult.packageUrl}/styles/main.css`;
 
   assert.ok(mainUrl, 'Main module URL should be constructed');
   assert.ok(utilsUrl, 'Utils module URL should be constructed');
@@ -224,22 +229,22 @@ function generateRandomVersion() {
     'index.js': "export const version = 'initial';"
   };
 
-  // Deploy initial version
-  const initialDeployResult = await generator.deploy({
+  // Publish initial version
+  const initialPublishResult = await generator.publish({
     package: initialPackage
   });
 
-  assert.ok(initialDeployResult.packageUrl, 'Initial deployment should return a URL');
+  assert.ok(initialPublishResult.packageUrl, 'Initial publish should return a URL');
   assert.ok(
-    initialDeployResult.packageUrl.includes(mutablePackageName),
-    'Deployment URL should include the package name'
+    initialPublishResult.packageUrl.includes(mutablePackageName),
+    'Publish URL should include the package name'
   );
   assert.ok(
-    initialDeployResult.packageUrl.includes(mutableVersion),
-    'Deployment URL should include the mutable version tag'
+    initialPublishResult.packageUrl.includes(mutableVersion),
+    'Publish URL should include the mutable version tag'
   );
 
-  const packageUrl = initialDeployResult.packageUrl;
+  const packageUrl = initialPublishResult.packageUrl;
   const indexUrl = `${packageUrl}/index.js`;
 
   // Verify initial content
@@ -248,7 +253,7 @@ function generateRandomVersion() {
   const initialContent = await initialResponse.text();
   assert.ok(
     initialContent.includes("export const version = 'initial'"),
-    'Initial content should match what we deployed'
+    'Initial content should match what we published'
   );
 
   // Check cache headers for mutable version
@@ -269,15 +274,15 @@ function generateRandomVersion() {
     'index.js': "export const version = 'updated';"
   };
 
-  // Deploy updated version to the same mutable tag
-  const updateDeployResult = await generator.deploy({
+  // Publish updated version to the same mutable tag
+  const updatePublishResult = await generator.publish({
     package: updatedPackage
   });
 
   assert.strictEqual(
-    updateDeployResult.packageUrl,
+    updatePublishResult.packageUrl,
     packageUrl,
-    'Updated deployment should return the same URL'
+    'Updated publish should return the same URL'
   );
 
   // Verify that files are immediately updated

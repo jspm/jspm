@@ -15,7 +15,7 @@ export function getUserConfigPath() {
 // Simple configuration schema with provider configs
 export interface JspmConfig {
   providers?: Record<string, any>;
-  defaultDeployProvider?: string;
+  defaultPublishProvider?: string;
   defaultProvider?: string;
   cacheDir?: string;
 }

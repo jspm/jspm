@@ -1,13 +1,13 @@
 import { Generator } from '@jspm/generator';
 import assert from 'assert';
 
-// Test validation errors during deployment
+// Test validation errors during publishing
 
 // Missing package name
 let error;
 try {
   const generator = new Generator();
-  await generator.deploy({
+  await generator.publish({
     package: {
       'package.json': JSON.stringify({ name: '', version: '1.0.0' }),
       'index.js': 'export default {}'
@@ -26,7 +26,7 @@ assert.ok(
 error = null;
 try {
   const generator = new Generator();
-  await generator.deploy({
+  await generator.publish({
     package: {
       'package.json': JSON.stringify({ name: 'test-package', version: '' }),
       'index.js': 'export default {}'
@@ -45,7 +45,7 @@ assert.ok(
 error = null;
 try {
   const generator = new Generator();
-  await generator.deploy({
+  await generator.publish({
     package: {},
     importMap: false
   });
@@ -62,7 +62,7 @@ assert.ok(
 error = null;
 try {
   const generator = new Generator();
-  await generator.deploy({
+  await generator.publish({
     package: {
       'package.json': '{ invalid: json',
       'index.js': 'export default {}'

@@ -315,38 +315,38 @@ jspm build --map custom-map.json
 ```
 Build using a custom import map file.
 
-## Deploy
+## Publish
 
 **Usage**
   
 ```
-jspm deploy [options]
+jspm publish [options]
 ```
-Manages deployments to the JSPM providers, currently in experimental preview.
+Manages publishes to the JSPM providers, currently in experimental preview.
 
 For publishing (default):
 
-  jspm deploy
+  jspm publish
 
   - The provider flag is always required, with limited signups only available on the jspm.io provider currently
   - The package must have a valid package.json with name and version fields.
   - The package.json "files" and "ignore" arrays will be respected.
-  - Semver versions are always immutable deployments that cannot be redeployed.
-  - Mutable versions supporting redeployment must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
+  - Semver versions are always immutable publishes that cannot be republished.
+  - Mutable versions supporting republishing must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
 
 For ejecting a published package:
 
-  jspm deploy --eject <packagename@packageversion> --dir _&lt;directory&gt;_
+  jspm download --eject <packagename@packageversion> --dir _&lt;directory&gt;_
 
-  - Ejects a deployed package into a local directory, stitching its deployment import map into the target import map.
+  - Ejects a published package into a local directory, stitching its published import map into the target import map.
   - The --dir flag is required to specify the output project directory when using --eject.
 
 
 **Options**
-* `--no-usage`                       Disable printing HTML/JS import code examples after successful deployment (default: true)
-* `-w, --watch`                      Watch for changes and redeploy (experimental) (default: false)
+* `--no-usage`                       Disable printing HTML/JS import code examples after successful publish (default: true)
+* `-w, --watch`                      Watch for changes and republish (experimental) (default: false)
 * `-n, --name` _&lt;name&gt;_                Publish with a custom name instead of the name from package.json 
-* `--eject` _&lt;package&gt;_                Eject a deployed package instead of publishing 
+* `--eject` _&lt;package&gt;_                Eject a published package instead of publishing 
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
 * `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,production,module)
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
@@ -369,35 +369,35 @@ For ejecting a published package:
 
 
 ```
-jspm deploy
+jspm publish
 ```
-Deploy the current directory as a package to the JSPM CDN.
-
-
-
-```
-jspm deploy -p jspm.io
-```
-Deploy the current package as a package to the JSPM CDN.
+Publish the current directory as a package to the JSPM CDN.
 
 
 
 ```
-jspm deploy --dir dist --version dev-feat-2 --watch
+jspm publish -p jspm.io
 ```
-Start a watched deployment to a custom mutable version tag (dev-feat-2) instead of the version from package.json.
+Publish the current package as a package to the JSPM CDN.
 
 
 
 ```
-jspm deploy --eject app:foo@bar --dir foo
+jspm publish --dir dist --version dev-feat-2 --watch
+```
+Start a watched publish to a custom mutable version tag (dev-feat-2) instead of the version from package.json.
+
+
+
+```
+jspm publish --eject app:foo@bar --dir foo
 ```
 Download the application package foo@bar into the folder foo, merging its import map into foo/importmap.js.
 
 
 
 ```
-jspm deploy --eject app:foo@bar --dir foo -o test.html
+jspm publish --eject app:foo@bar --dir foo -o test.html
 ```
 Download the application package foo@bar into the folder foo, merging its import map into the provided HTML file.
 

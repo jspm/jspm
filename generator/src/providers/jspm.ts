@@ -59,7 +59,7 @@ export async function pkgToUrl(pkg: ExactPackage, layer = 'default'): Promise<`$
 
 export function configure(config: any) {
   if (config.authToken) authToken = config.authToken;
-  if (config.gaUrl) gaUrl = withTrailer(config.gaUrl);
+  if (config.cdnUrl) gaUrl = withTrailer(config.cdnUrl);
   if (config.publishUrl) publishUrl = withTrailer(config.publishUrl);
   if (config.rawUrl) rawUrl = withTrailer(config.rawUrl);
   if (config.apiUrl) apiUrl = withTrailer(config.apiUrl);

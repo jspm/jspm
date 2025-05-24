@@ -174,7 +174,8 @@ run = '''
 
     const generator = new Generator({
         mapUrl: new URL('./test/test.html', import.meta.url.replace('//[', '/[')),
-        env: ['browser', 'module', 'production']
+        env: ['browser', 'module', 'production'],
+        ignore: ['pako', 'tar-stream']
     });
 
     await generator.link('@jspm/generator');

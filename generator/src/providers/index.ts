@@ -26,7 +26,7 @@ export interface Provider {
     url: string
   ): ExactPackage | { pkg: ExactPackage; subpath: `./${string}` | null; layer: string } | null;
 
-  pkgToUrl(this: ProviderContext, pkg: ExactPackage, layer: string): Promise<`${string}/`>;
+  pkgToUrl(this: ProviderContext, pkg: ExactPackage, layer?: string): Promise<`${string}/`>;
 
   resolveLatestTarget(
     this: ProviderContext,
@@ -44,32 +44,21 @@ export interface Provider {
 
   getFileList?(this: ProviderContext, pkgUrl: string): Promise<Set<string> | undefined>;
 
-  getDeploymentUrl?(
-    this: ProviderContext,
-    name: string,
-    version: string
-  ): { packageUrl: `${string}/`; mapUrl: string };
-
-  downloadDeployment?(
-    this: ProviderContext,
-    name: string,
-    version: string
-  ): Promise<Record<string, ArrayBuffer>>;
+  download?(this: ProviderContext, pkg: ExactPackage): Promise<Record<string, ArrayBuffer>>;
 
   /**
-   * Deploy a package to the provider
-   * This is an optional method that providers can implement to support package deployment
+   * Publish a package to the provider
+   * This is an optional method that providers can implement to support package publishing
    *
-   * @param importMap Optional import map to include with the deployment
+   * @param importMap Optional import map to include with the publish
    */
-  deploy?(
+  publish?(
     this: ProviderContext,
-    name: string,
-    version: string,
+    pkg: ExactPackage,
     files: Record<string, string | ArrayBuffer> | undefined,
     importMap: ImportMap | undefined,
     imports: string[]
-  ): Promise<DeployOutput>;
+  ): Promise<PublishOutput>;
 
   /**
    * Authenticate with the provider
@@ -245,7 +234,7 @@ export class ProviderManager {
    * @param layer Layer to use
    * @returns URL for the package
    */
-  async pkgToUrl(pkg: ExactPackage, provider: string, layer: string): Promise<`${string}/`> {
+  async pkgToUrl(pkg: ExactPackage, provider: string, layer = 'default'): Promise<`${string}/`> {
     return this.#getProvider(provider).pkgToUrl.call(
       this.#getProviderContext(provider),
       pkg,
@@ -401,87 +390,65 @@ export class ProviderManager {
   }
 
   /**
-   * Downloads the given deployment files into the local folder path outDir
+   * Downloads the given package files into the local folder path outDir
    * Does not include the import map, which must be merged separately.
    */
-  downloadDeployment(providerName: string, name: string, version: string) {
+  download(pkg: ExactPackage, providerName: string) {
     const provider = this.#getProvider(providerName);
-    if (!provider.downloadDeployment) {
-      throw new JspmError(`Provider "${providerName}" does not support deployment`);
+    if (!provider.download) {
+      throw new JspmError(
+        `Provider "${providerName}" does not currently support publishing from JSPM`
+      );
     }
-    return provider.downloadDeployment.call(this.#getProviderContext(providerName), name, version);
+    return provider.download.call(this.#getProviderContext(providerName), pkg);
   }
 
   /**
-   * Obtain the URL for the deployment from the provider
-   * To allow the deployment import map to be configured correctly for the deployment
-   */
-  getDeploymentUrl(
-    providerName: string,
-    name: string,
-    version: string
-  ): { packageUrl: `${string}/`; mapUrl: string } {
-    const provider = this.#getProvider(providerName);
-
-    if (!provider.deploy) {
-      throw new JspmError(`Provider "${providerName}" does not support deployment`);
-    }
-
-    return provider.getDeploymentUrl.call(this.#getProviderContext(providerName), name, version);
-  }
-
-  /**
-   * Deploy a package using the specified provider.
-   * A deployment may be an import map only, files only, or both.
+   * Publish a package using the specified provider.
+   * A publish operation may be an import map only, files only, or both.
    *
-   * @param name Package name to deploy
-   * @param version Package version to deploy
+   * @param pkg Package name, version and registry to publish
    * @param providerName Name of the provider to use
-   * @param files Package files to deploy
-   * @param importMap Optional import map to include with the deployment
+   * @param files Package files to publish
+   * @param importMap Optional import map to include with the publish
    */
-  async deploy(
-    name: string,
-    version: string,
+  async publish(
+    pkg: ExactPackage,
     providerName: string,
     imports: string[],
     files: undefined,
     importMap: undefined
-  ): Promise<DeployOutput>;
-  async deploy(
-    name: string,
-    version: string,
+  ): Promise<PublishOutput>;
+  async publish(
+    pkg: ExactPackage,
     providerName: string,
     imports: string[],
     files: Record<string, string | ArrayBuffer>,
     importMap: undefined
-  ): Promise<DeployOutput>;
-  async deploy(
-    name: string,
-    version: string,
+  ): Promise<PublishOutput>;
+  async publish(
+    pkg: ExactPackage,
     providerName: string,
     imports: string[],
     files: Record<string, string | ArrayBuffer>,
     importMap: ImportMap
-  ): Promise<DeployOutput>;
-  async deploy(
-    name: string,
-    version: string,
+  ): Promise<PublishOutput>;
+  async publish(
+    pkg: ExactPackage,
     providerName: string,
     imports: string[],
     files?: Record<string, string | ArrayBuffer> | undefined,
     importMap?: ImportMap | undefined
-  ): Promise<DeployOutput> {
+  ): Promise<PublishOutput> {
     const provider = this.#getProvider(providerName);
 
-    if (!provider.deploy) {
-      throw new JspmError(`Provider "${providerName}" does not support deployment`);
+    if (!provider.publish) {
+      throw new JspmError(`Provider "${providerName}" does not support publishing on JSPM`);
     }
 
-    return provider.deploy.call(
+    return provider.publish.call(
       this.#getProviderContext(providerName),
-      name,
-      version,
+      pkg,
       files,
       importMap,
       imports
@@ -512,7 +479,7 @@ export class ProviderManager {
   }
 }
 
-export interface DeployOutput {
+export interface PublishOutput {
   packageUrl: `${string}/`;
   mapUrl: string;
   codeSnippet?: string;

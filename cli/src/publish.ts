@@ -33,7 +33,7 @@ import {
   stopSpinner,
   writeOutput
 } from './utils.ts';
-import type { DeployFlags, EjectFlags } from './cli.ts';
+import type { PublishFlags, EjectFlags } from './cli.ts';
 import { withType } from './logger.ts';
 import { loadConfig } from './config.ts';
 
@@ -49,7 +49,7 @@ function showShortcuts(directory?: string) {
  → ${c.bold(c.bgBlueBright(c.whiteBright(' p ')))} ${c.dim(
     'Open self-contained preview URL in the browser'
   )}
- → ${c.bold(c.bgBlueBright(c.whiteBright(' r ')))} ${c.dim('Force redeployment')}
+ → ${c.bold(c.bgBlueBright(c.whiteBright(' r ')))} ${c.dim('Force republish')}
  → ${c.bold(c.bgBlueBright(c.whiteBright(' q ')))} ${c.dim('Stop (or Ctrl+C)')}`);
 
   console.log(`${c.blue('Info:')} Watching for changes in ${c.cyan(directory)}...`);
@@ -76,14 +76,12 @@ async function readJsonFile(filePath: string, defaultValue: any = {}) {
 }
 
 export async function eject(flags: EjectFlags) {
-  const log = withType('deploy/eject');
+  const log = withType('publish/eject');
 
   const pkg = flags.eject;
 
   if (!pkg.startsWith('app:')) {
-    throw new JspmError(
-      `Only the app: JSPM deployment registry is currently supported for ejection.`
-    );
+    throw new JspmError(`Only the app: JSPM registry is currently supported for ejection.`);
   }
 
   const config = await loadConfig();
@@ -93,7 +91,7 @@ export async function eject(flags: EjectFlags) {
     } provider configurations`
   );
 
-  const provider = flags.provider || config.defaultDeployProvider || 'jspm.io';
+  const provider = flags.provider || config.defaultPublishProvider || 'jspm.io';
 
   const generator = await getGenerator(flags);
 
@@ -109,7 +107,7 @@ export async function eject(flags: EjectFlags) {
   await generator.eject({ name, version, provider }, '.');
   stopSpinner();
 
-  startSpinner(`Merging deployment import map for ${c.bold(pkg)}...`);
+  startSpinner(`Merging published import map for ${c.bold(pkg)}...`);
   const env = await getEnv(flags);
   await writeOutput(generator, null, env, flags, flags.quiet);
   stopSpinner();
@@ -117,8 +115,8 @@ export async function eject(flags: EjectFlags) {
   console.log(`${c.green('Ok:')} Package ${c.green(pkg)} ejected into ${c.bold(flags.dir)}`);
 }
 
-export async function publish(flags: DeployFlags = {}) {
-  const log = withType('deploy/publish');
+export async function publish(flags: PublishFlags = {}) {
+  const log = withType('publish/publish');
 
   // Use initProject to get validated project configuration
   const { initProject } = await import('./init.ts');
@@ -158,7 +156,7 @@ export async function publish(flags: DeployFlags = {}) {
     if (flags.watch) {
       if (semverVersion || !version.match(/^[a-zA-Z0-9_\-]+$/)) {
         throw new JspmError(
-          `Invalid version "${version}" for deploy --watch. Watched deployments must be to mutable versions, which are alphanumeric only with - or _ separators.`
+          `Invalid version "${version}" for publish --watch. Watched publishes must be to mutable versions, which are alphanumeric only with - or _ separators.`
         );
       }
       return startWatchMode(
@@ -172,7 +170,7 @@ export async function publish(flags: DeployFlags = {}) {
       );
     }
 
-    return deployOnce(
+    return publishOnce(
       name,
       version,
       projectConfig.projectPath,
@@ -188,15 +186,15 @@ export async function publish(flags: DeployFlags = {}) {
   }
 }
 
-async function deployOnce(
+async function publishOnce(
   name: string,
   version: string,
   directory: string,
-  flags: DeployFlags,
+  flags: PublishFlags,
   logSnippet: boolean,
   prepareScript: string
 ) {
-  const log = withType('deploy');
+  const log = withType('publish');
 
   const config = await loadConfig();
   log(
@@ -205,11 +203,11 @@ async function deployOnce(
     } provider configurations`
   );
 
-  const deployProvider = flags.provider || config.defaultDeployProvider;
+  const publishProvider = flags.provider || config.defaultPublishProvider;
 
-  if (!deployProvider) {
+  if (!publishProvider) {
     throw new JspmError(
-      `No deploy provider specified. Please provide a provider with the --provider flag (e.g., jspm deploy -p jspm.io) or set a default provider in your config.`
+      `No publish provider specified. Please provide a provider with the --provider flag (e.g., jspm publish -p jspm.io) or set a default provider in your config.`
     );
   }
 
@@ -219,18 +217,18 @@ async function deployOnce(
     console.log(`${c.blue('Info:')} ${c.bold('prepare')} script completed`);
   }
 
-  startSpinner(`Deploying ${c.bold(`${name}@${version}`)} to ${deployProvider}...`);
+  startSpinner(`Publishing ${c.bold(`${name}@${version}`)} to ${publishProvider}...`);
 
   const generator = await getGenerator(flags, {
     mapUrl: pathToFileURL(`${directory}/`)
   });
 
   try {
-    const { packageUrl, mapUrl, codeSnippet } = await generator.deploy({
+    const { packageUrl, mapUrl, codeSnippet } = await generator.publish({
       package: pathToFileURL(directory).href,
       name,
       version,
-      provider: deployProvider,
+      provider: publishProvider,
       importMap: true,
       install: true
     });
@@ -238,7 +236,7 @@ async function deployOnce(
     stopSpinner();
 
     console.log(
-      `${c.green('Ok:')} Package deployed to ${c.green(packageUrl)} with import map ${c.green(
+      `${c.green('Ok:')} Package published to ${c.green(packageUrl)} with import map ${c.green(
         mapUrl
       )}`
     );
@@ -254,7 +252,7 @@ async function deployOnce(
     return { packageUrl, mapUrl, codeSnippet };
   } catch (error) {
     stopSpinner();
-    throw new JspmError(`Failed to deploy: ${error.message}`);
+    throw new JspmError(`Failed to publish: ${error.message}`);
   }
 }
 
@@ -264,14 +262,14 @@ async function startWatchMode(
   directory: string,
   ignore: string[],
   include: string[],
-  flags: DeployFlags,
+  flags: PublishFlags,
   prepareScript: string
 ) {
-  let lastDeployTime = 0;
+  let lastPublishTime = 0;
   const fileMTimes = new Map<string, number>();
 
   let packageUrl, codeSnippet;
-  let forcedRedeploy = false;
+  let forcedRepublish = false;
   let lastRunWasError = false;
   let waiting = false;
 
@@ -317,7 +315,7 @@ async function startWatchMode(
         if (packageUrl) open(packageUrl.endsWith('/') ? packageUrl : `${packageUrl}/`);
         break;
       case 'r':
-        forcedRedeploy = true;
+        forcedRepublish = true;
         break;
       case 'c':
         if (codeSnippet) copyToClipboard(codeSnippet);
@@ -339,8 +337,8 @@ async function startWatchMode(
 
   async function watchLoop(firstRun) {
     try {
-      // Skip if last deployment was less than 2 seconds ago (debounce)
-      if (Date.now() - lastDeployTime < 2000) {
+      // Skip if last publish was less than 2 seconds ago (debounce)
+      if (Date.now() - lastPublishTime < 2000) {
         return;
       }
 
@@ -375,23 +373,23 @@ async function startWatchMode(
         }
       }
 
-      if (changes.length || forcedRedeploy) {
+      if (changes.length || forcedRepublish) {
         waiting = false;
         if (!firstRun) {
           if (lastRunWasError) stopSpinner();
           else hideShortcuts();
           console.log(
             `${c.blue('Info:')} ${
-              forcedRedeploy
-                ? 'Requesting redeploy'
+              forcedRepublish
+                ? 'Requesting republish'
                 : changes.length > 1
                 ? 'Multiple changes detected'
                 : `${path.relative(directory, changes[0]).replace(/\\/g, '/')} changed`
-            }, redeploying...`
+            }, republishing...`
           );
         }
-        forcedRedeploy = false;
-        ({ packageUrl, codeSnippet } = await deployOnce(
+        forcedRepublish = false;
+        ({ packageUrl, codeSnippet } = await publishOnce(
           name,
           version,
           directory,
@@ -400,7 +398,7 @@ async function startWatchMode(
           prepareScript
         ));
 
-        lastDeployTime = Date.now();
+        lastPublishTime = Date.now();
         showShortcuts(directory);
         lastRunWasError = false;
         waiting = true;

@@ -11,18 +11,18 @@ import { fetch } from '../common/fetch.js';
 // @ts-ignore
 import * as tar from 'tar-stream';
 import pako from 'pako';
-import type { DeployOutput, ProviderContext } from './index.js';
+import type { PublishOutput, ProviderContext } from './index.js';
 import type { Resolver } from '../trace/resolver.js';
 
-let cdnUrl = 'https://ga.jspm.io/';
+let gaUrl = 'https://ga.jspm.io/';
 const systemCdnUrl = 'https://ga.system.jspm.io/';
 let apiUrl = 'https://api.jspm.io/';
 
-// the URL we PUT the deployment to
-let deployUrl = 'https://dev.qitkao.com/';
+// the URL we PUT the jspm.io publish to
+let publishUrl = 'https://dev.qitkao.com/';
 
-// the URL the deployment can be seen
-let publicDeployUrl = 'https://jspm.io/';
+// the URL the published jspm.io packages can be seen
+let rawUrl = 'https://jspm.io/';
 
 let authToken;
 
@@ -52,15 +52,16 @@ function withTrailer(url: string) {
   return url.endsWith('/') ? url : url + '/';
 }
 
-export async function pkgToUrl(pkg: ExactPackage, layer: string): Promise<`${string}/`> {
-  return `${layer === 'system' ? systemCdnUrl : cdnUrl}${pkgToStr(pkg)}/`;
+export async function pkgToUrl(pkg: ExactPackage, layer = 'default'): Promise<`${string}/`> {
+  if (pkg.registry === 'app') return `${rawUrl}${pkgToStr(pkg)}/`;
+  return `${layer === 'system' ? systemCdnUrl : gaUrl}${pkgToStr(pkg)}/`;
 }
 
 export function configure(config: any) {
   if (config.authToken) authToken = config.authToken;
-  if (config.cdnUrl) cdnUrl = withTrailer(config.cdnUrl);
-  if (config.deployUrl) deployUrl = withTrailer(config.deployUrl);
-  if (config.publicDeployUrl) publicDeployUrl = withTrailer(config.publicDeployUrl);
+  if (config.gaUrl) gaUrl = withTrailer(config.gaUrl);
+  if (config.publishUrl) publishUrl = withTrailer(config.publishUrl);
+  if (config.rawUrl) rawUrl = withTrailer(config.rawUrl);
   if (config.apiUrl) apiUrl = withTrailer(config.apiUrl);
 }
 
@@ -69,11 +70,11 @@ const exactPkgRegEx = /^(([a-z]+):)?((?:@[^/\\%@]+\/)?[^./\\%@][^/\\%@]*)@([^\/]
 export function parseUrlPkg(url: string) {
   let subpath = null;
   let layer: string;
-  if (url.startsWith(cdnUrl)) layer = 'default';
+  if (url.startsWith(gaUrl)) layer = 'default';
   else if (url.startsWith(systemCdnUrl)) layer = 'system';
   else return;
   const [, , registry, name, version] =
-    url.slice((layer === 'default' ? cdnUrl : systemCdnUrl).length).match(exactPkgRegEx) || [];
+    url.slice((layer === 'default' ? gaUrl : systemCdnUrl).length).match(exactPkgRegEx) || [];
   if (registry && name && version) {
     if (registry === 'npm' && name === '@jspm/core' && url.includes('/nodelibs/')) {
       subpath = `./nodelibs/${url.slice(url.indexOf('/nodelibs/') + 10).split('/')[1]}`;
@@ -275,7 +276,7 @@ export async function resolveLatestTarget(
 }
 
 function pkgToLookupUrl(pkg: ExactPackage, edge = false) {
-  return `${cdnUrl}${pkg.registry}:${pkg.name}${pkg.version ? '@' + pkg.version : edge ? '@' : ''}`;
+  return `${gaUrl}${pkg.registry}:${pkg.name}${pkg.version ? '@' + pkg.version : edge ? '@' : ''}`;
 }
 
 async function lookupRange(
@@ -340,21 +341,18 @@ export async function fetchVersions(this: ProviderContext, name: string): Promis
   return versions;
 }
 
-export function getDeploymentUrl(this: ProviderContext, name: string, version: string) {
-  return {
-    packageUrl: `${publicDeployUrl}app:${name}@${version}/` as `${string}/`,
-    mapUrl: `${publicDeployUrl}app:${name}@${version}/importmap.json`
-  };
-}
-
-export async function downloadDeployment(
+export async function download(
   this: ProviderContext,
-  name: string,
-  version: string
+  pkg: ExactPackage
 ): Promise<Record<string, ArrayBuffer>> {
+  const { name, version, registry } = pkg;
+  if (registry !== 'app')
+    throw new JspmError(
+      `The JSPM provider currently only supports downloading from the jspm.io "app:" registry`
+    );
   let tarball: ArrayBuffer;
   try {
-    const tarballRes = await fetch(`${publicDeployUrl}tarball/app:${name}@${version}`);
+    const tarballRes = await fetch(`${rawUrl}tarball/app:${name}@${version}`);
     if (tarballRes.ok) {
       tarball = await tarballRes.arrayBuffer();
     } else {
@@ -364,9 +362,7 @@ export async function downloadDeployment(
       throw tarballRes.statusText || tarballRes.status;
     }
   } catch (e) {
-    throw new JspmError(
-      `Unable to fetch tarball for ${name}@${version} from ${publicDeployUrl}: ${e}`
-    );
+    throw new JspmError(`Unable to fetch tarball for ${name}@${version} from ${rawUrl}: ${e}`);
   }
 
   const output = pako.inflate(tarball, { gzip: true });
@@ -405,29 +401,34 @@ export async function downloadDeployment(
 }
 
 /**
- * Deploys a package to the JSPM deployment server
+ * Publishes a package to the jspm.io app registry
  *
  * Input package is already validated by JSPM
  *
  * @returns Promise that resolves with the package URL
  */
-export async function deploy(
+export async function publish(
   this: ProviderContext,
-  name: string,
-  version: string,
+  pkg: ExactPackage,
   files: Record<string, string> | undefined,
   importMap: ImportMap | undefined,
   imports: string[],
   timeout = 30_000
-): Promise<DeployOutput> {
+): Promise<PublishOutput> {
+  const { registry, name, version } = pkg;
+  if (registry !== 'app') {
+    throw new JspmError(
+      `Invalid registry ${registry}, JSPM can only publish to the jspm.io "app:" registry currently`
+    );
+  }
   // Prepare the URL for the request
-  const packageUrl = `${deployUrl}app:${name}@${version}`;
+  const packageUrl = `${publishUrl}app:${name}@${version}`;
 
   // Prepare the package data using tar-stream
   const tarball = await createTarball(files, importMap);
 
   // Get or create token
-  const token = await createDeployToken(name, version);
+  const token = await createPublishToken(name, version);
 
   // Upload the package
   const response = await fetch(packageUrl, {
@@ -446,15 +447,15 @@ export async function deploy(
     let errorMessage;
     switch (response.status) {
       case 413:
-        errorMessage = `Deployment failed - package size of ${tarball.byteLength}B is too large`;
+        errorMessage = `Publish failed - package size of ${tarball.byteLength}B is too large`;
         break;
       default:
-        errorMessage = `Deployment failed with status ${response.status}`;
+        errorMessage = `Publish failed with status ${response.status}`;
     }
     try {
       const errorJson = await response.json();
       errorMessage =
-        errorJson.message || errorJson.error || `Deployment failed with status ${response.status}`;
+        errorJson.message || errorJson.error || `Publish failed with status ${response.status}`;
     } catch {}
     throw new JspmError(errorMessage);
   }
@@ -462,21 +463,19 @@ export async function deploy(
   const result = await response.json();
 
   if (!result.success) {
-    throw new JspmError(result.message || 'Deployment failed');
+    throw new JspmError(result.message || 'Publish failed');
   }
 
-  const { packageUrl: publicPackageUrl, mapUrl } = getDeploymentUrl.call(this, name, version);
+  const publicPackageUrl = await pkgToUrl.call(this, pkg, 'default');
+  const mapUrl = publicPackageUrl + 'importmap.json';
 
   return {
     packageUrl: publicPackageUrl,
     mapUrl,
-    codeSnippet: `<!-- jspm.io deployment import map injection (change to ".hot.js" for hot reloading) -->
+    codeSnippet: `<!-- jspm.io import map injection (change to ".hot.js" for hot reloading) -->
 <script src="${mapUrl.slice(0, -2)}" crossorigin="anoymous"></script>
 <!-- Polyfill for older browsers -->
-<script async src="${await latestEsms.call(
-      this,
-      publicDeployUrl
-    )}" crossorigin="anonymous"></script>
+<script async src="${await latestEsms.call(this, rawUrl)}" crossorigin="anonymous"></script>
 ${
   imports.length
     ? `
@@ -603,13 +602,13 @@ export async function auth(
 }
 
 /**
- * Creates a JWT token for package deployment
+ * Creates a JWT token for package publishing
  *
  * @param packageName Name of the package
  * @param packageVersion Version of the package
- * @returns JWT token for deployment authorization
+ * @returns JWT token for publish authorization
  */
-async function createDeployToken(packageName: string, packageVersion: string): Promise<string> {
+async function createPublishToken(packageName: string, packageVersion: string): Promise<string> {
   if (!authToken) {
     throw new JspmError(
       `No auth token has been generated for jspm.io. Either set providers['jspm.io'].authToken, or first run "jspm auth jspm.io"`

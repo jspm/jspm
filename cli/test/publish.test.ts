@@ -25,8 +25,8 @@ function randomVersion() {
   return `${major}.${minor}.${patch}`;
 }
 
-// Test deploy with package validation errors
-test('deploy with missing package.json name', async () => {
+// Test publish with package validation errors
+test('publish with missing package.json name', async () => {
   const files = new Map();
   // Create a package.json without a name field
   files.set('package.json', JSON.stringify({ version: randomVersion() }));
@@ -34,7 +34,7 @@ test('deploy with missing package.json name', async () => {
   try {
     await run({
       files,
-      commands: ['jspm deploy -p jspm.io'],
+      commands: ['jspm publish -p jspm.io'],
       validationFn: async () => {
         assert.fail('Should have thrown an error');
       }
@@ -47,8 +47,8 @@ test('deploy with missing package.json name', async () => {
   }
 });
 
-// Test deploy with version validation errors
-test('deploy with missing package.json version', async () => {
+// Test publish with version validation errors
+test('publish with missing package.json version', async () => {
   const files = new Map();
   // Create a package.json without a version field
   files.set('package.json', JSON.stringify({ name: 'test-package' }));
@@ -56,7 +56,7 @@ test('deploy with missing package.json version', async () => {
   try {
     await run({
       files,
-      commands: ['jspm deploy -p jspm.io'],
+      commands: ['jspm publish -p jspm.io'],
       validationFn: async () => {
         assert.fail('Should have thrown an error');
       }
@@ -68,8 +68,8 @@ test('deploy with missing package.json version', async () => {
   }
 });
 
-// Test deploy with include configuration
-test('deploy with include config', async () => {
+// Test publish with include configuration
+test('publish with include config', async () => {
   const files = new Map();
   // Create a complete valid test setup
   files.set(
@@ -87,16 +87,16 @@ test('deploy with include config', async () => {
 
   await run({
     files,
-    commands: ['jspm deploy -p jspm.io --no-usage'],
+    commands: ['jspm publish -p jspm.io --no-usage'],
     validationFn: async _updatedFiles => {
       // Verify the command completed successfully
-      assert(true, 'Deploy command with config completed successfully');
+      assert(true, 'Publish command with config completed successfully');
     }
   });
 });
 
-// Test deploy with versioning
-test('deploy with specific version', async () => {
+// Test publish with versioning
+test('publish with specific version', async () => {
   const files = new Map();
   // Create package.json with a specific version
   const testVersion = randomVersion();
@@ -105,7 +105,7 @@ test('deploy with specific version', async () => {
     JSON.stringify({
       name: 'jspm-deploy-test',
       version: testVersion,
-      description: 'Test package for JSPM deploy testing'
+      description: 'Test package for jspm publish testing'
     })
   );
 
@@ -113,16 +113,16 @@ test('deploy with specific version', async () => {
 
   await run({
     files,
-    commands: ['jspm deploy -p jspm.io --no-usage'],
+    commands: ['jspm publish -p jspm.io --no-usage'],
     validationFn: async _updatedFiles => {
-      // Successfully deployed version 1.0.1
-      assert(true, `Successfully deployed version ${testVersion}`);
+      // Successfully published version 1.0.1
+      assert(true, `Successfully published version ${testVersion}`);
     }
   });
 });
 
-// Test deploy with custom tag
-test('deploy with custom tag', async () => {
+// Test publish with custom tag
+test('publish with custom tag', async () => {
   const files = new Map();
   // Create package.json with a version that should be overridden
   files.set(
@@ -130,7 +130,7 @@ test('deploy with custom tag', async () => {
     JSON.stringify({
       name: 'jspm-deploy-test',
       version: randomVersion(),
-      description: 'Test package for JSPM deploy testing'
+      description: 'Test package for jspm publish testing'
     })
   );
 
@@ -140,16 +140,16 @@ test('deploy with custom tag', async () => {
 
   await run({
     files,
-    commands: [`jspm deploy -p jspm.io --version ${customTag} --no-usage`],
+    commands: [`jspm publish -p jspm.io --version ${customTag} --no-usage`],
     validationFn: async _updatedFiles => {
-      // Successfully deployed with custom tag
-      assert(true, `Successfully deployed with tag ${customTag}`);
+      // Successfully published with custom tag
+      assert(true, `Successfully published with tag ${customTag}`);
     }
   });
 });
 
-// Test deploy with invalid tag
-test('deploy with invalid tag', async () => {
+// Test publish with invalid tag
+test('publish with invalid tag', async () => {
   const files = new Map();
   files.set(
     'package.json',
@@ -164,7 +164,7 @@ test('deploy with invalid tag', async () => {
   try {
     await run({
       files,
-      commands: ['jspm deploy -p jspm.io --version invalid@tag'],
+      commands: ['jspm publish -p jspm.io --version invalid@tag'],
       validationFn: async () => {
         assert.fail('Should have thrown an error for invalid tag');
       }
@@ -176,38 +176,38 @@ test('deploy with invalid tag', async () => {
   }
 });
 
-// Test deploy and eject
-test('deploy and eject', async () => {
+// Test publish and eject
+test('publish and eject', async () => {
   const files = new Map();
   const packageName = 'jspm-deploy-eject-test';
   const version = `test-${Math.round(Math.random() * 1000)}`;
 
-  // Create a package for deployment
+  // Create a package for publish
   files.set(
     'package.json',
     JSON.stringify({
       name: packageName,
       version: randomVersion(),
-      description: 'Test package for JSPM deploy and eject testing',
+      description: 'Test package for jspm publish and eject testing',
       exports: './index.js'
     })
   );
 
   // Add a simple index file
-  files.set('index.js', "export const message = 'Hello from deployed package';");
+  files.set('index.js', "export const message = 'Hello from published package';");
 
   // Add a utility file in a subdirectory
   files.set('src/utils.js', 'export const add = (a, b) => a + b;');
 
-  let deployedPackage;
+  let publishedPackage;
 
   await run({
     files,
-    commands: [`jspm deploy -p jspm.io --version ${version} --no-usage`],
+    commands: [`jspm publish -p jspm.io --version ${version} --no-usage`],
     validationFn: async _updatedFiles => {
       // Store the package name for ejection
-      deployedPackage = `app:${packageName}@${version}`;
-      assert(true, `Successfully deployed ${deployedPackage}`);
+      publishedPackage = `app:${packageName}@${version}`;
+      assert(true, `Successfully published ${publishedPackage}`);
     }
   });
 
@@ -217,7 +217,7 @@ test('deploy and eject', async () => {
   await run({
     files: new Map(), // Start with clean files
     commands: [
-      `jspm deploy -p jspm.io --eject ${deployedPackage} --dir ${ejectDir} -o importmap.json`
+      `jspm publish -p jspm.io --eject ${publishedPackage} --dir ${ejectDir} -o importmap.json`
     ],
     validationFn: async updatedFiles => {
       // Verify ejected files
@@ -242,9 +242,9 @@ test('deploy and eject', async () => {
   });
 });
 
-// Test deployment with watch mode (short duration for testing)
+// Test publish with watch mode (short duration for testing)
 // This test must be last as the watcher stop is a process.exit
-test('deploy watch mode basic test', async () => {
+test('publish watch mode basic test', async () => {
   const files = await mapDirectory('fixtures/scenario_deploy');
 
   // For testing watch mode, we'll start it but cancel after a short time
@@ -256,7 +256,7 @@ test('deploy watch mode basic test', async () => {
     // Instead we'll just verify it can start
     watchProcess = run({
       files,
-      commands: [`jspm deploy -p jspm.io --version dev --watch --no-usage`],
+      commands: [`jspm publish -p jspm.io --version dev --watch --no-usage`],
       validationFn: async () => {
         // Watch mode should start successfully
         await new Promise((resolve, reject) => {
@@ -267,7 +267,7 @@ test('deploy watch mode basic test', async () => {
       }
     });
     // This test is more to verify the watch mode can be started
-    // A more thorough test would actually modify files and verify redeployment
+    // A more thorough test would actually modify files and verify republish
   } catch (error) {
     assert.fail(`Watch mode failed to start: ${error}`);
   }

@@ -33,7 +33,7 @@ import {
   stopSpinner,
   writeOutput
 } from './utils.ts';
-import type { PublishFlags, EjectFlags } from './cli.ts';
+import type { EjectFlags, PublishFlags } from './cli.ts';
 import { withType } from './logger.ts';
 import { loadConfig } from './config.ts';
 

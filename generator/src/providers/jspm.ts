@@ -8,9 +8,6 @@ import type { ImportMap } from '@jspm/import-map';
 import { SemverRange } from 'sver';
 // @ts-ignore
 import { fetch } from '../common/fetch.js';
-// @ts-ignore
-import * as tar from 'tar-stream';
-import pako from 'pako';
 import type { PublishOutput, ProviderContext } from './index.js';
 import type { Resolver } from '../trace/resolver.js';
 
@@ -345,6 +342,9 @@ export async function download(
   this: ProviderContext,
   pkg: ExactPackage
 ): Promise<Record<string, ArrayBuffer>> {
+  const tar = await import('tar-stream');
+  const { default: pako } = await import('pako');
+
   const { name, version, registry } = pkg;
   if (registry !== 'app')
     throw new JspmError(
@@ -661,6 +661,9 @@ async function createTarball(
   files: Record<string, string | ArrayBuffer> | undefined,
   map: ImportMap | undefined
 ): Promise<Uint8Array> {
+  const tar = await import('tar-stream');
+  const { default: pako } = await import('pako');
+
   // Create pack stream
   const pack = tar.pack();
   // Collect chunks

@@ -18,7 +18,7 @@ This monorepo includes the following tools:
 
 * **Local Linking**: map packages to your local `node_modules` folder
 * **Common CDNs**: Resolve against common CDNs like [jspm.io](https://jspm.io/), [jsDelivr](https://jsdelivr.com), [UNPKG](https://unpkg.com/) and [more](#customProviders)
-* **Universal Semantics**: Implements [universal CDN resolution](https://jspm.org/docs/cdn-resolution.md) semantics, based on an extension of the Node.js resolution
+* **Universal Semantics**: Implements [universal CDN resolution](https://jspm.org/docs/cdn-resolution) semantics, based on an extension of the Node.js resolution
 * **Conditional Resolution**: Map different versions of a module based on environment
 * **Dependency Versioning**: Respects the version constraints in local and remote `package.json` files
 * **Package Entrypoints**: Handles node-style package exports, imports and own-name resolution

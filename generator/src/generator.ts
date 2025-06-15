@@ -1669,6 +1669,47 @@ export class Generator {
     if (this.combineSubpaths) map.combineSubpaths();
     return map.toJSON();
   }
+
+  /**
+   *
+   * @param outputDirectory The output directory, resolved relative to process.cwd(), where the import
+   * map and its files are stored on the file system. Defaults to 'dist'
+   * @param importMapFileName The name of the import map file stored to disk, within the outputDirectory. Defaults to
+   * main.importmap
+   * @param hostedBaseUrl a fully qualified or relative string path used as base url for all URLs within the import
+   * If not provided, hostedBaseUrl defaults to './'
+   */
+  async downloadAll(
+    outputDirectory: string = 'deps',
+    importMapFileName: string = 'main.importmap',
+    hostedBaseUrl: string = './'
+  ) {
+    if (!isNode) {
+      throw new JspmError('downloadAll is only available in nodejs');
+    }
+
+    const fs = await import('node:fs/promises');
+    const path = await import('node:path');
+
+    for (const url in this.traceMap.installer.resolver.traceEntries) {
+      const r = await fetch(url);
+      if (!r.ok) {
+        throw Error(`Failed to download file from url '${url}'`);
+      }
+      const text = await r.text();
+      const filename = path.resolve(outputDirectory, '.' + new URL(url).pathname);
+      await fs.mkdir(filename.slice(0, filename.lastIndexOf('/')), { recursive: true });
+      await fs.writeFile(filename, text, 'utf-8');
+    }
+
+    const map = this.importMap.rebase('https://ga.jspm.io/');
+
+    await fs.writeFile(
+      path.resolve(outputDirectory, importMapFileName),
+      JSON.stringify(map.toJSON(), null, 2),
+      'utf-8'
+    );
+  }
 }
 
 export interface LookupOptions {

@@ -1671,27 +1671,28 @@ export class Generator {
   }
 
   /**
+   * Download all files to disk within the import map to a directory. A rebased import map, with URLs relative
+   * to the output directory is returned.
+   *
+   * Example usage:
+   *
+   * const finalMap = await generator.downloadAll('deps');
    *
    * @param outputDirectory The output directory, resolved relative to process.cwd(), where the import
    * map and its files are stored on the file system. Defaults to 'dist'
-   * @param importMapFileName The name of the import map file stored to disk, within the outputDirectory. Defaults to
-   * main.importmap
-   * @param hostedBaseUrl a fully qualified or relative string path used as base url for all URLs within the import
-   * If not provided, hostedBaseUrl defaults to './'
    */
-  async downloadAll(
-    outputDirectory: string = 'deps',
-    importMapFileName: string = 'main.importmap',
-    hostedBaseUrl: string = './'
-  ) {
+  async downloadAll(outputDirectory: string = 'deps'): Promise<ImportMap> {
     if (!isNode) {
       throw new JspmError('downloadAll is only available in nodejs');
     }
 
-    const fs = await import('node:fs/promises');
-    const path = await import('node:path');
+    const fs = await import(eval('"node:fs/promises"'));
+    const path = await import(eval('"node:path"'));
+
+    const cloudOrigins = new Set<string>();
 
     for (const url in this.traceMap.installer.resolver.traceEntries) {
+      cloudOrigins.add(new URL(url).origin);
       const r = await fetch(url);
       if (!r.ok) {
         throw Error(`Failed to download file from url '${url}'`);
@@ -1702,13 +1703,13 @@ export class Generator {
       await fs.writeFile(filename, text, 'utf-8');
     }
 
-    const map = this.importMap.rebase('https://ga.jspm.io/');
+    // Remove cloud origins from all URLs
+    let finalMap: ImportMap = this.importMap.clone();
+    for (const cloudOrigin of cloudOrigins) {
+      finalMap = finalMap.rebase(cloudOrigin);
+    }
 
-    await fs.writeFile(
-      path.resolve(outputDirectory, importMapFileName),
-      JSON.stringify(map.toJSON(), null, 2),
-      'utf-8'
-    );
+    return finalMap;
   }
 }
 

@@ -269,8 +269,19 @@ Uses RollupJS under the hood to create optimized bundles.
 
 The package entry points as defined in the package.json "exports" field are built, with the
 entire package copied into the output directory. As such, it is a whole-package transformation.
+
+Build externals are taken from the package.json "dependencies" to form a roughly configurationless
+build workflow (dependencies in "devDependencies" or otherwise are inlined into the build).
+
 Includes and ignores can be specified using the package.json "files" and "ignore" fields,
 optionally using the JSPM overrides for these via the "jspm" property in the package.json.
+
+Any build import map shoud be generated separately via a subsequent install operation on the
+build folder, for example like:
+
+jspm install -d dist -C production --flatten-scopes --combine-subpaths
+
+to generate an optimized production map.
 
 
 **Options**

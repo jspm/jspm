@@ -94,7 +94,7 @@ export default async function build(flags: BuildFlags) {
       format: 'esm',
       assetFileNames: '[name][extname]',
       entryFileNames: '[name]',
-      chunkFileNames: '[name]',
+      chunkFileNames: 'lib/[name]-[hash:8].js',
       sourcemap: true,
       compact: flags.minify
     });
@@ -120,7 +120,18 @@ export default async function build(flags: BuildFlags) {
     }
 
     // Copy all files from currentFileList to output directory (unless they already exist as chunks)
-    const generatedFiles = new Set(output.map(chunk => chunk.fileName));
+    const projectBase = `${pathToFileURL(projectConfig.projectPath).href}/`;
+    const generatedFiles = new Set();
+    for (const chunk of output) {
+      generatedFiles.add(chunk.fileName);
+      if (chunk.type === 'chunk') {
+        for (const refFile of chunk.moduleIds as string[]) {
+          if (refFile.startsWith(projectBase)) {
+            generatedFiles.add(relative(projectBase, refFile).replace(/\\/g, '/'));
+          }
+        }
+      }
+    }
 
     // Copy the package.json across with the "exports" field patched for .ts -> .js renames
     {
@@ -159,7 +170,7 @@ export default async function build(flags: BuildFlags) {
     stopSpinner();
 
     if (!flags.quiet) {
-      console.log(`${c.green('✓')} Built ${c.cyan(projectConfig.name)} to ${c.cyan(flags.out!)}`);
+      console.log(`${c.green('✓')} Built ${c.cyan(projectConfig.name)} to ${c.cyan(flags.out!)}.\n\n${c.cyan('Info:')} Run ${c.bold('jspm -d dist install -C production -fs')} to create a production build map.`);
     }
   } catch (e) {
     stopSpinner();

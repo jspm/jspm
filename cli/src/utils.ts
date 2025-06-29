@@ -453,12 +453,14 @@ export function getInputPath(flags: GenerateFlags, fallbackDefaultMap = defaultM
   }
 
   // If importmap.json exists, use it
-  if (exists(defaultMapPath)) {
-    return resolve(defaultMapPath);
+  const defaultMapPathResolved = resolve(flags.dir ?? '.', defaultMapPath);
+  if (exists(defaultMapPathResolved)) {
+    return defaultMapPathResolved;
   }
 
   // Otherwise use the provided fallback
-  return resolve(fallbackDefaultMap);
+  const fallbackDefaultMapResolved = resolve(flags.dir ?? '.', fallbackDefaultMap);
+  return fallbackDefaultMapResolved;
 }
 
 export function getOutputPath(flags: GenerateOutputFlags): string {
@@ -468,12 +470,14 @@ export function getOutputPath(flags: GenerateOutputFlags): string {
   }
 
   // If importmap.json exists, use that
-  if (exists(defaultMapPath)) {
-    return resolve(defaultMapPath);
+  const defaultMapPathResolved = resolve(flags.dir ?? '.', defaultMapPath);
+  if (defaultMapPathResolved) {
+    return defaultMapPathResolved;
   }
 
   // Default to importmap.json if nothing else is available
-  return resolve(defaultMapPath);
+  const fallbackDefaultMapResolved = resolve(flags.dir ?? '.', defaultMapPath);
+  return fallbackDefaultMapResolved;
 }
 
 function getOutputMapUrl(flags: GenerateOutputFlags): URL {

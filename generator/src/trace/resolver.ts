@@ -18,6 +18,7 @@ import {
 import { Installer } from '../install/installer.js';
 import { SemverRange } from 'sver';
 import { getIntegrity } from '../common/integrity.js';
+import { isNode } from '../common/env.js';
 
 let realpath, pathToFileURL;
 
@@ -241,7 +242,7 @@ export class Resolver {
   }
 
   async realPath(url: string): Promise<string> {
-    if (!url.startsWith('file:') || this.preserveSymlinks) return url;
+    if (!isNode || !url.startsWith('file:') || this.preserveSymlinks) return url;
     let encodedColon = false;
     url = url.replace(/%3a/i, () => {
       encodedColon = true;

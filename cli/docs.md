@@ -149,10 +149,11 @@ Enhanced Security and Performance:
 
 **Options**
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
-* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,development,module)
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
+* `--release`                        Enable release mode (sets --flatten-scopes, --combine-subpaths, --conditions=production) (default: false)
 * `--integrity`                      Add module integrity attributes to the import map (default: false)
 * `--preload` _[mode]_                 Add module preloads to HTML output (default: static, dynamic) 
 * `--root` _&lt;url&gt;_                     URL to treat as server root, i.e. rebase import maps against 
@@ -211,10 +212,11 @@ the same options as the 'jspm install' command with no arguments.
 * `--static`                         Disable hot reloading and auto installation, providing a static server only (default: false)
 * `--no-install`                     Disable automatic import map installs in watch mode (default: true)
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
-* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,development,module)
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
+* `--release`                        Enable release mode (sets --flatten-scopes, --combine-subpaths, --conditions=production) (default: false)
 * `--integrity`                      Add module integrity attributes to the import map (default: false)
 * `--preload` _[mode]_                 Add module preloads to HTML output (default: static, dynamic) 
 * `--root` _&lt;url&gt;_                     URL to treat as server root, i.e. rebase import maps against 
@@ -253,7 +255,7 @@ Start a server that uses importmap.json as the import map.
 
 
 ```
-jspm serve --no-watch --no-install --no-type-stripping
+jspm serve --static
 ```    
 Start a server that does not generate the import map on startup, perform type stripping or provide a hot reload watcher
 
@@ -288,10 +290,11 @@ to generate an optimized production map.
 * `--no-minify`                      Disable build minification (default: true)
 * `-o, --out` _&lt;dir&gt;_                  Path to the output directory for the build (default: dist)
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
-* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,production,module)
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
+* `--release`                        Enable release mode (sets --flatten-scopes, --combine-subpaths, --conditions=production) (default: true)
 * `-q, --quiet`                      Quiet output (default: false)
 * `-d, --dir` _&lt;directory&gt;_            Package directory to operate on (defaults to working directory) 
 * `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
@@ -359,15 +362,16 @@ For ejecting a published package:
 * `-n, --name` _&lt;name&gt;_                Publish with a custom name instead of the name from package.json 
 * `--eject` _&lt;package&gt;_                Eject a published package instead of publishing 
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
-* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: browser,production,module)
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
 * `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
+* `--release`                        Enable release mode (sets --flatten-scopes, --combine-subpaths, --conditions=production) (default: true)
 * `--integrity`                      Add module integrity attributes to the import map (default: false)
 * `--preload` _[mode]_                 Add module preloads to HTML output (default: static, dynamic) 
 * `--root` _&lt;url&gt;_                     URL to treat as server root, i.e. rebase import maps against 
-* `-f, --flatten-scopes`             Flatten import map scopes into smaller single top-level scope per origin (default: true)
-* `-s, --combine-subpaths`           Combine import map subpaths under folder maps (ending in /) (default: true)
+* `-f, --flatten-scopes`             Flatten import map scopes into smaller single top-level scope per origin (default: false)
+* `-s, --combine-subpaths`           Combine import map subpaths under folder maps (ending in /) (default: false)
 * `-c, --compact`                    Output a compact import map (default: false)
 * `--stdout`                         Output the import map to stdout (default: false)
 * `-o, --out` _&lt;file&gt;_                 File to inject the final import map into (default: --map / importmap.js). For JS files outputs an injection wrapper script, for JSON files, the import map only, and for HTML files embeds the import map. 

@@ -394,7 +394,8 @@ export async function initCreate(
  * @returns ProjectConfig object with validated fields
  */
 export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
-  const directory = flags.dir || process.cwd();
+  // --dir flag already sets cwd by here.
+  const directory = process.cwd();
 
   // Verify directory exists
   if (!(await isDirectory(directory))) {

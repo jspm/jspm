@@ -53,7 +53,7 @@ export const cli = (cac as any)(c.yellow('jspm'));
 
 type OptionGroup = (input: Command, production?: boolean) => Command;
 
-const generateOpts: OptionGroup = (cac, production = false) =>
+const generateOpts: OptionGroup = (cac, release = false) =>
   cac
     .option(
       '-m, --map <file>',
@@ -61,9 +61,7 @@ const generateOpts: OptionGroup = (cac, production = false) =>
       {}
     )
     .option('-C, --conditions <environments>', 'Comma-separated environment condition overrides', {
-      default: production
-        ? ['browser', 'production', 'module']
-        : ['browser', 'development', 'module']
+      default: []
     })
     .option('-r, --resolution <resolutions>', 'Comma-separated dependency resolution overrides', {})
     .option(
@@ -73,7 +71,14 @@ const generateOpts: OptionGroup = (cac, production = false) =>
     )
     .option('--cache <mode>', 'Cache mode for fetches (online, offline, no-cache)', {
       default: 'online'
-    });
+    })
+    .option(
+      '--release',
+      'Enable release mode (sets --flatten-scopes, --combine-subpaths, --conditions=production)',
+      {
+        default: release
+      }
+    );
 
 /**
  * Flags for all import map generation commands, internally used by the JSPM Generator
@@ -113,9 +118,14 @@ export interface GenerateFlags extends BaseFlags {
    * Cache mode for fetches (defaults to 'online', accepts 'online', 'offline', 'no-cache')
    */
   cache?: string;
+  /**
+   * Enable release mode with production optimizations (defaults to false)
+   * When enabled, automatically sets: --flatten-scopes, --combine-subpaths, --conditions=production
+   */
+  release?: boolean;
 }
 
-const outputOpts: OptionGroup = (cac, production = false) =>
+const outputOpts: OptionGroup = cac =>
   cac
     .option('--integrity', 'Add module integrity attributes to the import map', { default: false })
     .option('--preload [mode]', 'Add module preloads to HTML output (default: static, dynamic)', {})
@@ -123,16 +133,12 @@ const outputOpts: OptionGroup = (cac, production = false) =>
     .option(
       '-f, --flatten-scopes',
       'Flatten import map scopes into smaller single top-level scope per origin',
-      {
-        default: production
-      }
+      { default: false }
     )
     .option(
       '-s, --combine-subpaths',
       'Combine import map subpaths under folder maps (ending in /)',
-      {
-        default: production
-      }
+      { default: false }
     )
     .option('-c, --compact', 'Output a compact import map', { default: false })
     .option('--stdout', 'Output the import map to stdout', { default: false })
@@ -455,7 +461,7 @@ Start a server that uses importmap.json as the import map.
   )
   .example(
     name => `
-$ ${name} serve --no-watch --no-install --no-type-stripping
+$ ${name} serve --static
     
 Start a server that does not generate the import map on startup, perform type stripping or provide a hot reload watcher
 `
@@ -595,8 +601,7 @@ outputOpts(
       )
       .option('--eject <package>', 'Eject a published package instead of publishing', {}),
     true
-  ),
-  true
+  )
 )
   .example(
     name => `

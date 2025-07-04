@@ -40,3 +40,15 @@ test('Upgrade should use version from package.json', async () => {
     }
   });
 });
+
+test('--release flag', async () => {
+  await run({
+    files: new Map([...importMap, ...packageJson]),
+    commands: ['jspm update --release -o importmap.json'],
+    validationFn: async (files: Map<string, string>) => {
+      const map = JSON.parse(files.get('importmap.json')!);
+      assert.strictEqual(Object.keys(map.scopes).length, 1);
+      assert.strictEqual(map.imports.react, 'https://ga.jspm.io/npm:react@18.1.0/index.js');
+    }
+  });
+});

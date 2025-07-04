@@ -343,8 +343,8 @@ export async function getGenerator(
         rootUrl,
         inputMap: inputMap || (await getInputMap(flags)),
         env: await getEnv(flags),
-        flattenScopes: flags.flattenScopes,
-        combineSubpaths: flags.combineSubpaths,
+        flattenScopes: flags.release ? true : flags.flattenScopes,
+        combineSubpaths: flags.release ? true : flags.combineSubpaths,
         defaultProvider,
         resolutions: getResolutions(flags),
         cache: getCacheMode(flags),
@@ -518,14 +518,13 @@ function addEnvs(env: string[], newEnvs: string[]) {
 }
 
 export async function getEnv(flags: GenerateFlags) {
-  const inputMap = await getInputMap(flags);
   const envFlags = Array.isArray(flags?.conditions)
     ? flags.conditions
     : (flags.conditions || '')
         .split(',')
         .map(e => e.trim())
         .filter(Boolean);
-  let env = inputMap.env || ['development', 'browser', 'module'];
+  let env = ['browser', 'module', flags.release ? 'production' : 'development'];
   env = removeEnvs(
     env,
     envFlags.filter(env => env.startsWith('no-')).map(env => env.slice(3))

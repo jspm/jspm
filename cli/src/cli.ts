@@ -74,7 +74,7 @@ const generateOpts: OptionGroup = (cac, release = false) =>
     })
     .option(
       '--release',
-      'Enable release mode (sets --flatten-scopes, --combine-subpaths, --conditions=production)',
+      'Enable release mode (--flatten-scopes, --combine-subpaths, --C=production, --integrity)',
       {
         default: release
       }
@@ -505,6 +505,9 @@ generateOpts(
     })
     .option('-o, --out <dir>', 'Path to the output directory for the build', {
       default: 'dist'
+    })
+    .option('--install', 'Generate import map after build completes', {
+      default: true
     }),
   true
 )
@@ -572,6 +575,8 @@ export interface BuildFlags extends GenerateFlags {
   out?: string;
   /** Enable/disable build minification (defaults to true) */
   minify?: boolean;
+  /** Generate import map after build completes (defaults to true) */
+  install?: boolean;
 }
 
 // Publish command - main command is now just publish with --eject flag for eject functionality

@@ -12,12 +12,15 @@ import {
   getExportsEntries,
   getFilesRecursively,
   getGenerator,
+  getInputPath,
+  getOutputPath,
   sanitizeTemplateStr,
   startSpinner,
   stopSpinner
 } from './utils.ts';
 import type { BuildFlags } from './cli.ts';
 import { initProject } from './init.ts';
+import install from './install.ts';
 
 export default async function build(flags: BuildFlags) {
   // Try to validate the project configuration
@@ -169,8 +172,42 @@ export default async function build(flags: BuildFlags) {
 
     stopSpinner();
 
+    // Generate import map after build if --install flag is enabled (default: true)
+    if (flags.install !== false) {
+      if (!flags.quiet) {
+        console.log(`${c.cyan('Info:')} Generating import map in build directory...`);
+      }
+      const map = getInputPath(flags);
+      // Run jspm install in the build directory with release mode enabled
+      process.chdir(flags.out!);
+      const installFlags = {
+        ...flags,
+        // use local map as source of truth for resolutions
+        map,
+        // output to default importmap.js in build dir
+        out: getOutputPath({}),
+        dir: undefined,
+        release: true,
+        quiet: true
+      };
+      
+      try {
+        await install(installFlags);
+        if (!flags.quiet) {
+          console.log(`${c.green('✓')} Import map generated in ${c.cyan(flags.out!)}`);
+        }
+      } catch (error) {
+        if (!flags.quiet) {
+          console.warn(`${c.yellow('Warning:')} Failed to generate import map: ${error.message}`);
+        }
+      }
+    }
+
     if (!flags.quiet) {
-      console.log(`${c.green('✓')} Built ${c.cyan(projectConfig.name)} to ${c.cyan(flags.out!)}.\n\n${c.cyan('Info:')} Run ${c.bold('jspm -d dist install -C production -fs')} to create a production build map.`);
+      const infoMsg = flags.install !== false 
+        ? `${c.green('✓')} Built ${c.cyan(projectConfig.name)} to ${c.cyan(flags.out!)} with import map.`
+        : `${c.green('✓')} Built ${c.cyan(projectConfig.name)} to ${c.cyan(flags.out!)}.\n\n${c.cyan('Info:')} Run ${c.bold('jspm -d ' + flags.out! + ' install --release')} to create a production import map.`;
+      console.log(infoMsg);
     }
   } catch (e) {
     stopSpinner();

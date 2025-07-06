@@ -220,8 +220,8 @@ async function writeHtmlOutput(
     pins: pins ?? true,
     htmlUrl: generator.mapUrl, // URL of the output map
     rootUrl: generator.rootUrl,
-    preload: getPreloadMode(flags),
-    integrity: flags.integrity,
+    preload: flags.release ? true : getPreloadMode(flags),
+    integrity: flags.release ? true : flags.integrity,
     whitespace: !flags.compact,
     comment: false
   });
@@ -348,7 +348,7 @@ export async function getGenerator(
         defaultProvider,
         resolutions: getResolutions(flags),
         cache: getCacheMode(flags),
-        integrity: flags.integrity,
+        integrity: flags.release ? true : flags.integrity,
         typeScript: true,
         commonJS: true, // TODO: only for --local flag
         // Pass provider configs from configuration file

@@ -190,7 +190,7 @@ export default async function build(flags: BuildFlags) {
         release: true,
         quiet: true
       };
-      
+
       try {
         await install(installFlags);
         if (!flags.quiet) {
@@ -204,9 +204,16 @@ export default async function build(flags: BuildFlags) {
     }
 
     if (!flags.quiet) {
-      const infoMsg = flags.install !== false 
-        ? `${c.green('✓')} Built ${c.cyan(projectConfig.name)} to ${c.cyan(flags.out!)} with import map.`
-        : `${c.green('✓')} Built ${c.cyan(projectConfig.name)} to ${c.cyan(flags.out!)}.\n\n${c.cyan('Info:')} Run ${c.bold('jspm -d ' + flags.out! + ' install --release')} to create a production import map.`;
+      const infoMsg =
+        flags.install !== false
+          ? `${c.green('✓')} Built ${c.cyan(projectConfig.name)} to ${c.cyan(
+              flags.out!
+            )} with import map.`
+          : `${c.green('✓')} Built ${c.cyan(projectConfig.name)} to ${c.cyan(
+              flags.out!
+            )}.\n\n${c.cyan('Info:')} Run ${c.bold(
+              `jspm -d ${flags.out!} install --release`
+            )} to create a production import map.`;
       console.log(infoMsg);
     }
   } catch (e) {

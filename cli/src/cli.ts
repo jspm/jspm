@@ -74,7 +74,7 @@ const generateOpts: OptionGroup = (cac, release = false) =>
     })
     .option(
       '--release',
-      'Enable release mode (--flatten-scopes, --combine-subpaths, --C=production, --integrity)',
+      'Enable release mode (--flatten-scopes, --combine-subpaths, --C=production)',
       {
         default: release
       }
@@ -127,18 +127,18 @@ export interface GenerateFlags extends BaseFlags {
 
 const outputOpts: OptionGroup = cac =>
   cac
-    .option('--integrity', 'Add module integrity attributes to the import map', { default: false })
+    .option('--integrity', 'Add module integrity attributes to the import map', {})
     .option('--preload [mode]', 'Add module preloads to HTML output (default: static, dynamic)', {})
     .option('--root <url>', 'URL to treat as server root, i.e. rebase import maps against', {})
     .option(
       '-f, --flatten-scopes',
       'Flatten import map scopes into smaller single top-level scope per origin',
-      { default: false }
+      {}
     )
     .option(
       '-s, --combine-subpaths',
       'Combine import map subpaths under folder maps (ending in /)',
-      { default: false }
+      {}
     )
     .option('-c, --compact', 'Output a compact import map', { default: false })
     .option('--stdout', 'Output the import map to stdout', { default: false })
@@ -498,18 +498,20 @@ the same options as the 'jspm install' command with no arguments.
   .action(wrapCommand(serve));
 
 generateOpts(
-  cli
-    .command('build', 'Build package')
-    .option('--no-minify', 'Disable build minification', {
-      default: true
-    })
-    .option('-o, --out <dir>', 'Path to the output directory for the build', {
-      default: 'dist'
-    })
-    .option('--install', 'Generate import map after build completes', {
-      default: true
-    }),
-  true
+  outputOpts(
+    cli
+      .command('build', 'Build package')
+      .option('--no-minify', 'Disable build minification', {
+        default: true
+      })
+      .option('-o, --out <dir>', 'Path to the output directory for the build', {
+        default: 'dist'
+      })
+      .option('--install', 'Generate import map after build completes', {
+        default: true
+      }),
+    true
+  )
 )
   .example(
     name => `

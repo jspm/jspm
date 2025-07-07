@@ -220,7 +220,7 @@ async function writeHtmlOutput(
     pins: pins ?? true,
     htmlUrl: generator.mapUrl, // URL of the output map
     rootUrl: generator.rootUrl,
-    preload: getPreloadMode(flags),
+    preload: flags.release ? true : getPreloadMode(flags),
     integrity: flags.integrity,
     whitespace: !flags.compact,
     comment: false
@@ -343,8 +343,8 @@ export async function getGenerator(
         rootUrl,
         inputMap: inputMap || (await getInputMap(flags)),
         env: await getEnv(flags),
-        flattenScopes: flags.release ? true : flags.flattenScopes,
-        combineSubpaths: flags.release ? true : flags.combineSubpaths,
+        flattenScopes: flags.flattenScopes === false ? false : flags.release || flags.flattenScopes,
+        combineSubpaths: flags.combineSubpaths === false ? false : flags.release || flags.combineSubpaths,
         defaultProvider,
         resolutions: getResolutions(flags),
         cache: getCacheMode(flags),

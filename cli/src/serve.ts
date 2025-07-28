@@ -317,12 +317,12 @@ ${error.snippet}`
                   file: relativePath,
                   name: `Bare module specifier import ${c.bold(
                     c.cyan(`'${module}'`)
-                  )} is not mapped by the import map`,
+                  )} is not mapped by the import map. Either update the package.json "name" or update the HTML to use an import of "jspm" or "jspm/...".`,
                   description: `Only bare specifiers matching the project name ${c.cyan(
                     c.bold(`'${projectConfig.name}'`)
                   )} are mapped.`,
                   code: {
-                    title: 'package.json:',
+                    title: 'Correct JSPM HTML Script:',
                     snippet: `<script type="module">import '${projectConfig.name}';</script>`
                   }
                 });

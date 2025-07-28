@@ -344,7 +344,8 @@ export async function getGenerator(
         inputMap: inputMap || (await getInputMap(flags)),
         env: await getEnv(flags),
         flattenScopes: flags.flattenScopes === false ? false : flags.release || flags.flattenScopes,
-        combineSubpaths: flags.combineSubpaths === false ? false : flags.release || flags.combineSubpaths,
+        combineSubpaths:
+          flags.combineSubpaths === false ? false : flags.release || flags.combineSubpaths,
         defaultProvider,
         resolutions: getResolutions(flags),
         cache: getCacheMode(flags),

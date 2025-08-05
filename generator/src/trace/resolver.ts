@@ -188,12 +188,13 @@ export class Resolver {
         }
         if (res.headers && !res.headers.get('Content-Type')?.match(/^application\/json(;|$)/)) {
           this.pcfgs[pkgUrl] = null;
-        } else
+        } else {
           try {
             this.pcfgs[pkgUrl] = await res.json();
           } catch (e) {
             this.pcfgs[pkgUrl] = null;
           }
+        }
       })();
     await this.pcfgPromises[pkgUrl];
     return this.pcfgs[pkgUrl];

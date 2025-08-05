@@ -1,6 +1,6 @@
 import { JspmError } from '../common/err.js';
 import { importedFrom } from '../common/url.js';
-import type { LatestPackageTarget } from '../install/package.js';
+import type { LatestPackageTarget, PackageConfig } from '../install/package.js';
 import { pkgToStr } from '../install/package.js';
 import type { ExactPackage } from '../install/package.js';
 import type { ImportMap } from '@jspm/import-map';
@@ -52,6 +52,46 @@ function withTrailer(url: string) {
 export async function pkgToUrl(pkg: ExactPackage, layer = 'default'): Promise<`${string}/`> {
   if (pkg.registry === 'app') return `${rawUrl}${pkgToStr(pkg)}/`;
   return `${layer === 'system' ? systemCdnUrl : gaUrl}${pkgToStr(pkg)}/`;
+}
+
+export async function getPackageConfig(this: ProviderContext, pkgUrl: string): Promise<PackageConfig | null> {
+  try {
+    var res = await fetch(`${pkgUrl}package.json`, this.fetchOpts);
+  } catch (e) {
+    return null;
+  }
+  switch (res.status) {
+    case 200:
+    case 204:
+    case 304:
+      break;
+    case 400:
+    case 401:
+    case 403:
+    case 404:
+      let err;
+      try {
+        // if it is a build error, try surface the build error
+        err = await (await fetch(`${pkgUrl}_error.log`)).text();
+      } catch {}
+      if (err) throw new JspmError(err);
+    case 406:
+    case 500:
+      return null;
+    default:
+      throw new JspmError(
+        `Invalid status code ${res.status} reading package config for ${pkgUrl}. ${res.statusText}`
+      );
+  }
+  if (res.headers && !res.headers.get('Content-Type')?.match(/^application\/json(;|$)/)) {
+    return null;
+  } else {
+    try {
+      return await res.json() as PackageConfig;
+    } catch (e) {
+      return null;
+    }
+  }
 }
 
 export function configure(config: any) {

@@ -14,7 +14,8 @@ const defaultPackageJson = {
 export type Files = Map<string, string>;
 export interface Scenario {
   commands: `jspm ${string}`[];
-  validationFn: (files: Files) => Promise<void>;
+  validationFn?: (files: Files) => Promise<void>;
+  expectError?: true;
 
   // For configuring initial environment for the scenario:
   files?: Files;
@@ -71,8 +72,16 @@ export async function run(scenario: Scenario) {
       }
     }
 
+    if (!scenario.validationFn) {
+      if (scenario.expectError) throw new Error(`Scenario "${scenario.commands}" expected test to fail`);
+      throw new Error(`Scenario "${scenario.commands}" has no validation function for test`);
+    }
     await scenario.validationFn(await mapDirectory(dir));
   } catch (err) {
+    if (scenario.expectError) {
+      process.exitCode = 0;
+      return;
+    }
     throw new Error(`Scenario "${scenario.commands}" failed.`, {
       cause: err
     });

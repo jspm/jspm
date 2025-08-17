@@ -366,6 +366,42 @@ export interface GeneratorOptions {
   };
 
   /**
+   * Custom async resolver function for intercepting resolution operations.
+   *
+   * When provided, this function will be called first for all resolution operations.
+   * If it returns a string URL, that will be used as the resolved module and persisted
+   * in the import map. If it returns undefined, normal resolution continues.
+   *
+   * @param specifier The module specifier being resolved
+   * @param parentUrl The URL of the parent module
+   * @param context Additional context including environment and other metadata
+   * @returns A resolved URL string or undefined to continue with default resolution
+   *
+   * @example
+   * ```js
+   * const generator = new Generator({
+   *   customResolver: async (specifier, parentUrl, context) => {
+   *     if (specifier === 'my-custom-lib') {
+   *       return 'https://cdn.example.com/my-custom-lib@1.0.0/index.js';
+   *     }
+   *     return undefined;
+   *   }
+   * });
+   * ```
+   */
+  customResolver?: (
+    specifier: string,
+    parentUrl: string,
+    context: {
+      parentPkgUrl: string;
+      env?: string[];
+      installMode: any;
+      toplevel: boolean;
+      [key: string]: any;
+    }
+  ) => string | undefined | Promise<string | undefined>;
+
+  /**
    * @default true
    *
    * Whether to flatten import map scopes into domain-groupings.
@@ -561,6 +597,7 @@ export class Generator {
     fetchRetries,
     providerConfig = {},
     preserveSymlinks,
+    customResolver,
     flattenScopes = true,
     combineSubpaths = true
   }: GeneratorOptions = {}) {
@@ -639,7 +676,8 @@ export class Generator {
         providers,
         ignore,
         resolutions,
-        commonJS
+        commonJS,
+        customResolver
       },
       log,
       resolver

@@ -54,7 +54,10 @@ export async function pkgToUrl(pkg: ExactPackage, layer = 'default'): Promise<`$
   return `${layer === 'system' ? systemCdnUrl : gaUrl}${pkgToStr(pkg)}/`;
 }
 
-export async function getPackageConfig(this: ProviderContext, pkgUrl: string): Promise<PackageConfig | null> {
+export async function getPackageConfig(
+  this: ProviderContext,
+  pkgUrl: string
+): Promise<PackageConfig | null> {
   try {
     var res = await fetch(`${pkgUrl}package.json`, this.fetchOpts);
   } catch (e) {
@@ -87,7 +90,7 @@ export async function getPackageConfig(this: ProviderContext, pkgUrl: string): P
     return null;
   } else {
     try {
-      return await res.json() as PackageConfig;
+      return (await res.json()) as PackageConfig;
     } catch (e) {
       return null;
     }

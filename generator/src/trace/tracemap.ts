@@ -41,6 +41,21 @@ export interface TraceMapOptions extends InstallerOptions {
    * Whether or not to enable CommonJS tracing for local dependencies.
    */
   commonJS?: boolean;
+
+  /**
+   * Custom resolver function for intercepting resolution operations.
+   */
+  customResolver?: (
+    specifier: string,
+    parentUrl: string,
+    context: {
+      parentPkgUrl: string;
+      env?: string[];
+      installMode: any;
+      toplevel: boolean;
+      [key: string]: any;
+    }
+  ) => string | undefined | Promise<string | undefined>;
 }
 
 interface VisitOpts {
@@ -77,6 +92,17 @@ export default class TraceMap {
   pins: Array<string> = [];
   log: Log;
   resolver: Resolver;
+  customResolver?: (
+    specifier: string,
+    parentUrl: string,
+    context: {
+      parentPkgUrl: string;
+      env?: string[];
+      installMode: any;
+      toplevel: boolean;
+      [key: string]: any;
+    }
+  ) => string | undefined | Promise<string | undefined>;
 
   /**
    * Lock to ensure no races against input map processing.
@@ -91,6 +117,7 @@ export default class TraceMap {
     this.baseUrl = opts.baseUrl;
     this.rootUrl = opts.rootUrl || null;
     this.opts = opts;
+    this.customResolver = opts.customResolver;
     this.inputMap = new ImportMap({
       mapUrl: this.mapUrl,
       rootUrl: this.rootUrl
@@ -323,6 +350,36 @@ export default class TraceMap {
     if (!parentPkgUrl) throwInternalError();
 
     const parentIsCjs = parentAnalysis?.format === 'commonjs';
+
+    if (this.customResolver) {
+      try {
+        const customResolved = await this.customResolver(specifier, parentUrl, {
+          parentPkgUrl,
+          env: this.resolver.env,
+          installMode: installOpts,
+          toplevel
+        });
+        if (customResolved) {
+          // Resolve the custom mapping against the mapUrl
+          // This allows for relative paths like "./local-file.js" to work
+          const resolvedUrl = new URL(customResolved, this.mapUrl).href;
+
+          // Store the custom mapping in the input map
+          this.inputMap.set(specifier, resolvedUrl, toplevel ? undefined : parentPkgUrl);
+
+          this.log(
+            'tracemap/resolve',
+            `${specifier} ${parentUrl} -> ${resolvedUrl} (custom resolver)`
+          );
+          return resolvedUrl;
+        }
+      } catch (error) {
+        // Re-throw custom resolver errors
+        throw new JspmError(
+          `Custom resolver error for "${specifier}": ${error.message}${importedFrom(parentUrl)}`
+        );
+      }
+    }
 
     if ((!isPlain(specifier) || specifier === '..') && !isMappableScheme(specifier)) {
       let resolvedUrl = new URL(specifier, parentUrl);

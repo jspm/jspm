@@ -760,6 +760,9 @@ export class Generator {
    *
    * By using link, we guarantee that the import map constructed is only for what is truly
    * needed and loaded. Dynamic imports that are statically analyzable are traced by link.
+   * 
+   * If a custom resolver is configured, it will be applied to the provided specifiers
+   * and all their dependencies during the linking process.
    */
   async link(
     specifier: string | string[],
@@ -1029,6 +1032,9 @@ export class Generator {
    * // Install all exports of the package, based on enumerating all the package export subpaths.
    * await generator.install({ alias: 'mypkg', target: './packages/local-pkg', subpaths: true });
    * ```
+   * 
+   * Will respect {@link GeneratorOptions.customResolver} for dependency specifier resolution. If requiring
+   * a {@link GeneratorOptions.customResolver} to apply at the top-level, use {@link Generator.link} instead.
    */
   async install(install: string | Install | (string | Install)[], mode?: InstallMode);
   async install(mode?: InstallMode);

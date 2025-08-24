@@ -28,7 +28,7 @@
     "amaro": "^0.5.3",
     "cac": "^6.7.14",
     "esbuild": "^0.16.17",
-    "eslint": "^8.38.0",
+    "eslint": "^9.34.0",
     "eslint-config-prettier": "^8.8.0",
     "mime": "^4.0.7",
     "minimatch": "^10.0.1",

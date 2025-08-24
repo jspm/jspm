@@ -2,7 +2,7 @@
   "name": "@jspm/generator",
   "description": "Package Import Map Generation Tool",
   "license": "Apache-2.0",
-  "version": "2.6.3",
+  "version": "2.6.4",
   "types": "lib/generator.d.ts",
   "type": "module",
   "scripts": {
@@ -47,7 +47,7 @@
     "@babel/core": "^7.24.7",
     "@babel/plugin-syntax-import-attributes": "^7.24.7",
     "@babel/preset-typescript": "^7.24.7",
-    "@jspm/import-map": "^1.1.0",
+    "@jspm/import-map": "^1.2.1",
     "es-module-lexer": "^1.5.4",
     "make-fetch-happen": "^8.0.14",
     "minimatch": "^10.0.1",

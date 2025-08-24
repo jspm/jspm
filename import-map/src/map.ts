@@ -453,6 +453,9 @@ export class ImportMap implements IImportMap {
     }
     if (changedImportProps) this.imports = alphabetize(this.imports);
     let changedScopeProps = false;
+    // Create a temporary map to collect scopes by their rebased URLs
+    const rebasedScopes: Record<string, Record<string, string>> = Object.create(null);
+    
     for (const scope of Object.keys(this.scopes)) {
       const scopeImports = this.scopes[scope];
       let changedScopeImportProps = false;
@@ -483,12 +486,23 @@ export class ImportMap implements IImportMap {
         mapUrl,
         rootUrl
       );
-      if (scope !== newScope) {
+      
+      // Check if this scope URL already exists in our rebased collection
+      if (rebasedScopes[newScope]) {
+        // Merge the imports from this scope into the existing one
+        Object.assign(rebasedScopes[newScope], scopeImports);
         changedScopeProps = true;
-        delete this.scopes[scope];
-        this.scopes[newScope] = scopeImports;
+      } else {
+        // First time seeing this rebased scope URL
+        rebasedScopes[newScope] = scopeImports;
+        if (scope !== newScope) {
+          changedScopeProps = true;
+        }
       }
     }
+    
+    // Replace the scopes with the unified rebased scopes
+    this.scopes = rebasedScopes;
     if (changedScopeProps) this.scopes = alphabetize(this.scopes);
     let changedIntegrityProps = false;
     for (const target of Object.keys(this.integrity)) {

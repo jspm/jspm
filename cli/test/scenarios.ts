@@ -73,7 +73,8 @@ export async function run(scenario: Scenario) {
     }
 
     if (!scenario.validationFn) {
-      if (scenario.expectError) throw new Error(`Scenario "${scenario.commands}" expected test to fail`);
+      if (scenario.expectError)
+        throw new Error(`Scenario "${scenario.commands}" expected test to fail`);
       throw new Error(`Scenario "${scenario.commands}" has no validation function for test`);
     }
     await scenario.validationFn(await mapDirectory(dir));

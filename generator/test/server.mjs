@@ -29,10 +29,9 @@ const skipPerf = process.env.SKIP_PERF !== undefined;
 const testBase = resolve(fileURLToPath(import.meta.url) + "/../");
 const tests = glob
   .sync(testBase + "/**/*.test.js")
-  .map((test) => test.slice(testBase.length + 1, -3))
+  .map((test) => resolve(test).slice(testBase.length + 1, -3))
   .filter((test) => !test.startsWith("deno/") && !test.match(/(^|\/)node\./) && !test.includes('skipbrowser') && (skipPerf === false || !test.endsWith('perf.test')))
   .sort((a, b) => a.endsWith('perf.test') ? 1 : b.endsWith('perf.test') ? -1 : 0);
-// console.log(tests);
 
 let failTimeout, browserTimeout;
 

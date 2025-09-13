@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 import open from "open";
 import kleur from "kleur";
 import { spawn } from "child_process";
-import glob from "glob";
+import { glob } from "glob";
 import path from "path";
 
 const port = 5776;

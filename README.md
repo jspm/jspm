@@ -26,9 +26,9 @@ This monorepo includes the following tools:
 
 ### Documentation
 
-* JSPM CLI: https://jspm.org/docs/jspm-cli
-* JSPM Generator: https://jspm.org/docs/generator
-* Import Map: https://jspm.org/docs/import-map
+* JSPM CLI: https://jspm.org/docs/jspm-cli/
+* JSPM Generator: https://jspm.org/docs/generator/
+* Import Map: https://jspm.org/docs/import-map/
 * Getting Started: https://jspm.org/getting-started
 
 ## Contributing

@@ -10,7 +10,7 @@ import type { ProviderContext } from './index.js';
 
 const cdnUrl = 'https://esm.sh/';
 
-export async function pkgToUrl(pkg: ExactPackage): Promise<`${string}/`> {
+export function pkgToUrl(pkg: ExactPackage): `${string}/` {
   // The wildcard '*' at the end tells the esm.sh CDN to externalise all
   // dependencies instead of bundling them into the returned module file.
   //   see https://esm.sh/#docs

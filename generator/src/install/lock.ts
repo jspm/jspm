@@ -364,151 +364,166 @@ export async function extractLockConstraintsAndMap(
   };
 
   const pkgUrls = new Set<string>();
+  const promises: Promise<void>[] = [];
+
   for (const key of Object.keys(map.imports || {})) {
-    if (isPlain(key)) {
-      // Get the package name and subpath in package specifier space.
-      const parsedKey = parsePkg(key);
+    promises.push(
+      (async () => {
+        if (isPlain(key)) {
+          // Get the package name and subpath in package specifier space.
+          const parsedKey = parsePkg(key);
 
-      // Get the target package details in URL space:
-      let { parsedTarget, pkgUrl, subpath } = await resolveTargetPkg(
-        map.imports[key],
-        mapUrl,
-        rootUrl,
-        primaryBase,
-        resolver,
-        provider
-      );
-
-      const exportSubpath =
-        parsedTarget && (await resolver.getExportResolution(pkgUrl, subpath, key));
-      pkgUrls.add(pkgUrl);
-
-      // If the plain specifier resolves to a package on some provider's CDN,
-      // and there's a corresponding import/export map entry in that package,
-      // then the resolution is standard and we can lock it:
-      if (exportSubpath) {
-        // Package "imports" resolutions don't constrain versions.
-        if (key[0] === '#') continue;
-
-        // Otherwise we treat top-level package versions as a constraint.
-        if (!constraints.primary[parsedKey.pkgName]) {
-          constraints.primary[parsedKey.pkgName] = await packageTargetFromExact(
-            parsedTarget.pkg,
-            resolver
+          // Get the target package details in URL space:
+          let { parsedTarget, pkgUrl, subpath } = await resolveTargetPkg(
+            map.imports[key],
+            mapUrl,
+            rootUrl,
+            primaryBase,
+            resolver,
+            provider
           );
-        }
 
-        // In the case of subpaths having diverging versions, we force convergence on one version
-        // Only scopes permit unpacking
-        let installSubpath: null | `./${string}/` | false = null;
-        if (parsedKey.subpath !== exportSubpath) {
-          if (parsedKey.subpath === '.') {
-            installSubpath = exportSubpath as `./${string}/`;
-          } else if (exportSubpath === '.') {
-            installSubpath = false;
-          } else if (exportSubpath.endsWith(parsedKey.subpath.slice(1))) {
-            installSubpath = exportSubpath.slice(0, parsedKey.subpath.length) as `./${string}/`;
+          const exportSubpath =
+            parsedTarget && (await resolver.getExportResolution(pkgUrl, subpath, key));
+          pkgUrls.add(pkgUrl);
+
+          // If the plain specifier resolves to a package on some provider's CDN,
+          // and there's a corresponding import/export map entry in that package,
+          // then the resolution is standard and we can lock it:
+          if (exportSubpath) {
+            // Package "imports" resolutions don't constrain versions.
+            if (key[0] === '#') return;
+
+            // Otherwise we treat top-level package versions as a constraint.
+            if (!constraints.primary[parsedKey.pkgName]) {
+              constraints.primary[parsedKey.pkgName] = await packageTargetFromExact(
+                parsedTarget.pkg,
+                resolver
+              );
+            }
+
+            // In the case of subpaths having diverging versions, we force convergence on one version
+            // Only scopes permit unpacking
+            let installSubpath: null | `./${string}/` | false = null;
+            if (parsedKey.subpath !== exportSubpath) {
+              if (parsedKey.subpath === '.') {
+                installSubpath = exportSubpath as `./${string}/`;
+              } else if (exportSubpath === '.') {
+                installSubpath = false;
+              } else if (exportSubpath.endsWith(parsedKey.subpath.slice(1))) {
+                installSubpath = exportSubpath.slice(0, parsedKey.subpath.length) as `./${string}/`;
+              }
+            }
+            if (installSubpath !== false) {
+              setResolution(locks, parsedKey.pkgName, pkgUrl, null, installSubpath);
+              return;
+            }
+          }
+
+          // Another possibility is that the bare specifier is a remapping for the
+          // primary package's own-name, in which case we should check whether
+          // there's a corresponding export in the primary pjson:
+          if (primaryPcfg && primaryPcfg.name === parsedKey.pkgName) {
+            const exportSubpath = await resolver.getExportResolution(primaryBase, subpath, key);
+
+            // If the export subpath matches the key's subpath, then this is a
+            // standard resolution:
+            if (parsedKey.subpath === exportSubpath) return;
           }
         }
-        if (installSubpath !== false) {
-          setResolution(locks, parsedKey.pkgName, pkgUrl, null, installSubpath);
-          continue;
-        }
-      }
 
-      // Another possibility is that the bare specifier is a remapping for the
-      // primary package's own-name, in which case we should check whether
-      // there's a corresponding export in the primary pjson:
-      if (primaryPcfg && primaryPcfg.name === parsedKey.pkgName) {
-        const exportSubpath = await resolver.getExportResolution(primaryBase, subpath, key);
-
-        // If the export subpath matches the key's subpath, then this is a
-        // standard resolution:
-        if (parsedKey.subpath === exportSubpath) continue;
-      }
-    }
-
-    // Fallback - this resolution is non-standard, so we need to record it as
-    // a custom import override:
-    maps.imports[isPlain(key) ? key : resolveUrl(key, mapUrl, rootUrl)] = resolveUrl(
-      map.imports[key],
-      mapUrl,
-      rootUrl
+        // Fallback - this resolution is non-standard, so we need to record it as
+        // a custom import override:
+        maps.imports[isPlain(key) ? key : resolveUrl(key, mapUrl, rootUrl)] = resolveUrl(
+          map.imports[key],
+          mapUrl,
+          rootUrl
+        );
+      })()
     );
   }
 
   for (const scopeUrl of Object.keys(map.scopes || {})) {
     const resolvedScopeUrl = resolveUrl(scopeUrl, mapUrl, rootUrl) ?? scopeUrl;
-    const scopePkgUrl = await resolver.getPackageBase(resolvedScopeUrl);
-    const flattenedScope = new URL(scopePkgUrl).pathname === '/';
-    pkgUrls.add(scopePkgUrl);
-
     const scope = map.scopes[scopeUrl];
     for (const key of Object.keys(scope)) {
-      if (isPlain(key)) {
-        // Get the package name and subpath in package specifier space.
-        const parsedKey = parsePkg(key);
+      promises.push(
+        (async () => {
+          const scopePkgUrl = await resolver.getPackageBase(resolvedScopeUrl);
+          const flattenedScope = new URL(scopePkgUrl).pathname === '/';
+          pkgUrls.add(scopePkgUrl);
 
-        // Get the target package details in URL space:
-        let { parsedTarget, pkgUrl, subpath } = await resolveTargetPkg(
-          scope[key],
-          mapUrl,
-          rootUrl,
-          scopePkgUrl,
-          resolver,
-          provider
-        );
+          if (isPlain(key)) {
+            // Get the package name and subpath in package specifier space.
+            const parsedKey = parsePkg(key);
 
-        pkgUrls.add(pkgUrl);
-        const exportSubpath =
-          parsedTarget && (await resolver.getExportResolution(pkgUrl, subpath, key));
+            // Get the target package details in URL space:
+            let { parsedTarget, pkgUrl, subpath } = await resolveTargetPkg(
+              scope[key],
+              mapUrl,
+              rootUrl,
+              scopePkgUrl,
+              resolver,
+              provider
+            );
 
-        if (exportSubpath) {
-          // Imports resolutions that resolve as expected can be skipped
-          if (key[0] === '#') continue;
+            pkgUrls.add(pkgUrl);
+            const exportSubpath =
+              parsedTarget && (await resolver.getExportResolution(pkgUrl, subpath, key));
 
-          // If there is no constraint, we just make one as the semver major on the current version
-          if (!constraints.primary[parsedKey.pkgName])
-            constraints.primary[parsedKey.pkgName] = parsedTarget
-              ? await packageTargetFromExact(parsedTarget.pkg, resolver)
-              : new URL(pkgUrl);
+            if (exportSubpath) {
+              // Imports resolutions that resolve as expected can be skipped
+              if (key[0] === '#') return;
 
-          // In the case of subpaths having diverging versions, we force convergence on one version
-          // Only scopes permit unpacking
-          let installSubpath: null | '.' | './' | `./${string}/` | false = null;
-          if (parsedKey.subpath !== exportSubpath) {
-            if (parsedKey.subpath === '.') {
-              installSubpath = exportSubpath as `./${string}/`;
-            } else if (exportSubpath === '.') {
-              installSubpath = false;
-            } else {
-              if (exportSubpath.endsWith(parsedKey.subpath.slice(1)))
-                installSubpath = exportSubpath.slice(0, parsedKey.subpath.length) as `./${string}/`;
+              // If there is no constraint, we just make one as the semver major on the current version
+              if (!constraints.primary[parsedKey.pkgName])
+                constraints.primary[parsedKey.pkgName] = parsedTarget
+                  ? await packageTargetFromExact(parsedTarget.pkg, resolver)
+                  : new URL(pkgUrl);
+
+              // In the case of subpaths having diverging versions, we force convergence on one version
+              // Only scopes permit unpacking
+              let installSubpath: null | '.' | './' | `./${string}/` | false = null;
+              if (parsedKey.subpath !== exportSubpath) {
+                if (parsedKey.subpath === '.') {
+                  installSubpath = exportSubpath as `./${string}/`;
+                } else if (exportSubpath === '.') {
+                  installSubpath = false;
+                } else {
+                  if (exportSubpath.endsWith(parsedKey.subpath.slice(1)))
+                    installSubpath = exportSubpath.slice(
+                      0,
+                      parsedKey.subpath.length
+                    ) as `./${string}/`;
+                }
+              }
+              if (installSubpath !== false) {
+                if (flattenedScope) {
+                  const flattened = (locks.flattened[scopePkgUrl] =
+                    locks.flattened[scopePkgUrl] || {});
+                  flattened[parsedKey.pkgName] = flattened[parsedKey.pkgName] || [];
+                  flattened[parsedKey.pkgName].push({
+                    export: parsedKey.subpath,
+                    resolution: { installUrl: pkgUrl, installSubpath }
+                  });
+                } else {
+                  setResolution(locks, parsedKey.pkgName, pkgUrl, scopePkgUrl, installSubpath);
+                }
+                return;
+              }
             }
           }
-          if (installSubpath !== false) {
-            if (flattenedScope) {
-              const flattened = (locks.flattened[scopePkgUrl] = locks.flattened[scopePkgUrl] || {});
-              flattened[parsedKey.pkgName] = flattened[parsedKey.pkgName] || [];
-              flattened[parsedKey.pkgName].push({
-                export: parsedKey.subpath,
-                resolution: { installUrl: pkgUrl, installSubpath }
-              });
-            } else {
-              setResolution(locks, parsedKey.pkgName, pkgUrl, scopePkgUrl, installSubpath);
-            }
-            continue;
-          }
-        }
-      }
-      // Fallback -> Custom import with normalization
-      (maps.scopes[resolvedScopeUrl] = maps.scopes[resolvedScopeUrl] || Object.create(null))[
-        isPlain(key) ? key : resolveUrl(key, mapUrl, rootUrl)
-      ] = resolveUrl(scope[key], mapUrl, rootUrl);
+          // Fallback -> Custom import with normalization
+          (maps.scopes[resolvedScopeUrl] = maps.scopes[resolvedScopeUrl] || Object.create(null))[
+            isPlain(key) ? key : resolveUrl(key, mapUrl, rootUrl)
+          ] = resolveUrl(scope[key], mapUrl, rootUrl);
+        })()
+      );
     }
   }
 
   // for every package we resolved, add their package constraints into the list of constraints
+  await Promise.all(promises);
   await Promise.all(
     [...pkgUrls].map(async pkgUrl => {
       if (!isURL(pkgUrl)) return;

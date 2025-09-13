@@ -280,6 +280,30 @@ export interface GeneratorOptions {
   resolutions?: Record<string, string>;
 
   /**
+   * Override package.json configurations for package URLs.
+   *
+   * Key is a full normalized URL to a package path, optionally ending in `/` or `/package.json`.
+   * Value is a package configuration, as per a package.json file contents.
+   *
+   * This field can also be set to null to indicate no package configuration for this URL.
+   *
+   * This can be useful to remove 404 not found errors in browser workflows for URLs that
+   * clearly do not have a package.json.
+   *
+   * For example:
+   *
+   * const generator = new Generator({
+   *   packageConfig: {
+   *     'https://mysite.com/': null
+   *   }
+   * });
+   * generator.link('https://mysite.com/path/to/file.js');
+   *
+   * Can be used to avoid JSPM Generator from attempting to fetch `https://mysite.com/package.json` at all.
+   */
+  packageConfigs?: Record<string, (PackageConfig & { [key: string]: any }) | null>;
+
+  /**
    * Allows ignoring certain module specifiers during the tracing process.
    * It can be useful, for example, when you provide an `inputMap`
    * that contains a mapping that can't be traced in current context,
@@ -589,6 +613,7 @@ export class Generator {
     resolutions = {},
     cache = true,
     fetchOptions = {},
+    packageConfigs = {},
     ignore = [],
     commonJS = false,
     typeScript = false,
@@ -662,7 +687,15 @@ export class Generator {
       preserveSymlinks,
       traceCjs: commonJS,
       traceTs: typeScript,
-      traceSystem: system
+      traceSystem: system,
+      packageConfigs: Object.fromEntries(
+        Object.entries(packageConfigs).map(([key, pcfg]) => {
+          let resolved = new URL(key, baseUrl).href;
+          if (!resolved.endsWith('/')) resolved += '/';
+          if (resolved.endsWith('/package.json')) resolved = resolved.slice(0, -12);
+          return [resolved, pcfg];
+        })
+      )
     });
 
     // Initialise the tracer:

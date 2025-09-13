@@ -8,7 +8,7 @@ import { SemverRange } from 'sver';
 
 const cdnUrl = 'https://cdn.jsdelivr.net/';
 
-export async function pkgToUrl(pkg: ExactPackage): Promise<`${string}/`> {
+export function pkgToUrl(pkg: ExactPackage): `${string}/` {
   return `${cdnUrl}${pkg.registry}/${pkg.name}@${pkg.version}/`;
 }
 

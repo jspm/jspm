@@ -4,7 +4,10 @@ import assert from 'assert';
 const generator = new Generator({
   mapUrl: import.meta.url,
   defaultProvider: 'jspm.io',
-  env: ['production', 'browser']
+  env: ['production', 'browser'],
+  packageConfigs: {
+    '/generator/test': null
+  }
 });
 
 await generator.install({ target: './local/pkg', subpath: './custom' });

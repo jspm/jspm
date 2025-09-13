@@ -26,7 +26,11 @@ export interface Provider {
     url: string
   ): ExactPackage | { pkg: ExactPackage; subpath: `./${string}` | null; layer: string } | null;
 
-  pkgToUrl(this: ProviderContext, pkg: ExactPackage, layer?: string): Promise<`${string}/`>;
+  pkgToUrl(
+    this: ProviderContext,
+    pkg: ExactPackage,
+    layer?: string
+  ): `${string}/` | Promise<`${string}/`>;
 
   resolveLatestTarget(
     this: ProviderContext,
@@ -44,7 +48,7 @@ export interface Provider {
 
   getFileList?(this: ProviderContext, pkgUrl: string): Promise<Set<string> | undefined>;
 
-  download?(this: ProviderContext, pkg: ExactPackage): Promise<Record<string, ArrayBuffer>>;
+  download?(this: ProviderContext, pkg: ExactPackage): Promise<Record<string, Uint8Array>>;
 
   /**
    * Publish a package to the provider
@@ -204,11 +208,11 @@ export class ProviderManager {
    * @param url URL to parse
    * @returns Package information or null if URL can't be parsed
    */
-  async parseUrlPkg(url: string): Promise<{
+  parseUrlPkg(url: string): {
     pkg: ExactPackage;
     source: { provider: string; layer: string };
     subpath: `./${string}` | null;
-  } | null> {
+  } | null {
     for (const provider of Object.keys(this.providers).reverse()) {
       const providerInstance = this.providers[provider];
       const context = this.#getProviderContext(provider);
@@ -234,7 +238,11 @@ export class ProviderManager {
    * @param layer Layer to use
    * @returns URL for the package
    */
-  async pkgToUrl(pkg: ExactPackage, provider: string, layer = 'default'): Promise<`${string}/`> {
+  pkgToUrl(
+    pkg: ExactPackage,
+    provider: string,
+    layer = 'default'
+  ): `${string}/` | Promise<`${string}/`> {
     return this.#getProvider(provider).pkgToUrl.call(
       this.#getProviderContext(provider),
       pkg,

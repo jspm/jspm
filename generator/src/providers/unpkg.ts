@@ -7,7 +7,7 @@ import { SemverRange } from 'sver';
 
 const cdnUrl = 'https://unpkg.com/';
 
-export async function pkgToUrl(pkg: ExactPackage): Promise<`${string}/`> {
+export function pkgToUrl(pkg: ExactPackage): `${string}/` {
   return `${cdnUrl}${pkg.name}@${pkg.version}/`;
 }
 

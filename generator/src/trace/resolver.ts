@@ -151,7 +151,9 @@ export class Resolver {
     if (!pkgUrl.endsWith('/'))
       throw new Error(`Internal Error: Package URL must end in "/". Got ${pkgUrl}`);
     let cached = this.pcfgs[pkgUrl];
-    if (cached !== undefined) return cached;
+    // TODO: fix timing bug that requires this return to be a promise
+    if (cached === null) return Promise.resolve(null);
+    if (cached) return cached;
     if (!this.pcfgPromises[pkgUrl])
       this.pcfgPromises[pkgUrl] = (async () => {
         const pcfg = await this.pm.getPackageConfig(pkgUrl);

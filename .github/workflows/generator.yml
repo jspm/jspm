@@ -59,12 +59,11 @@ jobs:
           SKIP_PERF: 1
 
   test-servers:
-    name: Node.js & Deno Tests
+    name: Node.js Tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [18.x, 20.x, 21.x]
-        deno: ['2']
+        node: [20.x, 24.x]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -73,9 +72,6 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: ${{ matrix.node }}
-    - uses: denoland/setup-deno@v1
-      with:
-        deno-version: ${{ matrix.deno }}
     - name: Setup Chomp
       uses: guybedford/chomp-action@v1
       env:

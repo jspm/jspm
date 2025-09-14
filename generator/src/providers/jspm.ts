@@ -49,7 +49,7 @@ function withTrailer(url: string) {
   return url.endsWith('/') ? url : url + '/';
 }
 
-export async function pkgToUrl(pkg: ExactPackage, layer = 'default'): Promise<`${string}/`> {
+export function pkgToUrl(pkg: ExactPackage, layer = 'default'): `${string}/` {
   if (pkg.registry === 'app') return `${rawUrl}${pkgToStr(pkg)}/`;
   return `${layer === 'system' ? systemCdnUrl : gaUrl}${pkgToStr(pkg)}/`;
 }
@@ -177,7 +177,7 @@ async function ensureBuild(
   fetchOpts: any,
   resolver: Resolver | null
 ) {
-  if (await checkBuildOrError(context, await pkgToUrl(pkg, 'default'), fetchOpts, resolver)) return;
+  if (await checkBuildOrError(context, pkgToUrl(pkg, 'default'), fetchOpts, resolver)) return;
 
   const fullName = `${pkg.name}@${pkg.version}`;
 
@@ -200,8 +200,7 @@ async function ensureBuild(
     while (true) {
       await new Promise(resolve => setTimeout(resolve, BUILD_POLL_INTERVAL));
 
-      if (await checkBuildOrError(context, await pkgToUrl(pkg, 'default'), fetchOpts, resolver))
-        return;
+      if (await checkBuildOrError(context, pkgToUrl(pkg, 'default'), fetchOpts, resolver)) return;
 
       if (Date.now() - startTime >= BUILD_POLL_TIME)
         throw new JspmError(
@@ -384,7 +383,7 @@ export async function fetchVersions(this: ProviderContext, name: string): Promis
 export async function download(
   this: ProviderContext,
   pkg: ExactPackage
-): Promise<Record<string, ArrayBuffer>> {
+): Promise<Record<string, Uint8Array>> {
   const tar = await import('tar-stream');
   const { default: pako } = await import('pako');
 
@@ -410,7 +409,7 @@ export async function download(
 
   const output = pako.inflate(tarball, { gzip: true });
   const extract = tar.extract();
-  const fileData: Record<string, ArrayBuffer> = {};
+  const fileData: Record<string, Uint8Array> = {};
 
   await new Promise((resolve, reject) => {
     extract.on('entry', async function (header, stream, next) {
@@ -509,7 +508,7 @@ export async function publish(
     throw new JspmError(result.message || 'Publish failed');
   }
 
-  const publicPackageUrl = await pkgToUrl.call(this, pkg, 'default');
+  const publicPackageUrl = pkgToUrl.call(this, pkg, 'default');
   const mapUrl = publicPackageUrl + 'importmap.json';
 
   return {
@@ -555,7 +554,7 @@ async function latestEsms(this: ProviderContext, forUrl: string) {
     forUrl,
     null
   );
-  return (await pkgToUrl.call(this, esmsPkg, 'default')) + 'dist/es-module-shims.js';
+  return pkgToUrl.call(this, esmsPkg, 'default') + 'dist/es-module-shims.js';
 }
 
 /**

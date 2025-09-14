@@ -61,13 +61,13 @@ test('Scenario using nodemodules provider should add integrity attribute', async
 //   });
 // });
 
-test('Installing package from skypack with integrity attribute', async () => {
+test('Installing package from unpkg with integrity attribute', async () => {
   await run({
     files: new Map(),
-    commands: ['jspm link lit --provider skypack --integrity -o importmap.json'],
+    commands: ['jspm link lit --provider unpkg --integrity -o importmap.json'],
     validationFn: async files => {
       const map = JSON.parse(files.get('importmap.json')!);
-      assert(map.imports.lit.includes('cdn.skypack.dev'));
+      assert(map.imports.lit.includes('unpkg.com'));
       assert(map.integrity);
     }
   });

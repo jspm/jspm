@@ -11,8 +11,11 @@ jobs:
     name: Node.js Tests
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest]
-        node: [22.x, 23.x]
+        include:
+          - os: ubuntu-latest
+            node: 22.x
+          - os: windows-latest
+            node: 24.x
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2

@@ -74,7 +74,7 @@ export const nodeBuiltinSet = new Set<string>([
   'zlib'
 ]);
 
-export async function pkgToUrl(pkg: ExactPackage, layer: string): Promise<`${string}/`> {
+export function pkgToUrl(pkg: ExactPackage, layer: string): `${string}/` {
   if (pkg.registry !== 'node') return pkgToUrlJspm(pkg, layer);
   return `node:${pkg.name}/`;
 }

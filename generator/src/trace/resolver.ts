@@ -66,7 +66,7 @@ export interface TraceEntry {
 }
 
 export class Resolver {
-  pcfgPromises: Record<string, Promise<void>> = Object.create(null);
+  pcfgPromises: Record<string, Promise<PackageConfig | null>> = Object.create(null);
   analysisPromises: Record<string, Promise<void>> = Object.create(null);
   pcfgs: Record<string, PackageConfig | null> = Object.create(null);
   fetchOpts: any;
@@ -86,6 +86,7 @@ export class Resolver {
     env,
     fetchOpts,
     providerManager,
+    packageConfigs = {},
     preserveSymlinks = false,
     traceCjs = true,
     traceTs = true,
@@ -94,6 +95,7 @@ export class Resolver {
     env: string[];
     fetchOpts?: any;
     preserveSymlinks?: boolean;
+    packageConfigs?: Record<`${string}/`, PackageConfig>;
     traceCjs?: boolean;
     traceTs?: boolean;
     traceSystem: boolean;
@@ -109,6 +111,7 @@ export class Resolver {
     this.traceTs = traceTs;
     this.traceSystem = traceSystem;
     this.pm = providerManager;
+    Object.assign(this.pcfgs, packageConfigs);
   }
 
   resolveBuiltin(specifier: string): string | Install | undefined {
@@ -116,7 +119,7 @@ export class Resolver {
   }
 
   async getPackageBase(url: string): Promise<`${string}/`> {
-    const pkg = await this.pm.parseUrlPkg(url);
+    const pkg = this.pm.parseUrlPkg(url);
     if (pkg) return this.pm.pkgToUrl(pkg.pkg, pkg.source.provider, pkg.source.layer);
 
     let testUrl: URL;
@@ -127,9 +130,8 @@ export class Resolver {
     }
     const rootUrl = new URL('/', testUrl).href as `${string}/`;
     do {
-      let responseUrl;
-      if ((responseUrl = await this.checkPjson(testUrl.href)))
-        return new URL('.', responseUrl).href as `${string}/`;
+      let testUrlHref: `${string}/` = testUrl.href as `${string}/`;
+      if (await this.checkPjson(testUrlHref)) return testUrlHref;
       // No package base -> use directory itself
       if (testUrl.href === rootUrl) return new URL('./', url).href as `${string}/`;
     } while ((testUrl = new URL('../', testUrl)));
@@ -143,20 +145,21 @@ export class Resolver {
   // packages, and in resolution contexts we should skip straight to npm-style
   // backtracking to find package bases.
 
-  async getPackageConfig(pkgUrl: string): Promise<PackageConfig | null> {
+  getPackageConfig(pkgUrl: string): PackageConfig | null | Promise<PackageConfig | null> {
     const protocol = pkgUrl.slice(0, pkgUrl.indexOf(':') + 1);
     if (!isFetchProtocol(protocol)) return null;
     if (!pkgUrl.endsWith('/'))
       throw new Error(`Internal Error: Package URL must end in "/". Got ${pkgUrl}`);
     let cached = this.pcfgs[pkgUrl];
+    // TODO: fix timing bug that requires this return to be a promise
+    if (cached === null) return Promise.resolve(null);
     if (cached) return cached;
     if (!this.pcfgPromises[pkgUrl])
       this.pcfgPromises[pkgUrl] = (async () => {
         const pcfg = await this.pm.getPackageConfig(pkgUrl);
         if (typeof pcfg === 'object') {
           if (pcfg !== null) {
-            this.pcfgs[pkgUrl] = pcfg;
-            return;
+            return (this.pcfgs[pkgUrl] = pcfg);
           }
         }
 
@@ -165,8 +168,7 @@ export class Resolver {
         } catch (e) {
           // CSP errors can't be detected, but should be treated as missing
           // therefore we just ignore errors as none
-          this.pcfgs[pkgUrl] = null;
-          return;
+          return (this.pcfgs[pkgUrl] = null);
         }
         switch (res.status) {
           case 200:
@@ -179,25 +181,23 @@ export class Resolver {
           case 404:
           case 406:
           case 500:
-            this.pcfgs[pkgUrl] = null;
-            return;
+            return (this.pcfgs[pkgUrl] = null);
           default:
             throw new JspmError(
               `Invalid status code ${res.status} reading package config for ${pkgUrl}. ${res.statusText}`
             );
         }
         if (res.headers && !res.headers.get('Content-Type')?.match(/^application\/json(;|$)/)) {
-          this.pcfgs[pkgUrl] = null;
+          return (this.pcfgs[pkgUrl] = null);
         } else {
           try {
-            this.pcfgs[pkgUrl] = await res.json();
+            return (this.pcfgs[pkgUrl] = await res.json());
           } catch (e) {
-            this.pcfgs[pkgUrl] = null;
+            return (this.pcfgs[pkgUrl] = null);
           }
         }
       })();
-    await this.pcfgPromises[pkgUrl];
-    return this.pcfgs[pkgUrl];
+    return this.pcfgPromises[pkgUrl];
   }
 
   async getDepList(pkgUrl: string, dev = false): Promise<string[]> {
@@ -216,9 +216,15 @@ export class Resolver {
     ];
   }
 
-  async checkPjson(url: string): Promise<string | false> {
-    if ((await this.getPackageConfig(url)) === null) return false;
-    return url;
+  checkPjson(url: string): boolean | Promise<boolean> {
+    const pcfg = this.getPackageConfig(url);
+    if (pcfg instanceof Promise) {
+      return pcfg.then(pcfg => {
+        if (pcfg === null) return false;
+        return true;
+      });
+    }
+    return true;
   }
 
   async exists(resolvedUrl: string) {

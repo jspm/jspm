@@ -127,7 +127,6 @@ export const availableProviders = [
   'nodemodules',
   'deno',
   'jsdelivr',
-  'skypack',
   'unpkg',
   'esm.sh',
   'jspm.io#system'

@@ -59,11 +59,11 @@ jobs:
           SKIP_PERF: 1
 
   test-servers:
-    name: Node.js & Deno Tests
+    name: Node.js Tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [18.x, 20.x, 21.x]
+        node: [18.x, 24.x]
         deno: ['2']
     steps:
     - uses: actions/checkout@v2

@@ -80,7 +80,7 @@ By default, output is limited to 20 items. Use --limit to see more items.
 **Options**
 * `-f, --filter` _&lt;pattern&gt;_        Filter exports by pattern (case-insensitive substring match) 
 * `-l, --limit` _&lt;number&gt;_          Limit the number of exports displayed (default: 20) 
-* `-p, --provider` &lt;[providers](#providers)&gt;     Provider to use for package resolution. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
+* `-p, --provider` &lt;[providers](#providers)&gt;     Provider to use for package resolution. Available providers: jspm.io, nodemodules, deno, jsdelivr, unpkg, esm.sh, jspm.io#system 
 * `-q, --quiet`                   Quiet output (default: false)
 * `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
 * `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
@@ -151,7 +151,7 @@ Enhanced Security and Performance:
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
 * `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
-* `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
+* `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
 * `--release`                        Enable release mode (--flatten-scopes, --combine-subpaths, --C=production) (default: false)
 * `--integrity`                      Add module integrity attributes to the import map 
@@ -214,7 +214,7 @@ the same options as the 'jspm install' command with no arguments.
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
 * `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
-* `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
+* `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
 * `--release`                        Enable release mode (--flatten-scopes, --combine-subpaths, --C=production) (default: false)
 * `--integrity`                      Add module integrity attributes to the import map 
@@ -301,7 +301,7 @@ to generate an optimized production map.
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
 * `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
-* `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
+* `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
 * `--release`                        Enable release mode (--flatten-scopes, --combine-subpaths, --C=production) (default: false)
 * `-q, --quiet`                      Quiet output (default: false)
@@ -373,7 +373,7 @@ For ejecting a published package:
 * `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
 * `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
 * `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
-* `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, skypack, unpkg, esm.sh, jspm.io#system 
+* `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, unpkg, esm.sh, jspm.io#system 
 * `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
 * `--release`                        Enable release mode (--flatten-scopes, --combine-subpaths, --C=production) (default: true)
 * `--integrity`                      Add module integrity attributes to the import map 

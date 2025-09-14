@@ -40,7 +40,7 @@ export function resolveBuiltin(specifier: string, env: string[]): string | Insta
   }
 }
 
-export async function pkgToUrl(pkg: ExactPackage): Promise<`${string}/`> {
+export function pkgToUrl(pkg: ExactPackage): `${string}/` {
   if (pkg.registry === 'deno') return `${stdlibUrl}@${pkg.version}/`;
   if (pkg.registry === 'denoland')
     return `${cdnUrl}${pkg.name}@${vCache[pkg.name] ? 'v' : ''}${pkg.version}/`;

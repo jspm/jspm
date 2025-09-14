@@ -363,7 +363,7 @@ function findJsMap(input: string, mapPath: string): { map: IImportMap; range: [n
   try {
     // Regex to find a JSON import map object in a JS file
     const jspmMapRegex =
-      /({(?:\s*"env"\s*:\s*\[[^\]]*\],)?(?:\s*"imports"\s*:\s*{[^{}]*(?:{[^{}]*}[^{}]*)*})(?:\s*,\s*"scopes"\s*:\s*{[^{}]*(?:{[^{}]*}[^{}]*)*})?(?:\s*,\s*"integrity"\s*:\s*{[^{}]*})?(?:\s*,\s*"env"\s*:\s*\[[^\]]*\])?\s*})/;
+      /({(?:\s*"env"\s*:\s*\[[^\]]*\],)?(?:\s*"imports"\s*:\s*{[^{}]*(?:{[^{}]*}[^{}]*)*})?(?:\s*(?:,\s*)?"scopes"\s*:\s*{[^{}]*(?:{[^{}]*}[^{}]*)*})?(?:\s*(?:,\s*)?"integrity"\s*:\s*{[^{}]*})?(?:\s*(?:,\s*)?"env"\s*:\s*\[[^\]]*\])?\s*})/;
     const mapMatch = jspmMapRegex.exec(input);
     if (mapMatch && mapMatch[1]) {
       try {

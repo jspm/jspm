@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@babel/core": "^7.24.7",
-    "@jspm/generator": "^2.6.4",
+    "@jspm/generator": "^2.7.0",
     "@jspm/plugin-rollup": "^1.2.4",
     "ora": "^8.2.0",
     "picocolors": "^1.1.1"

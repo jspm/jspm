@@ -67,8 +67,8 @@ test('Support importmap.json when both exist', async () => {
 
       // importmap.json should be updated with the new package
       const map = JSON.parse(files.get('importmap.json')!);
-      assert(map.imports.jquery, 'jquery should be preserved in importmap.js');
-      assert(map.imports.react, 'jquery should be preserved in importmap.js');
+      assert(map.scopes['./'].jquery, 'jquery should be preserved in importmap.js');
+      assert(map.scopes['./'].react, 'jquery should be preserved in importmap.js');
     }
   });
 });

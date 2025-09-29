@@ -243,7 +243,7 @@ export default class TraceMap {
     );
   }
 
-  async extractMap(modules: string[], integrity: boolean) {
+  async extractMap(modules: string[], integrity: boolean, toplevel: boolean = true) {
     const map = new ImportMap({ mapUrl: this.mapUrl, rootUrl: this.rootUrl });
     // note this plucks custom top-level custom imports
     // we may want better control over this
@@ -301,7 +301,7 @@ export default class TraceMap {
             static: true,
             visitor,
             installMode: 'freeze',
-            toplevel: true
+            toplevel
           },
           this.baseUrl.href,
           seen

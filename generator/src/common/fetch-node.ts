@@ -4,7 +4,8 @@ import path from 'node:path';
 import { homedir } from 'node:os';
 import process from 'node:process';
 import makeFetchHappen from 'make-fetch-happen';
-import { readFileSync, rmdirSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import type { WrappedResponse } from './fetch.js';
 
@@ -17,12 +18,13 @@ else if (process.platform === 'win32')
   );
 else cacheDir = path.join(process.env.XDG_CACHE_HOME || path.join(homedir(), '.cache'), 'jspm');
 
-export function clearCache() {
-  rmdirSync(path.join(cacheDir, 'fetch-cache'), { recursive: true });
+export async function clearCache() {
+  const dir = path.join(cacheDir, 'fetch-cache');
+  if (existsSync(dir)) return rm(dir, { recursive: true });
 }
 
 const _fetch = makeFetchHappen.defaults({
-  cacheManager: path.join(cacheDir, 'fetch-cache'),
+  cachePath: path.join(cacheDir, 'fetch-cache'),
   headers: { 'User-Agent': `jspm/generator@${version}` }
 });
 

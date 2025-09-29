@@ -114,6 +114,14 @@ export interface GeneratorOptions {
   inputMap?: IImportMap;
 
   /**
+   * When using JSPM {@link Generator.link}, all dependencies
+   * will be placed into scopes instead of top-level "imports" in the map.
+   *
+   * This will default to true in the next major version.
+   */
+  scopedLink?: boolean;
+
+  /**
    * The provider to use for top-level (i.e. root package) installs if there's no context in the inputMap. This can be used to set the provider for a new import map. To use a specific provider for an install, rather than relying on context, register an override using the 'providers' option.
    *
    * Supports: 'jspm.io' | 'jspm.io#system' | 'nodemodules' | 'skypack' | 'jsdelivr' | 'unpkg' | 'esm.sh';
@@ -544,8 +552,8 @@ export interface Install {
  * clearCache();
  * ```
  */
-export function clearCache() {
-  clearFetchCache();
+export async function clearCache() {
+  return clearFetchCache();
 }
 
 function createFetchOptions(cache: 'offline' | boolean = true, fetchOptions = {}) {
@@ -557,7 +565,7 @@ function createFetchOptions(cache: 'offline' | boolean = true, fetchOptions = {}
   };
   if (cache === 'offline') fetchOpts.cache = 'force-cache';
   else if (!cache) fetchOpts.cache = 'no-store';
-  return fetchOptions;
+  return fetchOpts;
 }
 
 /**
@@ -574,6 +582,7 @@ export class Generator {
   integrity: boolean;
   flattenScopes: boolean;
   combineSubpaths: boolean;
+  scopedLink: boolean;
 
   /**
    * Constructs a new Generator instance.
@@ -624,7 +633,8 @@ export class Generator {
     preserveSymlinks,
     customResolver,
     flattenScopes = true,
-    combineSubpaths = true
+    combineSubpaths = true,
+    scopedLink = false
   }: GeneratorOptions = {}) {
     if (typeof preserveSymlinks !== 'boolean') preserveSymlinks = isNode;
 
@@ -657,6 +667,7 @@ export class Generator {
       }
     }
 
+    this.scopedLink = scopedLink;
     this.integrity = integrity;
 
     const fetchOpts = createFetchOptions(cache, fetchOptions);
@@ -811,7 +822,7 @@ export class Generator {
             specifier,
             {
               installMode: 'freeze',
-              toplevel: true
+              toplevel: !this.scopedLink
             },
             parentUrl || this.baseUrl.href
           )
@@ -826,7 +837,8 @@ export class Generator {
     } finally {
       const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
         this.traceMap.pins,
-        this.integrity
+        this.integrity,
+        !this.scopedLink
       );
       this.map = map;
       if (!error) return { staticDeps, dynamicDeps };

@@ -11,7 +11,7 @@ import path, { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { platform, tmpdir } from 'node:os';
 import { execSync, spawn } from 'node:child_process';
-import { Generator, analyzeHtml } from '@jspm/generator';
+import { Generator, type GeneratorOptions, analyzeHtml } from '@jspm/generator';
 import { SemverRange } from 'sver';
 import ora from 'ora';
 import c from 'picocolors';
@@ -314,7 +314,7 @@ async function writeJsonOutput(
 
 export async function getGenerator(
   flags: GenerateFlags & GenerateOutputFlags,
-  configOverride: any = null,
+  configOverride: GeneratorOptions = null,
   inputMap?: IImportMap | undefined
 ): Promise<Generator> {
   const log = withType('utils/getGenerator');

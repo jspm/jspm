@@ -26,6 +26,456 @@ To customize the location of the import map, the `--map` flag can be used. For e
 
 To customize the location of the output import map, the `--out` flag can be used. For example, `jspm install --map my-import-map.json --out app.js` will read the import map from the JSON file, perform all install operations from that source of truth for version operations, and then save the result as an import map injection in `app.js`.
  
+## Init
+
+**Usage**
+  
+```
+jspm init [directory] [options]
+```
+Initializes a JSPM project in the current or specified directory.
+
+
+**Options**
+* `-q, --quiet`                   Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                    Display this help (add --all for extended command list) 
+
+**Examples**
+
+
+```
+jspm init
+```
+Initialize a project in the current directory, creating package.json if needed.
+
+
+
+```
+jspm init ./my-project
+```
+Initialize a project in the ./my-project directory.
+
+## Ls
+
+**Usage**
+  
+```
+jspm ls [package] [options]
+```
+Lists all available exports for a specified package or the current project.
+
+When run without arguments:
+- Lists exports for the current project from package.json
+- Shows how the exports map to actual files in the project directory
+
+When run with a package name:
+- Lists all available exports for the specified package
+- If a version is not specified, the latest version will be used
+- This helps discover what subpaths are available for a package
+
+By default, output is limited to 20 items. Use --limit to see more items.
+
+**Options**
+* `-f, --filter` _&lt;pattern&gt;_        Filter exports by pattern (case-insensitive substring match) 
+* `-l, --limit` _&lt;number&gt;_          Limit the number of exports displayed (default: 20) 
+* `-p, --provider` &lt;[providers](#providers)&gt;     Provider to use for package resolution. Available providers: jspm.io, nodemodules, deno, jsdelivr, unpkg, esm.sh, jspm.io#system 
+* `-q, --quiet`                   Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                    Display this help (add --all for extended command list) 
+
+**Examples**
+
+
+```
+jspm ls
+```
+List all exports for the current project.
+
+
+
+```
+jspm ls react@18.2.0
+```
+List all exports for the React package version 18.2.0.
+
+
+
+```
+jspm ls lit@2.7.0 --filter server
+```
+List exports for the Lit package that contain "server" in their paths.
+
+
+
+```
+jspm ls lit@2.7.0 --limit 50
+```
+List up to 50 exports for the Lit package.
+
+
+
+```
+jspm ls lit@2.7.0 --provider unpkg
+```
+List exports for the Lit package using the unpkg provider explicitly.
+
+## Install
+
+**Usage**
+  
+```
+jspm install [flags]
+```
+Installs the current package.json "exports" respecting constraints in "dependencies".
+This creates an import map for the local project based on its exports.
+
+Import Map Handling:
+  - Install operations take an input import map and produce an output import map
+  - Input map is controlled by --map flag (defaults to importmap.json or importmap.js)
+  - --map can point to JSON, JS, or HTML files, and maps will be extracted appropriately
+  - Maps behave like lockfiles; versions are locked to resolutions from the input map
+  - Output map is controlled by --out flag, supporting the same file types:
+    - JSON: Just the import map
+    - JS: An import map injection script that can be included with a script tag (recommended)
+    - HTML: The import map is injected directly into the HTML file contents
+  
+Enhanced Security and Performance:
+  - Use --integrity to add SRI (Subresource Integrity) hashes to the import map
+  - Use --preload to generate preload link tags when using HTML output, improving load performance
+  - Preload supports both "static" (explicit imports) and "dynamic" (conditional imports) modes
+
+**Options**
+* `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
+* `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
+* `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, unpkg, esm.sh, jspm.io#system 
+* `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
+* `--release`                        Enable release mode (--flatten-scopes, --combine-subpaths, --C=production) (default: false)
+* `--integrity`                      Add module integrity attributes to the import map 
+* `--preload` _[mode]_                 Add module preloads to HTML output (default: static, dynamic) 
+* `--root` _&lt;url&gt;_                     URL to treat as server root, i.e. rebase import maps against 
+* `-f, --flatten-scopes`             Flatten import map scopes into smaller single top-level scope per origin 
+* `-s, --combine-subpaths`           Combine import map subpaths under folder maps (ending in /) 
+* `-c, --compact`                    Output a compact import map (default: false)
+* `--stdout`                         Output the import map to stdout (default: false)
+* `-o, --out` _&lt;file&gt;_                 File to inject the final import map into (default: --map / importmap.js). For JS files outputs an injection wrapper script, for JSON files, the import map only, and for HTML files embeds the import map. 
+* `-q, --quiet`                      Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_            Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                       Display this help (add --all for extended command list) 
+
+**Examples**
+Install packages into the import map tracing the package.json "exports" entry points with "dependencies" constraints
+  
+```
+jspm install
+```
+## Serve
+
+**Usage**
+  
+```
+jspm serve [directory] [options]
+```    
+Starts a standards-based development server for the specified directory. If no directory is specified,
+the current directory is used. The server provides directory listings and serves files with
+appropriate MIME types.
+
+This is an intentionally minimal, opinionated server focused on standards-based workflows:
+  - Applications are served directly from the root (http://localhost:5776/...)
+  - TypeScript support with type-only stripping (no transpilation of JSX or other non-standard syntax)
+  - Native ES modules only (no bundling or transformation)
+  - Import maps for dependency management
+
+Key features:
+  - Serves applications directly from the root path
+  - TypeScript type stripping (disable with --no-type-stripping if you prefer to use tsc)
+  - Live reload capabilities
+  - Full support for import map generation options via -m/--map
+  - Support for automatic import map updates
+  - Default port 5776 (override with --port)
+  - Standards-based serving with minimal modifications to source files
+
+When in watch mode, any file changes trigger automatic page reloads.
+For non-standard syntax like JSX, use a separate compilation step before serving.
+
+The server will automatically update the import map on changes using the JSPM generator with
+the same options as the 'jspm install' command with no arguments.
+
+
+**Options**
+* `-p, --port` _&lt;number&gt;_              Port to run the server on (default: 5776)
+* `--no-type-stripping`              Disable TypeScript type stripping (serve .ts files as is) (default: true)
+* `--static`                         Disable hot reloading and auto installation, providing a static server only (default: false)
+* `--no-install`                     Disable automatic import map installs in watch mode (default: true)
+* `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
+* `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
+* `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, unpkg, esm.sh, jspm.io#system 
+* `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
+* `--release`                        Enable release mode (--flatten-scopes, --combine-subpaths, --C=production) (default: false)
+* `--integrity`                      Add module integrity attributes to the import map 
+* `--preload` _[mode]_                 Add module preloads to HTML output (default: static, dynamic) 
+* `--root` _&lt;url&gt;_                     URL to treat as server root, i.e. rebase import maps against 
+* `-f, --flatten-scopes`             Flatten import map scopes into smaller single top-level scope per origin 
+* `-s, --combine-subpaths`           Combine import map subpaths under folder maps (ending in /) 
+* `-c, --compact`                    Output a compact import map (default: false)
+* `--stdout`                         Output the import map to stdout (default: false)
+* `-o, --out` _&lt;file&gt;_                 File to inject the final import map into (default: --map / importmap.js). For JS files outputs an injection wrapper script, for JSON files, the import map only, and for HTML files embeds the import map. 
+* `-q, --quiet`                      Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_            Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                       Display this help (add --all for extended command list) 
+
+**Examples**
+
+
+```
+jspm serve
+```    
+Start a server for the current directory on port 5776.
+
+
+
+```
+jspm serve ./dist --port 8080
+```    
+Start a server for the ./dist directory on port 8080.
+
+
+
+```
+jspm serve --map importmap.json
+```    
+Start a server that uses importmap.json as the import map.
+
+
+
+```
+jspm serve --static
+```    
+Start a server that does not generate the import map on startup, perform type stripping or provide a hot reload watcher
+
+## Build
+
+**Usage**
+  
+```
+jspm build [options]
+```
+Builds a package and its dependencies using the JSPM import map and dependency resolution.
+Uses RollupJS under the hood to create optimized bundles.
+
+The package entry points as defined in the package.json "exports" field are built, with the
+entire package copied into the output directory. As such, it is a whole-package transformation.
+
+Build externals are taken from the package.json "dependencies" to form a roughly configurationless
+build workflow (dependencies in "devDependencies" or otherwise are inlined into the build).
+
+Includes and ignores can be specified using the package.json "files" and "ignore" fields,
+optionally using the JSPM overrides for these via the "jspm" property in the package.json.
+
+Any build import map shoud be generated separately via a subsequent install operation on the
+build folder, for example like:
+
+jspm install -d dist -C production --flatten-scopes --combine-subpaths
+
+to generate an optimized production map.
+
+
+**Options**
+* `--no-minify`                      Disable build minification (default: true)
+* `-o, --out` _&lt;dir&gt;_                  Path to the output directory for the build (default: dist)
+* `--install`                        Generate import map after build completes (default: true)
+* `--integrity`                      Add module integrity attributes to the import map 
+* `--preload` _[mode]_                 Add module preloads to HTML output (default: static, dynamic) 
+* `--root` _&lt;url&gt;_                     URL to treat as server root, i.e. rebase import maps against 
+* `-f, --flatten-scopes`             Flatten import map scopes into smaller single top-level scope per origin 
+* `-s, --combine-subpaths`           Combine import map subpaths under folder maps (ending in /) 
+* `-c, --compact`                    Output a compact import map (default: false)
+* `--stdout`                         Output the import map to stdout (default: false)
+* `-o, --out` _&lt;file&gt;_                 File to inject the final import map into (default: --map / importmap.js). For JS files outputs an injection wrapper script, for JSON files, the import map only, and for HTML files embeds the import map. 
+* `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
+* `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
+* `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, unpkg, esm.sh, jspm.io#system 
+* `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
+* `--release`                        Enable release mode (--flatten-scopes, --combine-subpaths, --C=production) (default: false)
+* `-q, --quiet`                      Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_            Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                       Display this help (add --all for extended command list) 
+
+**Examples**
+
+
+```
+jspm build
+```
+Build the current package using default options.
+
+
+
+```
+jspm build --no-minify
+```
+Build the package without minification for better debugging.
+
+
+
+```
+jspm build -o lib
+```
+Build the package to the lib directory instead of the default dist directory.
+
+
+
+```
+jspm build --map custom-map.json
+```
+Build using a custom import map file.
+
+## Publish
+
+**Usage**
+  
+```
+jspm publish [options]
+```
+Manages publishes to the JSPM providers, currently in experimental preview.
+
+For publishing (default):
+
+  jspm publish
+
+  - The provider flag is always required, with limited signups only available on the jspm.io provider currently
+  - The package must have a valid package.json with name and version fields.
+  - The package.json "files" and "ignore" arrays will be respected.
+  - Semver versions are always immutable publishes that cannot be republished.
+  - Mutable versions supporting republishing must only contain alphanumeric characters, hyphens, and underscores [a-zA-Z0-9_-].
+
+For ejecting a published package:
+
+  jspm download --eject <packagename@packageversion> --dir _&lt;directory&gt;_
+
+  - Ejects a published package into a local directory, stitching its published import map into the target import map.
+  - The --dir flag is required to specify the output project directory when using --eject.
+
+
+**Options**
+* `--no-usage`                       Disable printing HTML/JS import code examples after successful publish (default: true)
+* `-w, --watch`                      Watch for changes and republish (experimental) (default: false)
+* `-n, --name` _&lt;name&gt;_                Publish with a custom name instead of the name from package.json 
+* `--eject` _&lt;package&gt;_                Eject a published package instead of publishing 
+* `-m, --map` _&lt;file&gt;_                 File containing initial import map (defaults to importmap.json, supports .js with a JSON import map embedded, or HTML with an inline import map) 
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
+* `-r, --resolution` &lt;[resolutions](#resolutions)&gt;   Comma-separated dependency resolution overrides 
+* `-p, --provider` &lt;[providers](#providers)&gt;        Default module provider. Available providers: jspm.io, nodemodules, deno, jsdelivr, unpkg, esm.sh, jspm.io#system 
+* `--cache` _&lt;mode&gt;_                   Cache mode for fetches (online, offline, no-cache) (default: online)
+* `--release`                        Enable release mode (--flatten-scopes, --combine-subpaths, --C=production) (default: true)
+* `--integrity`                      Add module integrity attributes to the import map 
+* `--preload` _[mode]_                 Add module preloads to HTML output (default: static, dynamic) 
+* `--root` _&lt;url&gt;_                     URL to treat as server root, i.e. rebase import maps against 
+* `-f, --flatten-scopes`             Flatten import map scopes into smaller single top-level scope per origin 
+* `-s, --combine-subpaths`           Combine import map subpaths under folder maps (ending in /) 
+* `-c, --compact`                    Output a compact import map (default: false)
+* `--stdout`                         Output the import map to stdout (default: false)
+* `-o, --out` _&lt;file&gt;_                 File to inject the final import map into (default: --map / importmap.js). For JS files outputs an injection wrapper script, for JSON files, the import map only, and for HTML files embeds the import map. 
+* `-q, --quiet`                      Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_            Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                       Display this help (add --all for extended command list) 
+
+**Examples**
+
+
+```
+jspm publish
+```
+Publish the current directory as a package to the JSPM CDN.
+
+
+
+```
+jspm publish -p jspm.io
+```
+Publish the current package as a package to the JSPM CDN.
+
+
+
+```
+jspm publish --dir dist --version dev-feat-2 --watch
+```
+Start a watched publish to a custom mutable version tag (dev-feat-2) instead of the version from package.json.
+
+
+
+```
+jspm publish --eject app:foo@bar --dir foo
+```
+Download the application package foo@bar into the folder foo, merging its import map into foo/importmap.js.
+
+
+
+```
+jspm publish --eject app:foo@bar --dir foo -o test.html
+```
+Download the application package foo@bar into the folder foo, merging its import map into the provided HTML file.
+
+## Auth
+
+**Usage**
+  
+```
+jspm auth [provider] [options]
+```
+Manages authentication for JSPM providers.
+
+**Usage**
+  jspm auth              List all available providers and their authentication status
+  jspm auth &lt;[providers](#providers)&gt;   Authenticate with a specific provider
+
+
+**Options**
+* `-u, --username` _&lt;username&gt;_     Username for authentication (if required) 
+* `--no-open`                     Disable automatically opening the authorization URL (default: true)
+* `-q, --quiet`                   Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                    Display this help (add --all for extended command list) 
+
+**Examples**
+
+
+```
+jspm auth jspm.io
+```
+Authenticate with the JSPM CDN provider.
+
+
+
+```
+jspm auth
+```
+List all available providers and their authentication status.
+
+## Clear Cache
+
+**Usage**
+  
+```
+jspm clear-cache
+```
+Clears the global module fetch cache, for situations where the contents of a dependency may have changed without a version bump. This can happen during local development, for instance.
+
+**Options**
+* `-q, --quiet`                   Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                    Display this help (add --all for extended command list) 
 
 # Configuration
 

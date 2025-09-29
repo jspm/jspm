@@ -552,8 +552,8 @@ export interface Install {
  * clearCache();
  * ```
  */
-export function clearCache() {
-  clearFetchCache();
+export async function clearCache() {
+  return clearFetchCache();
 }
 
 function createFetchOptions(cache: 'offline' | boolean = true, fetchOptions = {}) {
@@ -565,7 +565,7 @@ function createFetchOptions(cache: 'offline' | boolean = true, fetchOptions = {}
   };
   if (cache === 'offline') fetchOpts.cache = 'force-cache';
   else if (!cache) fetchOpts.cache = 'no-store';
-  return fetchOptions;
+  return fetchOpts;
 }
 
 /**

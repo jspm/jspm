@@ -30,7 +30,7 @@ export default async function link(modules: string[], flags: GenerateOutputFlags
   const env = await getEnv(flags);
   const inputMapPath = getInputPath(flags, fallbackMap);
   const outputMapPath = getOutputPath(flags);
-  const generator = await getGenerator(flags);
+  const generator = await getGenerator(flags, { scopedLink: true });
 
   let pins;
   if (modules.length === 0) {

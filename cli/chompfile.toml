@@ -76,6 +76,7 @@ deps = [
 run = '''
   node docs/generate.js > docs-generated.md
   node docs/finalize.js
+  rm docs-generated.md
 '''
 
 [[task]]

@@ -49,7 +49,7 @@
     "@babel/preset-typescript": "^7.24.7",
     "@jspm/import-map": "^1.2.1",
     "es-module-lexer": "^1.5.4",
-    "make-fetch-happen": "^15.0.1",
+    "node-fetch-cache": "^5.0.2",
     "minimatch": "^10.0.1",
     "pako": "^2.1.0",
     "sver": "^1.8.4",

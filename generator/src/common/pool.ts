@@ -1,5 +1,5 @@
 export class Pool {
-  #POOL_SIZE = 10;
+  #POOL_SIZE;
   #opCnt = 0;
   #cbs: (() => void)[] = [];
   constructor(POOL_SIZE: number) {
@@ -13,5 +13,8 @@ export class Pool {
     this.#opCnt--;
     const cb = this.#cbs.pop();
     if (cb) cb();
+  }
+  setSize(size: number) {
+    this.#POOL_SIZE = size;
   }
 }

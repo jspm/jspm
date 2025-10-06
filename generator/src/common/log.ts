@@ -3,6 +3,8 @@ export function createLogger() {
   let queuePromise = new Promise<void>(resolve => (resolveQueue = resolve));
   let queue: { type: string; message: string }[] = [];
 
+  let startTime = Date.now();
+
   const logStream = async function* () {
     while (true) {
       while (queue.length) yield queue.shift()!;
@@ -24,7 +26,7 @@ export function createLogger() {
   if (globalThis.process?.env?.JSPM_GENERATOR_LOG) {
     (async () => {
       for await (const { type, message } of logStream()) {
-        console.log(`\x1b[1m${type}:\x1b[0m ${message}`);
+        console.log(`\x1b[1m${type}:\x1b[0m (${Date.now() - startTime}ms) ${message}`);
       }
     })();
   }

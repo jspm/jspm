@@ -375,7 +375,7 @@ export class Resolver {
       const targets = enumeratePackageTargets(pcfg.imports[match]);
       for (const curTarget of targets) {
         try {
-          if ((await this.finalizeResolve(curTarget, false, true, pkgUrl)) === resolvedUrl) {
+          if ((await this.finalizeResolve(new URL(curTarget, pkgUrl).href, false, true, pkgUrl)) === resolvedUrl) {
             return '.';
           }
         } catch {}

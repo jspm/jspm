@@ -481,8 +481,7 @@ export async function publish(
       // for mutable packages, we retain the no-cache status for 30 seconds (for testing)
       // 'x-no-cache-duration': 30
     },
-    body: tarball,
-    timeout
+    body: tarball
   });
 
   if (!response.ok) {

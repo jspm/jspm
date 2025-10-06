@@ -74,7 +74,7 @@ deps = [
     'dist/cli.js',
 ]
 run = '''
-  node docs/generate.js > docs.md
+  node docs/generate.js > docs-generated.md
   node docs/finalize.js
 '''
 

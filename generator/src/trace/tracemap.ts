@@ -147,6 +147,7 @@ export default class TraceMap {
         if (!this.pins.includes(pin)) this.pins.push(pin);
       }
       const { maps, locks, constraints } = await extractLockConstraintsAndMap(
+        this.log,
         inMap,
         preloads,
         mapUrl,
@@ -244,6 +245,7 @@ export default class TraceMap {
   }
 
   async extractMap(modules: string[], integrity: boolean, toplevel: boolean = true) {
+    this.log('generator/extractMap', `Extracting map for ${modules.join(', ')}`);
     const map = new ImportMap({ mapUrl: this.mapUrl, rootUrl: this.rootUrl });
     // note this plucks custom top-level custom imports
     // we may want better control over this

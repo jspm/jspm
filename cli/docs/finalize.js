@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
-let docs = readFileSync('docs.md', 'utf8');
+let docs = readFileSync('docs-generated.md', 'utf8');
 
 // links
 docs = docs.replace(/\<conditions\>/g, '&lt;[conditions](#conditions)&gt;');

@@ -3,7 +3,7 @@ import version from '../version.js';
 import path from 'node:path';
 import { homedir } from 'node:os';
 import process from 'node:process';
-import makeFetchHappen from 'make-fetch-happen';
+import nodeFetchCache, { FileSystemCache } from 'node-fetch-cache';
 import { existsSync, readFileSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -23,9 +23,10 @@ export async function clearCache() {
   if (existsSync(dir)) return rm(dir, { recursive: true });
 }
 
-const _fetch = makeFetchHappen.defaults({
-  cachePath: path.join(cacheDir, 'fetch-cache'),
-  headers: { 'User-Agent': `jspm/generator@${version}` }
+const _fetch = nodeFetchCache.create({
+  cache: new FileSystemCache({
+    cacheDirectory: path.join(cacheDir, 'fetch-cache')
+  })
 });
 
 const emptyHeaders = new Headers();

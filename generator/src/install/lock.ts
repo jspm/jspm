@@ -1,6 +1,6 @@
 import { IImportMap } from '@jspm/import-map';
 import { throwInternalError } from '../common/err.js';
-import { isPlain, isURL, resolveUrl } from '../common/url.js';
+import { isPlain, resolveUrl } from '../common/url.js';
 import { Resolver } from '../trace/resolver.js';
 import { JspmError } from '../common/err.js';
 import { PackageProvider } from './installer.js';
@@ -14,7 +14,7 @@ import {
 } from './package.js';
 // @ts-ignore
 import sver from 'sver';
-import { getPackageConfig } from '../generator.js';
+import { Log } from '../generator.js';
 import { decodeBase64 } from '../common/b64.js';
 const { Semver, SemverRange } = sver;
 
@@ -328,15 +328,13 @@ export function getConstraintFor(
 }
 
 export async function extractLockConstraintsAndMap(
+  log: Log,
   map: IImportMap,
   preloadUrls: string[],
   mapUrl: URL,
   rootUrl: URL | null,
   defaultRegistry: string,
   resolver: Resolver,
-
-  // TODO: we should pass the whole providers namespace here so that we can
-  // enforce the user's URL-specific constraints on which provider to use:
   provider: PackageProvider
 ): Promise<{
   locks: LockResolutions;
@@ -390,7 +388,7 @@ export async function extractLockConstraintsAndMap(
           // If the plain specifier resolves to a package on some provider's CDN,
           // and there's a corresponding import/export map entry in that package,
           // then the resolution is standard and we can lock it:
-          if (exportSubpath) {
+          if (exportSubpath || subpath.endsWith('/')) {
             // Package "imports" resolutions don't constrain versions.
             if (key[0] === '#') return;
 
@@ -402,6 +400,8 @@ export async function extractLockConstraintsAndMap(
               );
             }
 
+            if (!exportSubpath) return;
+
             // In the case of subpaths having diverging versions, we force convergence on one version
             // Only scopes permit unpacking
             let installSubpath: null | `./${string}/` | false = null;
@@ -410,6 +410,8 @@ export async function extractLockConstraintsAndMap(
                 installSubpath = exportSubpath as `./${string}/`;
               } else if (exportSubpath === '.') {
                 installSubpath = false;
+              } else if (!exportSubpath) {
+                installSubpath = null;
               } else if (exportSubpath.endsWith(parsedKey.subpath.slice(1))) {
                 installSubpath = exportSubpath.slice(0, parsedKey.subpath.length) as `./${string}/`;
               }
@@ -471,15 +473,18 @@ export async function extractLockConstraintsAndMap(
             const exportSubpath =
               parsedTarget && (await resolver.getExportResolution(pkgUrl, subpath, key));
 
-            if (exportSubpath) {
-              // Imports resolutions that resolve as expected can be skipped
+            if (exportSubpath || subpath.endsWith('/')) {
+              // Imports resolutions that resolve as expected can be skipped (no resolution data)
               if (key[0] === '#') return;
 
               // If there is no constraint, we just make one as the semver major on the current version
-              if (!constraints.primary[parsedKey.pkgName])
-                constraints.primary[parsedKey.pkgName] = parsedTarget
+              if (!constraints.secondary[pkgUrl]?.[parsedKey.pkgName]) {
+                (constraints.secondary[pkgUrl] = constraints.secondary[pkgUrl] || {})[
+                  parsedKey.pkgName
+                ] = parsedTarget
                   ? await packageTargetFromExact(parsedTarget.pkg, resolver)
                   : new URL(pkgUrl);
+              }
 
               // In the case of subpaths having diverging versions, we force convergence on one version
               // Only scopes permit unpacking
@@ -489,12 +494,13 @@ export async function extractLockConstraintsAndMap(
                   installSubpath = exportSubpath as `./${string}/`;
                 } else if (exportSubpath === '.') {
                   installSubpath = false;
-                } else {
-                  if (exportSubpath.endsWith(parsedKey.subpath.slice(1)))
-                    installSubpath = exportSubpath.slice(
-                      0,
-                      parsedKey.subpath.length
-                    ) as `./${string}/`;
+                } else if (!exportSubpath) {
+                  installSubpath = null;
+                } else if (exportSubpath.endsWith(parsedKey.subpath.slice(1))) {
+                  installSubpath = exportSubpath.slice(
+                    0,
+                    parsedKey.subpath.length
+                  ) as `./${string}/`;
                 }
               }
               if (installSubpath !== false) {
@@ -523,29 +529,9 @@ export async function extractLockConstraintsAndMap(
   }
 
   // for every package we resolved, add their package constraints into the list of constraints
+  // this step requires fetching package configuration for all packages, therefore takes a little time, but caches
+  log('generator/processInputMap', `Extracting constraints`);
   await Promise.all(promises);
-  await Promise.all(
-    [...pkgUrls].map(async pkgUrl => {
-      if (!isURL(pkgUrl)) return;
-      const pcfg = await getPackageConfig(pkgUrl);
-      if (pcfg)
-        constraints.secondary[pkgUrl] = toPackageTargetMap(
-          pcfg,
-          new URL(pkgUrl),
-          defaultRegistry,
-          false
-        );
-    })
-  );
-
-  // TODO: allow preloads to inform used versions somehow
-  // for (const url of preloadUrls) {
-  //   const resolved = resolveUrl(url, mapUrl, rootUrl).href;
-  //   const providerPkg = resolver.parseUrlPkg(resolved);
-  //   if (providerPkg) {
-  //     const pkgUrl = await resolver.getPackageBase(mapUrl.href);
-  //   }
-  // }
 
   return {
     maps,
@@ -559,7 +545,6 @@ export async function extractLockConstraintsAndMap(
  * the provider that should be used to resolve them. Constraints are enforced
  * by re-resolving every input map lock and constraint against the provider
  * for their parent package URL.
- * TODO: actually handle provider constraints
  */
 async function enforceProviderConstraints(
   locks: LockResolutions,

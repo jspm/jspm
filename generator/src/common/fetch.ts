@@ -1,5 +1,6 @@
 // @ts-ignore
 import { fetch as fetchImpl, clearCache } from '#fetch';
+import { Pool } from './pool.js';
 
 export type FetchFn = (
   url: URL | string,
@@ -22,15 +23,14 @@ export interface WrappedResponse {
   arrayBuffer?(): ArrayBuffer;
 }
 
-let retryCount = 5,
-  poolSize = 100;
+let retryCount = 5;
 
 export function setRetryCount(count: number) {
   retryCount = count;
 }
 
 export function setFetchPoolSize(size: number) {
-  poolSize = size;
+  fetchPool.setSize(size);
 }
 
 /**
@@ -144,7 +144,7 @@ function wrappedFetch(fetch: FetchFn): WrappedFetch {
     }
     let retries = 0;
     try {
-      await pushFetchPool();
+      await fetchPool.queue();
       while (true) {
         try {
           return await fetch(url, ...args);
@@ -153,22 +153,13 @@ function wrappedFetch(fetch: FetchFn): WrappedFetch {
         }
       }
     } finally {
-      popFetchPool();
+      fetchPool.pop();
     }
   };
   return wrappedFetch;
 }
 
-// restrict in-flight fetches to a pool of 100
-let p = [];
-let c = 0;
-function pushFetchPool() {
-  if (++c > poolSize) return new Promise(r => p.push(r));
-}
-function popFetchPool() {
-  c--;
-  if (p.length) p.shift()();
-}
+const fetchPool = new Pool(100);
 
 let _fetch: WrappedFetch = wrappedFetch(fetchImpl);
 

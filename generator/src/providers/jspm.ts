@@ -473,7 +473,7 @@ export async function publish(
   const token = await createPublishToken(name, version);
 
   // Upload the package
-  const response = await fetch(packageUrl, {
+  const response = await globalThis.fetch(packageUrl, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/gzip',
@@ -481,8 +481,7 @@ export async function publish(
       // for mutable packages, we retain the no-cache status for 30 seconds (for testing)
       // 'x-no-cache-duration': 30
     },
-    body: tarball,
-    timeout
+    body: tarball
   });
 
   if (!response.ok) {

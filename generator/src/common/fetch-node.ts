@@ -25,7 +25,7 @@ export async function clearCache() {
 
 const _fetch = nodeFetchCache.create({
   cache: new FileSystemCache({
-    cacheDirectory: path.join(cacheDir, 'fetch-cache'),
+    cacheDirectory: path.join(cacheDir, 'fetch-cache')
   })
 });
 
@@ -105,6 +105,6 @@ export const fetch = async function (url: URL, opts?: Record<string, any>) {
     case 'http:':
     case 'https:':
       // @ts-ignore
-      return await _fetch(url, opts);
+      return _fetch(url, opts);
   }
 };

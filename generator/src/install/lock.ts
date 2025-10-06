@@ -479,7 +479,9 @@ export async function extractLockConstraintsAndMap(
 
               // If there is no constraint, we just make one as the semver major on the current version
               if (!constraints.secondary[pkgUrl]?.[parsedKey.pkgName]) {
-                (constraints.secondary[pkgUrl] = constraints.secondary[pkgUrl] || {})[parsedKey.pkgName] = parsedTarget
+                (constraints.secondary[pkgUrl] = constraints.secondary[pkgUrl] || {})[
+                  parsedKey.pkgName
+                ] = parsedTarget
                   ? await packageTargetFromExact(parsedTarget.pkg, resolver)
                   : new URL(pkgUrl);
               }

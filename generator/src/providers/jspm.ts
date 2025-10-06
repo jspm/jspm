@@ -473,7 +473,7 @@ export async function publish(
   const token = await createPublishToken(name, version);
 
   // Upload the package
-  const response = await fetch(packageUrl, {
+  const response = await globalThis.fetch(packageUrl, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/gzip',

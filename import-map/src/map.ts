@@ -9,8 +9,6 @@ import {
 } from "./url.js";
 import { alphabetize } from "./alphabetize.js";
 
-let crypto;
-
 export interface IImportMap {
   imports?: Record<string, string>;
   scopes?: {
@@ -30,7 +28,7 @@ export class ImportMap implements IImportMap {
    * The absolute URL of the import map, for determining relative resolutions
    * When using file:/// URLs this allows relative modules to be co-located
    */
-  mapUrl: URL;
+  mapUrl: URL | null;
   /**
    * The URL to use for root-level resolutions in the import map
    * If null, root resolutions are not resolved and instead left as-is

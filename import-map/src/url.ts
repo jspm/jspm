@@ -11,6 +11,10 @@ if (typeof Deno !== "undefined") {
     baseUrl = new URL(baseEl.href + (baseEl.href.endsWith("/") ? "" : "/"));
   else if (typeof location !== "undefined")
     baseUrl = new URL("../", new URL(location.href));
+} else if (typeof location !== 'undefined') {
+  baseUrl = new URL('../', new URL(location.href));
+} else {
+  baseUrl = new URL('about:blank');
 }
 
 export function getCommonBase(a: string, b: string): string {

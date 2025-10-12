@@ -77,7 +77,8 @@ test('Link with output to HTML file should include versions from importmap', asy
     commands: ['jspm link -o inlinemodules.html'],
     validationFn: async (files: Map<string, string>) => {
       const html = files.get('inlinemodules.html');
-      assert(html && html.includes('react-dom@17.0.1')); // from ./a.js
+      // nothing to link, nothing linked (change)
+      assert(html && !html.includes('react-dom@17.0.1')); // from ./a.js
     }
   });
 });

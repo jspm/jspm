@@ -532,7 +532,6 @@ export async function extractLockConstraintsAndMap(
   // this step requires fetching package configuration for all packages, therefore takes a little time, but caches
   log('generator/processInputMap', `Extracting constraints`);
   await Promise.all(promises);
-
   return {
     maps,
     constraints,

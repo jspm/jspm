@@ -56,6 +56,14 @@ export interface TraceMapOptions extends InstallerOptions {
       [key: string]: any;
     }
   ) => string | undefined | Promise<string | undefined>;
+
+  /**
+   * No pins
+   *
+   * Disables treating top-level "imports" as pinned dependencies.
+   * This will be the default in the next major.
+   */
+  noPins?: boolean;
 }
 
 interface VisitOpts {
@@ -89,7 +97,7 @@ export default class TraceMap {
   mapUrl: URL;
   baseUrl: URL;
   rootUrl: URL | null;
-  pins: Array<string> = [];
+  pins: Array<string> | null;
   log: Log;
   resolver: Resolver;
   customResolver?: (
@@ -111,6 +119,7 @@ export default class TraceMap {
   processInputMap: Promise<void> = Promise.resolve();
 
   constructor(opts: TraceMapOptions, log: Log, resolver: Resolver) {
+    this.pins = opts.noPins ? null : [];
     this.log = log;
     this.resolver = resolver;
     this.mapUrl = opts.mapUrl;
@@ -142,9 +151,11 @@ export default class TraceMap {
     // is always trusted at generation time.
     return (this.processInputMap = this.processInputMap.then(async () => {
       const inMap = new ImportMap({ map, mapUrl, rootUrl }).rebase(this.mapUrl, this.rootUrl);
-      const pins = Object.keys(inMap.imports || []);
-      for (const pin of pins) {
-        if (!this.pins.includes(pin)) this.pins.push(pin);
+      if (this.pins) {
+        const pins = Object.keys(inMap.imports || []);
+        for (const pin of pins) {
+          if (!this.pins.includes(pin)) this.pins.push(pin);
+        }
       }
       const { maps, locks, constraints } = await extractLockConstraintsAndMap(
         this.log,
@@ -170,7 +181,12 @@ export default class TraceMap {
    * @param {} parentUrl URL of the parent context for the specifier.
    * @param {} seen Cache for optimisation.
    */
-  async visit(specifier: string, opts: VisitOpts, parentUrl = this.baseUrl.href, seen = new Set()) {
+  async visit(
+    specifier: string,
+    opts: VisitOpts,
+    parentUrl = this.baseUrl.href,
+    seen = new Set()
+  ): Promise<string> {
     if (!parentUrl) throw new Error('Internal error: expected parentUrl');
     if (this.opts.ignore?.includes(specifier)) return;
 
@@ -242,14 +258,17 @@ export default class TraceMap {
         await this.visit(dep, opts, resolved, seen);
       })
     );
+
+    return resolved;
   }
 
   async extractMap(modules: string[], integrity: boolean, toplevel: boolean = true) {
     this.log('generator/extractMap', `Extracting map for ${modules.join(', ')}`);
     const map = new ImportMap({ mapUrl: this.mapUrl, rootUrl: this.rootUrl });
-    // note this plucks custom top-level custom imports
-    // we may want better control over this
-    map.extend(this.inputMap);
+
+    if (this.pins) {
+      map.extend(this.inputMap);
+    }
 
     // visit to build the mappings
     const staticList = new Set();

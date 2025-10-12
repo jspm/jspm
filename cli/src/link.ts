@@ -9,8 +9,6 @@ import {
   getEnv,
   getGenerator,
   getInputMap,
-  getInputPath,
-  getOutputPath,
   isJsExtension,
   startSpinner,
   stopSpinner,
@@ -28,12 +26,11 @@ export default async function link(modules: string[], flags: GenerateOutputFlags
   const fallbackMap = !modules[0] || isJsExtension(extname(modules[0])) ? undefined : modules[0];
 
   const env = await getEnv(flags);
-  const inputMapPath = getInputPath(flags, fallbackMap);
-  const outputMapPath = getOutputPath(flags);
   const generator = await getGenerator(flags, { scopedLink: true });
 
-  let pins;
+  let pins = null;
   if (modules.length === 0) {
+    console.log('no modules');
     if (!flags.quiet) {
       startSpinner(`Linking import map`);
     }
@@ -90,16 +87,14 @@ export default async function link(modules: string[], flags: GenerateOutputFlags
     } finally {
       stopSpinner();
     }
+
+    pins = allPins.concat(pins);
   }
 
   // If the user has provided modules and the output path is different to the
   // input path, then we behave as an extraction from the input map. In all
   // other cases we behave as an update to the map:
-  if (inputMapPath !== outputMapPath && modules.length !== 0) {
-    return await writeOutput(generator, pins, env, flags, flags.quiet);
-  } else {
-    return await writeOutput(generator, null, env, flags, flags.quiet);
-  }
+  return await writeOutput(generator, pins, env, flags, flags.quiet);
 }
 
 async function resolveModule(p: string, inlinePins: string[], generator: Generator) {
@@ -144,6 +139,8 @@ async function handleLocalFile(
   generator: Generator
 ) {
   const source = await fs.readFile(resolvedModule.target, { encoding: 'utf8' });
+
+  // @ts-expect-error babel declaration
   const babel = await import('@babel/core');
 
   try {
@@ -158,8 +155,8 @@ async function handleLocalFile(
   try {
     pins = await generator.linkHtml(source, targetUrl);
   } catch (e) {
-    if (e?.jspmError) {
-      e.message += `, linking HTML file "${resolvedModule.target}"`;
+    if ((e as any)?.jspmError) {
+      (e as Error).message += `, linking HTML file "${resolvedModule.target}"`;
     }
     throw e;
   }

@@ -29,13 +29,10 @@ document.head.appendChild(Object.assign(document.createElement("script"), {
     ]),
     commands: ['jspm install --out importmap.js react'],
     validationFn: async (files: Map<string, string>) => {
-      // importmap.json should not be created since we specified output
       assert(!files.has('importmap.json'), 'importmap.json should not be created');
 
-      // importmap.js should be updated
       assert(files.has('importmap.js'), 'importmap.js should exist');
 
-      // Verify the JS file contains the expected map data
       const jsContent = files.get('importmap.js')!;
       assert(jsContent.includes('react'), 'JS file should include react package');
     }
@@ -57,18 +54,18 @@ test('Support importmap.json when both exist', async () => {
     ]),
     commands: ['jspm link react -m importmap.json'],
     validationFn: async (files: Map<string, string>) => {
-      // Both files should still exist
       assert(files.has('importmap.json'), 'importmap.json should exist');
       assert(files.has('importmap.js'), 'importmap.js should still exist');
 
-      // importmap.js should not be modified
       const jsContent = files.get('importmap.js')!;
       assert(jsContent === 'should not be loaded');
 
-      // importmap.json should be updated with the new package
       const map = JSON.parse(files.get('importmap.json')!);
-      assert(map.scopes['./'].jquery, 'jquery should be preserved in importmap.js');
-      assert(map.scopes['./'].react, 'jquery should be preserved in importmap.js');
+      assert(
+        map.imports.react === 'https://cdn.jsdelivr.net/npm/react@19.2.0/index.js',
+        'react should be preserved in importmap.js'
+      );
+      assert(!map.imports.jquery, 'jquery should be pruned from importmap.js');
     }
   });
 });

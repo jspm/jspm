@@ -721,7 +721,8 @@ export class Generator {
         ignore,
         resolutions,
         commonJS,
-        customResolver
+        customResolver,
+        noPins: scopedLink
       },
       log,
       resolver
@@ -769,7 +770,7 @@ export class Generator {
       }
     }
     await this.traceMap.addInputMap(jsonOrHtml, mapUrl, rootUrl, preloads);
-    return htmlModules || [...this.traceMap.pins];
+    return htmlModules || [...(this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports))];
   }
 
   /**
@@ -815,8 +816,9 @@ export class Generator {
     if (typeof specifier === 'string') specifier = [specifier];
     let error = false;
     await this.traceMap.processInputMap;
+    let pins;
     try {
-      await Promise.all(
+      pins = await Promise.all(
         specifier.map(specifier =>
           this.traceMap.visit(
             specifier,
@@ -828,15 +830,17 @@ export class Generator {
           )
         )
       );
-      for (const s of specifier) {
-        if (!this.traceMap.pins.includes(s)) this.traceMap.pins.push(s);
+      if (this.traceMap.pins) {
+        for (const s of specifier) {
+          if (!this.traceMap.pins.includes(s)) this.traceMap.pins.push(s);
+        }
       }
     } catch (e) {
       error = true;
       throw e;
     } finally {
       const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
-        this.traceMap.pins,
+        this.traceMap.pins || pins,
         this.integrity,
         !this.scopedLink
       );
@@ -910,7 +914,12 @@ export class Generator {
 
     const analysis = analyzeHtml(html, htmlUrl);
 
-    let modules = pins === true ? this.traceMap.pins : Array.isArray(pins) ? pins : [];
+    let modules =
+      pins === true
+        ? this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports)
+        : Array.isArray(pins)
+        ? pins
+        : [];
     if (trace) {
       const impts = await this.linkHtml(html, htmlUrl);
       modules = [...new Set([...modules, ...impts])];
@@ -1104,37 +1113,43 @@ export class Generator {
     mode?: InstallMode
   ): Promise<void | { staticDeps: string[]; dynamicDeps: string[] }> {
     // If there are no arguments, then we reinstall all the top-level locks:
-    if (install === null || install === undefined) {
+    if (
+      install === null ||
+      install === undefined ||
+      (Array.isArray(install) && install.length === 0)
+    ) {
       await this.traceMap.processInputMap;
 
       // To match the behaviour of an argumentless `npm install`, we use
       // existing resolutions for everything unless it's out-of-range:
       mode ??= 'default';
 
-      return this._install(
-        Object.entries(this.traceMap.installer.installs.primary).map(([alias, target]) => {
-          const pkgTarget = this.traceMap.installer.constraints.primary[alias];
+      if (Object.keys(this.traceMap.installer.installs.primary).length) {
+        return this._install(
+          Object.entries(this.traceMap.installer.installs.primary).map(([alias, target]) => {
+            const pkgTarget = this.traceMap.installer.constraints.primary[alias];
 
-          // Try to reinstall lock against constraints if possible, otherwise
-          // reinstall it as a URL directly (which has the downside that it
-          // won't have NPM versioning semantics):
-          let newTarget: string | InstallTarget = target.installUrl;
-          if (pkgTarget) {
-            if (pkgTarget instanceof URL) {
-              newTarget = pkgTarget.href;
-            } else {
-              newTarget = `${pkgTarget.registry}:${pkgTarget.name}`;
+            // Try to reinstall lock against constraints if possible, otherwise
+            // reinstall it as a URL directly (which has the downside that it
+            // won't have NPM versioning semantics):
+            let newTarget: string | InstallTarget = target.installUrl;
+            if (pkgTarget) {
+              if (pkgTarget instanceof URL) {
+                newTarget = pkgTarget.href;
+              } else {
+                newTarget = `${pkgTarget.registry}:${pkgTarget.name}`;
+              }
             }
-          }
 
-          return {
-            alias,
-            target: newTarget,
-            subpath: target.installSubpath ?? undefined
-          } as Install;
-        }),
-        mode
-      );
+            return {
+              alias,
+              target: newTarget,
+              subpath: target.installSubpath ?? undefined
+            } as Install;
+          }),
+          mode
+        );
+      }
     }
 
     if (!Array.isArray(install)) install = [install];
@@ -1206,6 +1221,7 @@ export class Generator {
       )
     ).flatMap(i => i);
 
+    const pins = this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports);
     await Promise.all(
       imports.map(async impt => {
         await this.traceMap.visit(
@@ -1219,14 +1235,11 @@ export class Generator {
 
         // Add the target import as a top-level pin
         // we do this after the trace, so failed installs don't pollute the map
-        if (!this.traceMap.pins.includes(impt)) this.traceMap.pins.push(impt);
+        if (!pins.includes(impt)) pins.push(impt);
       })
     );
 
-    const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
-      this.traceMap.pins,
-      this.integrity
-    );
+    const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(pins, this.integrity);
     this.map = map;
     return { staticDeps, dynamicDeps };
   }
@@ -1271,7 +1284,7 @@ export class Generator {
         );
       }
       const { installUrl, installSubpath } = resolution;
-      const subpaths = this.traceMap.pins
+      const subpaths = (this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports))
         .filter(pin => pin === name || (pin.startsWith(name) && pin[name.length] === '/'))
         .map(pin => `.${pin.slice(name.length)}` as '.' | `./${string}`);
       // use package.json range if present
@@ -1304,7 +1317,7 @@ export class Generator {
 
     await this._install(installs, mode);
     const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
-      this.traceMap.pins,
+      this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports),
       this.integrity
     );
     this.map = map;
@@ -1314,7 +1327,7 @@ export class Generator {
   async uninstall(names: string | string[]) {
     if (typeof names === 'string') names = [names];
     await this.traceMap.processInputMap;
-    let pins = this.traceMap.pins;
+    let pins = this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports);
     const unusedNames = new Set([...names]);
     for (let i = 0; i < pins.length; i++) {
       const pin = pins[i];
@@ -1329,9 +1342,9 @@ export class Generator {
     if (unusedNames.size) {
       throw new JspmError(`No "imports" entry for "${[...unusedNames][0]}" to uninstall.`);
     }
-    this.traceMap.pins = pins;
+    if (this.traceMap.pins) this.traceMap.pins = pins;
     const { staticDeps, dynamicDeps, map } = await this.traceMap.extractMap(
-      this.traceMap.pins,
+      this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports),
       this.integrity
     );
     this.map = map;
@@ -1533,7 +1546,7 @@ export class Generator {
     return await this.traceMap.resolver.pm.publish(
       exactPkg,
       provider,
-      this.traceMap.pins.sort((a, b) => {
+      (this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports)).sort((a, b) => {
         const aIsPublishAlias = a === name || (a.startsWith(name) && a[name.length] === '/');
         const bIsPublishAlias = b === name || (b.startsWith(name) && b[name.length] === '/');
         if (aIsPublishAlias && !bIsPublishAlias) return -1;
@@ -1665,7 +1678,8 @@ export class Generator {
       integrity: this.integrity,
       preserveSymlinks: this.traceMap.resolver.preserveSymlinks,
       flattenScopes: this.flattenScopes,
-      combineSubpaths: this.combineSubpaths
+      combineSubpaths: this.combineSubpaths,
+      scopedLink: this.scopedLink
     });
     cloned.traceMap.resolver.pm.providers = {
       ...this.traceMap.resolver.pm.providers
@@ -1752,7 +1766,7 @@ export class Generator {
    */
   getMap(mapUrl?: string | URL, rootUrl?: string | URL | null) {
     const map = this.map.clone();
-    map.rebase(mapUrl, rootUrl);
+    if (mapUrl) map.rebase(mapUrl, rootUrl);
     if (this.flattenScopes) map.flatten();
     map.sort();
     if (this.combineSubpaths) map.combineSubpaths();

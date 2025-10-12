@@ -84,4 +84,5 @@ jobs:
     - run: npm run -ws build
     - run: chomp -c generator test
       env:
+        SKIP_BROWSER: 1
         JSPM_AUTH_TOKEN: ${{ secrets.JSPM_TOKEN }}

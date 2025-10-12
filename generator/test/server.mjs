@@ -13,6 +13,11 @@ const port = 5776;
 
 const rootURL = new URL("../../", import.meta.url);
 
+if (process.env.SKIP_BROWSER) {
+  console.log('Skipping browser tests due to SKIP_BROWSER env var')
+  process.exit(0);
+}
+
 const mimes = {
   ".html": "text/html",
   ".css": "text/css",

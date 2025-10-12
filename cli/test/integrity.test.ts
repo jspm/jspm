@@ -26,16 +26,17 @@ test('Generated importmap should have integrity attribute', async () => {
   });
 });
 
-test('Scenario should detect provider and add integrity attribute', async () => {
-  await run({
-    files: await mapFile('fixtures/unpkg.importmap.json'),
-    commands: ['jspm link -m unpkg.importmap.json -o importmap.json --integrity'],
-    validationFn: async (files: Map<string, string>) => {
-      const map = JSON.parse(files.get('importmap.json')!);
-      assert(map.integrity);
-    }
-  });
-});
+// Reenable when unpkg stops 500 errors
+// test('Scenario should detect provider and add integrity attribute', async () => {
+//   await run({
+//     files: await mapFile('fixtures/unpkg.importmap.json'),
+//     commands: ['jspm link -m unpkg.importmap.json -o importmap.json --integrity'],
+//     validationFn: async (files: Map<string, string>) => {
+//       const map = JSON.parse(files.get('importmap.json')!);
+//       assert(map.integrity);
+//     }
+//   });
+// });
 
 test('Scenario using nodemodules provider should add integrity attribute', async () => {
   await run({

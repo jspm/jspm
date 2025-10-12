@@ -171,7 +171,7 @@ export async function writeOutput(
 
   const mapFile = getOutputPath(flags);
   if (mapFile.endsWith('.html')) {
-    return writeHtmlOutput(mapFile, generator, pins, env, flags, silent);
+    return writeHtmlOutput(mapFile, generator, pins || [], env, flags, silent);
   } else if (mapFile.endsWith('.js')) {
     return writeJsOutput(mapFile, generator, pins, env, flags, silent);
   }
@@ -191,7 +191,7 @@ async function writeStdoutOutput(generator: Generator, pins: string[] | null) {
 async function writeHtmlOutput(
   mapFile: string,
   generator: Generator,
-  pins: string[] | null,
+  pins: string[],
   env: string[],
   flags: GenerateOutputFlags,
   silent = false

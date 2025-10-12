@@ -816,8 +816,9 @@ export class Generator {
     if (typeof specifier === 'string') specifier = [specifier];
     let error = false;
     await this.traceMap.processInputMap;
+    let pins;
     try {
-      await Promise.all(
+      pins = await Promise.all(
         specifier.map(specifier =>
           this.traceMap.visit(
             specifier,
@@ -839,7 +840,7 @@ export class Generator {
       throw e;
     } finally {
       const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
-        this.traceMap.pins || specifier,
+        this.traceMap.pins || pins,
         this.integrity,
         !this.scopedLink
       );
@@ -1112,37 +1113,43 @@ export class Generator {
     mode?: InstallMode
   ): Promise<void | { staticDeps: string[]; dynamicDeps: string[] }> {
     // If there are no arguments, then we reinstall all the top-level locks:
-    if (install === null || install === undefined) {
+    if (
+      install === null ||
+      install === undefined ||
+      (Array.isArray(install) && install.length === 0)
+    ) {
       await this.traceMap.processInputMap;
 
       // To match the behaviour of an argumentless `npm install`, we use
       // existing resolutions for everything unless it's out-of-range:
       mode ??= 'default';
 
-      return this._install(
-        Object.entries(this.traceMap.installer.installs.primary).map(([alias, target]) => {
-          const pkgTarget = this.traceMap.installer.constraints.primary[alias];
+      if (Object.keys(this.traceMap.installer.installs.primary).length) {
+        return this._install(
+          Object.entries(this.traceMap.installer.installs.primary).map(([alias, target]) => {
+            const pkgTarget = this.traceMap.installer.constraints.primary[alias];
 
-          // Try to reinstall lock against constraints if possible, otherwise
-          // reinstall it as a URL directly (which has the downside that it
-          // won't have NPM versioning semantics):
-          let newTarget: string | InstallTarget = target.installUrl;
-          if (pkgTarget) {
-            if (pkgTarget instanceof URL) {
-              newTarget = pkgTarget.href;
-            } else {
-              newTarget = `${pkgTarget.registry}:${pkgTarget.name}`;
+            // Try to reinstall lock against constraints if possible, otherwise
+            // reinstall it as a URL directly (which has the downside that it
+            // won't have NPM versioning semantics):
+            let newTarget: string | InstallTarget = target.installUrl;
+            if (pkgTarget) {
+              if (pkgTarget instanceof URL) {
+                newTarget = pkgTarget.href;
+              } else {
+                newTarget = `${pkgTarget.registry}:${pkgTarget.name}`;
+              }
             }
-          }
 
-          return {
-            alias,
-            target: newTarget,
-            subpath: target.installSubpath ?? undefined
-          } as Install;
-        }),
-        mode
-      );
+            return {
+              alias,
+              target: newTarget,
+              subpath: target.installSubpath ?? undefined
+            } as Install;
+          }),
+          mode
+        );
+      }
     }
 
     if (!Array.isArray(install)) install = [install];
@@ -1671,7 +1678,8 @@ export class Generator {
       integrity: this.integrity,
       preserveSymlinks: this.traceMap.resolver.preserveSymlinks,
       flattenScopes: this.flattenScopes,
-      combineSubpaths: this.combineSubpaths
+      combineSubpaths: this.combineSubpaths,
+      scopedLink: this.scopedLink
     });
     cloned.traceMap.resolver.pm.providers = {
       ...this.traceMap.resolver.pm.providers

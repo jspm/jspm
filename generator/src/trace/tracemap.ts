@@ -181,7 +181,12 @@ export default class TraceMap {
    * @param {} parentUrl URL of the parent context for the specifier.
    * @param {} seen Cache for optimisation.
    */
-  async visit(specifier: string, opts: VisitOpts, parentUrl = this.baseUrl.href, seen = new Set()) {
+  async visit(
+    specifier: string,
+    opts: VisitOpts,
+    parentUrl = this.baseUrl.href,
+    seen = new Set()
+  ): Promise<string> {
     if (!parentUrl) throw new Error('Internal error: expected parentUrl');
     if (this.opts.ignore?.includes(specifier)) return;
 
@@ -253,6 +258,8 @@ export default class TraceMap {
         await this.visit(dep, opts, resolved, seen);
       })
     );
+
+    return resolved;
   }
 
   async extractMap(modules: string[], integrity: boolean, toplevel: boolean = true) {

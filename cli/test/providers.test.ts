@@ -16,18 +16,19 @@ test('Swapping providers with a reinstall', async () => {
   });
 });
 
-test('Provider auto-detection from initial map', async () => {
-  // Scenario that checks the provider is auto-detected from the initial map:
-  await run({
-    files: await mapFile('fixtures/unpkg.importmap.json'),
-    commands: [`jspm link -m unpkg.importmap.json -o importmap.json`],
-    validationFn: async files => {
-      const map = files.get('importmap.json');
-      assert(!!map);
-      assert(!map.includes('jspm.io'));
-    }
-  });
-});
+// Disable 500 unpkg errors for now
+// test('Provider auto-detection from initial map', async () => {
+//   // Scenario that checks the provider is auto-detected from the initial map:
+//   await run({
+//     files: await mapFile('fixtures/unpkg.importmap.json'),
+//     commands: [`jspm link -m unpkg.importmap.json -o importmap.json`],
+//     validationFn: async files => {
+//       const map = files.get('importmap.json');
+//       assert(!!map);
+//       assert(!map.includes('jspm.io'));
+//     }
+//   });
+// });
 
 // Scenarios that check we can use each available provider:
 for (const provider of availableProviders) {

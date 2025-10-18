@@ -840,7 +840,7 @@ export class Generator {
       throw e;
     } finally {
       const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
-        this.traceMap.pins || pins,
+        this.traceMap.pins || pins || [],
         this.integrity,
         !this.scopedLink
       );

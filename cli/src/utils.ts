@@ -36,7 +36,7 @@ export function cliHtmlHighlight(code: string) {
     .join('\n');
 }
 
-export function isJsExtension(ext) {
+export function isJsExtension(ext: string) {
   return (
     ext === '.js' ||
     ext === '.mjs' ||
@@ -150,8 +150,8 @@ export function wrapCommand(fn: Function) {
     } catch (e) {
       stopSpinner();
       process.exitCode = 1;
-      if (e instanceof JspmError || e?.jspmError) {
-        console.error(`${c.red('Error:')} ${e.message}\n`);
+      if (e instanceof JspmError || (e as JspmError)?.jspmError) {
+        console.error(`${c.red('Error:')} ${(e as Error).message}\n`);
         return false;
       }
       throw e;
@@ -314,7 +314,7 @@ async function writeJsonOutput(
 
 export async function getGenerator(
   flags: GenerateFlags & GenerateOutputFlags,
-  configOverride: GeneratorOptions = null,
+  configOverride: GeneratorOptions | null = null,
   inputMap?: IImportMap | undefined
 ): Promise<Generator> {
   const log = withType('utils/getGenerator');
@@ -342,9 +342,10 @@ export async function getGenerator(
         rootUrl,
         inputMap: inputMap || (await getInputMap(flags)),
         env: await getEnv(flags),
-        flattenScopes: flags.flattenScopes === false ? false : flags.release || flags.flattenScopes,
+        flattenScopes:
+          flags.flattenScopes === false ? false : Boolean(flags.release || flags.flattenScopes),
         combineSubpaths:
-          flags.combineSubpaths === false ? false : flags.release || flags.combineSubpaths,
+          flags.combineSubpaths === false ? false : Boolean(flags.release || flags.combineSubpaths),
         defaultProvider,
         resolutions: getResolutions(flags),
         cache: getCacheMode(flags),
@@ -374,12 +375,16 @@ function findJsMap(input: string, mapPath: string): { map: IImportMap; range: [n
           };
         } catch (jsonError) {
           throw new JspmError(
-            `Found a potential import map in JavaScript file, but it is not valid JSON: ${jsonError.message}`
+            `Found a potential import map in JavaScript file, but it is not valid JSON: ${
+              (jsonError as Error).message
+            }`
           );
         }
       } catch (jsonError) {
         throw new JspmError(
-          `Found a potential import map in JavaScript file, but it must be valid JSON: ${jsonError.message}`
+          `Found a potential import map in JavaScript file, but it must be valid JSON: ${
+            (jsonError as Error).message
+          }`
         );
       }
     } else {
@@ -395,7 +400,9 @@ function findJsMap(input: string, mapPath: string): { map: IImportMap; range: [n
     }
   } catch (jsError) {
     throw new JspmError(
-      `Failed to extract import map from JavaScript file "${mapPath}": ${jsError.message}`
+      `Failed to extract import map from JavaScript file "${mapPath}": ${
+        (jsError as Error).message
+      }`
     );
   }
 }
@@ -428,7 +435,7 @@ export function readInputMap(mapPath: string, fallbackDefaultMap = defaultMapPat
     } else {
       try {
         // Try to parse as HTML with import map
-        const analysis = analyzeHtml(input, pathToFileURL(mapPath));
+        const analysis = analyzeHtml(input, pathToFileURL(mapPath) as URL);
         return analysis.map?.json || ({} as IImportMapJspm);
       } catch (e) {
         throw new JspmError(
@@ -481,15 +488,15 @@ export function getOutputPath(flags: GenerateOutputFlags): string {
 }
 
 function getOutputMapUrl(flags: GenerateOutputFlags): URL {
-  return pathToFileURL(getOutputPath(flags));
+  return pathToFileURL(getOutputPath(flags)) as URL;
 }
 
 function getRootUrl(flags: GenerateOutputFlags): URL | undefined {
   if (!flags?.root) return undefined;
-  return pathToFileURL(resolve(flags.root));
+  return pathToFileURL(resolve(flags.root)) as URL;
 }
 
-const excludeDefinitions = {
+const excludeDefinitions: Record<string, string[]> = {
   production: ['development'],
   development: ['production'],
   node: ['browser', 'deno', 'bun'],
@@ -505,7 +512,7 @@ function removeEnvs(env: string[], removeEnvs: string[]) {
   return env.sort();
 }
 function addEnvs(env: string[], newEnvs: string[]) {
-  let excludeEnvs = [];
+  let excludeEnvs: string[] = [];
   for (const newEnv of newEnvs) {
     if (!env.includes(newEnv)) env.push(newEnv);
     const excludes = excludeDefinitions[newEnv];
@@ -719,7 +726,7 @@ export function relativeUrl(fromUrl: URL, toUrl: URL): string {
   return relPath;
 }
 
-export function copyToClipboard(text) {
+export function copyToClipboard(text: string) {
   try {
     switch (platform()) {
       case 'darwin':
@@ -872,7 +879,7 @@ export async function getPackageJson(dir?: string): Promise<{
         throw new JspmError(
           `Invalid package.json file at ${path
             .relative(process.cwd(), packageJsonPath)
-            .replace(/\\/g, '/')} - ${jsonError.message}`
+            .replace(/\\/g, '/')} - ${(jsonError as Error).message}`
         );
       }
     }
@@ -961,7 +968,7 @@ export async function getLatestEsms(generator: Generator, provider: string) {
       registry: 'npm',
       ranges: [new SemverRange('*')]
     },
-    generator.traceMap.installer.defaultProvider
+    generator.traceMap.installer!.defaultProvider
   );
   return `${await generator.traceMap.resolver.pm.pkgToUrl(
     esmsPkg,
@@ -1084,7 +1091,7 @@ export function expandExportsEntries(
  * expand into a "production" branch of the environment, then "development" branches
  * will be excluded on that walk of the branch further.
  */
-const conditionMutualExclusions = {
+const conditionMutualExclusions: Record<string, string> = {
   production: 'development',
   development: 'production',
   import: 'require',
@@ -1244,7 +1251,7 @@ export async function querySelection(
       process.stdin.setRawMode(true);
 
       // Handle keypress events
-      const handleKeypress = (str, key) => {
+      const handleKeypress = (str: string, key: { name: string; ctrl: boolean }) => {
         if (!key) return;
 
         if (key.name === 'up' && selectedIndex > 0) {
@@ -1317,7 +1324,7 @@ export function getExportsEntries(
 ): Record<string, string[]> {
   const resolutionMap = new Map<string, string>();
   expandExportsResolutions(exports, env, new Set(fileList), resolutionMap);
-  const outMap = {};
+  const outMap: Record<string, string[]> = {};
   for (const [subpath, entry] of resolutionMap) {
     const expt = name + subpath.slice(1);
     outMap[expt] = outMap[expt] || [];

@@ -28,8 +28,8 @@ if (!baseUrl && typeof location !== 'undefined') {
 baseUrl.search = baseUrl.hash = '';
 
 export function resolveUrl(url: string, mapUrl: URL, rootUrl: URL | null): string {
-  if (url.startsWith('/'))
-    return rootUrl ? new URL('.' + url.slice(url[1] === '/' ? 1 : 0), rootUrl).href : url;
+  if (url.startsWith('/') && rootUrl)
+    return new URL('.' + url.slice(url[1] === '/' ? 1 : 0), rootUrl).href;
   return new URL(url, mapUrl).href;
 }
 

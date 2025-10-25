@@ -58,8 +58,7 @@ export async function getPackageConfig(
   this: ProviderContext,
   pkgUrl: string
 ): Promise<PackageConfig | null> {
-  if (pkgUrl === gaUrl)
-    return null;
+  if (pkgUrl === gaUrl) return null;
   try {
     var res = await fetch(`${pkgUrl}package.json`, this.fetchOpts);
   } catch (e) {

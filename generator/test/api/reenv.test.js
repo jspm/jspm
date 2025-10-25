@@ -31,6 +31,8 @@ import assert from 'assert';
 {
   const generator = new Generator({
     env: ['production', 'module', 'browser'],
+    mapUrl: import.meta.url,
+    rootUrl: new URL('../', import.meta.url).href,
     ignore: ['custom'],
     inputMap: {
       imports: {

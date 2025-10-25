@@ -186,10 +186,7 @@ export class ProviderManager {
     for (const name of Object.keys(this.providers).reverse()) {
       const provider = this.providers[name];
       const context = this.#getProviderContext(name);
-      if (
-        provider.ownsUrl?.call(context, url) ||
-        provider.parseUrlPkg?.call(context, url)
-      ) {
+      if (provider.ownsUrl?.call(context, url) || provider.parseUrlPkg?.call(context, url)) {
         return name;
       }
     }
@@ -239,7 +236,8 @@ export class ProviderManager {
     layer = 'default'
   ): `${string}/` | Promise<`${string}/`> {
     const providerInstance = this.#getProvider(provider);
-    if (!providerInstance.pkgToUrl) throw new JspmError(`Provider ${provider} does not provide versioned package support`);
+    if (!providerInstance.pkgToUrl)
+      throw new JspmError(`Provider ${provider} does not provide versioned package support`);
     return this.#getProvider(provider).pkgToUrl.call(
       this.#getProviderContext(provider),
       pkg,
@@ -345,7 +343,9 @@ export class ProviderManager {
 
     const providerInstance = this.#getProvider(provider);
     if (!providerInstance.resolveLatestTarget)
-      throw new JspmError(`Provider ${provider} does not provide versioned package support, looking up ${target.registry}:${target.name}`);
+      throw new JspmError(
+        `Provider ${provider} does not provide versioned package support, looking up ${target.registry}:${target.name}`
+      );
     const pkg = await providerInstance.resolveLatestTarget?.call(
       this.#getProviderContext(provider),
       latestTarget,

@@ -138,6 +138,16 @@ deps = [
 run = 'node -C source --enable-source-maps $DEP'
 
 [[task]]
+name = 'integration-debug:#'
+env.JSPM_GENERATOR_LOG = "1"
+deps = [
+    'test/##.test.js',
+    'lib',
+]
+run = 'node -C source --enable-source-maps $DEP'
+
+
+[[task]]
 name = 'test:browser'
 deps = [
     'build:ts',

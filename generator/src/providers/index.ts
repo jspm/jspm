@@ -21,18 +21,18 @@ import { isNode } from '../common/env.js';
 import { fetch } from '../common/fetch.js';
 
 export interface Provider {
-  parseUrlPkg(
+  parseUrlPkg?(
     this: ProviderContext,
     url: string
   ): ExactPackage | { pkg: ExactPackage; subpath: `./${string}` | null; layer: string } | null;
 
-  pkgToUrl(
+  pkgToUrl?(
     this: ProviderContext,
     pkg: ExactPackage,
     layer?: string
   ): `${string}/` | Promise<`${string}/`>;
 
-  resolveLatestTarget(
+  resolveLatestTarget?(
     this: ProviderContext,
     target: LatestPackageTarget,
     layer: string,
@@ -161,12 +161,6 @@ export class ProviderManager {
    * @param provider Provider implementation
    */
   addProvider(name: string, provider: Provider): void {
-    if (!provider.pkgToUrl)
-      throw new Error(`Custom provider "${name}" must define a "pkgToUrl" method.`);
-    if (!provider.parseUrlPkg)
-      throw new Error(`Custom provider "${name}" must define a "parseUrlPkg" method.`);
-    if (!provider.resolveLatestTarget)
-      throw new Error(`Custom provider "${name}" must define a "resolveLatestTarget" method.`);
     this.providers[name] = provider;
   }
 
@@ -193,8 +187,8 @@ export class ProviderManager {
       const provider = this.providers[name];
       const context = this.#getProviderContext(name);
       if (
-        (provider.ownsUrl && provider.ownsUrl.call(context, url)) ||
-        provider.parseUrlPkg.call(context, url)
+        provider.ownsUrl?.call(context, url) ||
+        provider.parseUrlPkg?.call(context, url)
       ) {
         return name;
       }
@@ -216,6 +210,7 @@ export class ProviderManager {
     for (const provider of Object.keys(this.providers).reverse()) {
       const providerInstance = this.providers[provider];
       const context = this.#getProviderContext(provider);
+      if (!providerInstance.parseUrlPkg) continue;
       const result = providerInstance.parseUrlPkg.call(context, url);
       if (result)
         return {
@@ -243,6 +238,8 @@ export class ProviderManager {
     provider: string,
     layer = 'default'
   ): `${string}/` | Promise<`${string}/`> {
+    const providerInstance = this.#getProvider(provider);
+    if (!providerInstance.pkgToUrl) throw new JspmError(`Provider ${provider} does not provide versioned package support`);
     return this.#getProvider(provider).pkgToUrl.call(
       this.#getProviderContext(provider),
       pkg,
@@ -346,8 +343,10 @@ export class ProviderManager {
       unstable: target.unstable
     };
 
-    const resolveLatestTarget = this.#getProvider(provider).resolveLatestTarget;
-    const pkg = await resolveLatestTarget.call(
+    const providerInstance = this.#getProvider(provider);
+    if (!providerInstance.resolveLatestTarget)
+      throw new JspmError(`Provider ${provider} does not provide versioned package support, looking up ${target.registry}:${target.name}`);
+    const pkg = await providerInstance.resolveLatestTarget?.call(
       this.#getProviderContext(provider),
       latestTarget,
       layer,

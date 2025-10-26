@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'assert';
-import { mapFile, run } from './scenarios.ts';
+import { mapDirectory, mapFile, run } from './scenarios.ts';
 
 const importMap = await mapFile('fixtures/importmap.js');
 const packageJson = await mapFile('fixtures/package.json');
@@ -49,6 +49,21 @@ test('--release flag', async () => {
       const map = JSON.parse(files.get('importmap.json')!);
       assert.strictEqual(Object.keys(map.scopes).length, 1);
       assert.strictEqual(map.imports.react, 'https://ga.jspm.io/npm:react@18.1.0/index.js');
+    }
+  });
+});
+
+test('Pruned update', async () => {
+  await run({
+    files: await mapDirectory('fixtures/scenario_prune'),
+    commands: ['jspm update -o importmap.json'],
+    validationFn: async (files: Map<string, string>) => {
+      const map = JSON.parse(files.get('importmap.json')!);
+      // TODO: support scopedLink "update"
+      assert.notStrictEqual(
+        map.mediabunny,
+        'https://ga.jspm.io/npm:mediabunny@1.24.1/dist/modules/src/index.js'
+      );
     }
   });
 });

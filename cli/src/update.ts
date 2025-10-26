@@ -19,7 +19,7 @@ export default async function update(packages: string[], flags: GenerateOutputFl
   log(`Flags: ${JSON.stringify(flags)}`);
 
   const env = await getEnv(flags);
-  const generator = await getGenerator(flags);
+  const generator = await getGenerator(flags, undefined, undefined, false);
 
   // Read in any import maps or inline modules in the input:
   let inputPins: string[] = [];

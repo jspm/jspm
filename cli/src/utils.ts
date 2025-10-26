@@ -315,7 +315,8 @@ async function writeJsonOutput(
 export async function getGenerator(
   flags: GenerateFlags & GenerateOutputFlags,
   configOverride: GeneratorOptions | null = null,
-  inputMap?: IImportMap | undefined
+  inputMap?: IImportMap | undefined,
+  scopedLink = true
 ): Promise<Generator> {
   const log = withType('utils/getGenerator');
   const mapUrl = getOutputMapUrl(flags);
@@ -350,7 +351,7 @@ export async function getGenerator(
         resolutions: getResolutions(flags),
         cache: getCacheMode(flags),
         integrity: flags.integrity,
-        scopedLink: true,
+        scopedLink,
         typeScript: true,
         commonJS: true, // TODO: only for --local flag
         // Pass provider configs from configuration file

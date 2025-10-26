@@ -48,7 +48,7 @@ import { initCreate } from './init.ts';
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 /** @ignore */
-export const cli = cac(c.yellow('jspm'));
+export const cli = (cac as any)(c.yellow('jspm'));
 
 type OptionGroup = (input: Command, production?: boolean) => Command;
 

@@ -16,7 +16,7 @@ import { initProject } from './init.ts';
 
 export default async function install(
   flags: GenerateOutputFlags,
-  update: boolean
+  update = false
 ): Promise<{
   staticDeps: string[];
   dynamicDeps: string[];

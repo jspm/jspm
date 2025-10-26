@@ -140,7 +140,6 @@ async function handleLocalFile(
 ) {
   const source = await fs.readFile(resolvedModule.target, { encoding: 'utf8' });
 
-  // @ts-expect-error babel declaration
   const babel = await import('@babel/core');
 
   try {

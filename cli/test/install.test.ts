@@ -54,6 +54,19 @@ test('Local install', async () => {
   });
 });
 
+test('Install pruning', async () => {
+  const files = await mapDirectory('fixtures/scenario_prune');
+  await run({
+    commands: ['jspm install -o importmap.json'],
+    files,
+    validationFn: async (files: Map<string, string>) => {
+      const map: IImportMap = JSON.parse(files.get('importmap.json')!);
+      assert.strictEqual(Object.keys(map.imports!).length, 1);
+      assert.ok(map.scopes!['https://ga.jspm.io/npm:mediabunny@1.24.1/']);
+    }
+  });
+});
+
 // Create package.json with exports
 const packageJsonWithExports = new Map([
   [

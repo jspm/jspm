@@ -1020,7 +1020,9 @@ export class Generator {
           integrity
             ? ` integrity="${await getIntegrity(
                 new Uint8Array(
-                  await (await fetch(new URL(dep, this.baseUrl).href, this.traceMap.resolver.fetchOpts)).arrayBuffer()
+                  await (
+                    await fetch(new URL(dep, this.baseUrl).href, this.traceMap.resolver.fetchOpts)
+                  ).arrayBuffer()
                 )
               )}"`
             : ''

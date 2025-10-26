@@ -14,7 +14,10 @@ import {
 import type { IImportMap } from './types.ts';
 import { initProject } from './init.ts';
 
-export default async function install(flags: GenerateOutputFlags): Promise<{
+export default async function install(
+  flags: GenerateOutputFlags,
+  update: boolean
+): Promise<{
   staticDeps: string[];
   dynamicDeps: string[];
   map: IImportMap | undefined;
@@ -23,7 +26,7 @@ export default async function install(flags: GenerateOutputFlags): Promise<{
   log(`Flags: ${JSON.stringify(flags)}`);
 
   const env = await getEnv(flags);
-  const input = await getInputMap(flags);
+  const input = update ? {} : await getInputMap(flags);
 
   log(`Input map parsed: ${input}`);
 

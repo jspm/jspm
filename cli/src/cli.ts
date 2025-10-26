@@ -36,7 +36,6 @@ import cac, { type Command } from 'cac';
 import clearCache from './clearCache.ts';
 import install from './install.ts';
 import link from './link.ts';
-import update from './update.ts';
 import configCmd from './config-cmd.ts';
 import { JspmError, availableProviders, wrapCommand } from './utils.ts';
 import build from './build.ts';
@@ -49,7 +48,7 @@ import { initCreate } from './init.ts';
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 /** @ignore */
-export const cli = (cac as any)(c.yellow('jspm'));
+export const cli = cac(c.yellow('jspm'));
 
 type OptionGroup = (input: Command, production?: boolean) => Command;
 
@@ -217,7 +216,7 @@ cli
   .allowUnknownOptions()
   .usage('[command] [options]')
   .action(
-    wrapCommand(args => {
+    wrapCommand((args: string[]) => {
       if (args[0] === 'help') return cli.outputHelp();
       if (args[0] === '--version') {
         console.log(version);
@@ -382,26 +381,16 @@ Enhanced Security and Performance:
   )
   .action(wrapCommand(install));
 
-outputOpts(generateOpts(cli.command('update [...packages]', 'Update packages').alias('upgrade')))
+outputOpts(generateOpts(cli.command('update', 'Update packages').alias('upgrade')))
   .example(
     name => `
-$ ${name} update react-dom
+$ ${name} update
 
-Update the react-dom package.
+Update all resolutions.
 `
   )
-  .usage(
-    `update [flags] [...packages]
-
-Updates packages in an import map to the latest versions that are compatible with the local "package.json". The given packages must be valid package specifiers, such as "npm:react@18.0.0", "denoland:oak" or "lit", and must be present in the initial import map.
-
-Import Map Handling:
-  - Takes an input import map (--map) and produces an updated output map (--out)
-  - Only specified packages are updated; all other mappings remain unchanged
-  - Works with the same map formats as install (JSON, JS, HTML)
-  - If no packages are specified, attempts to update all top-level imports`
-  )
-  .action(wrapCommand(update));
+  .usage(`update [flags]`)
+  .action(wrapCommand((flags: GenerateOutputFlags) => install(flags, true)));
 
 /**
  * Flags for the config command to manage JSPM configuration.
@@ -669,16 +658,16 @@ For ejecting a published package:
 `
   )
   .action(
-    wrapCommand(flags => {
+    wrapCommand((flags: PublishFlags | EjectFlags) => {
       if (flags.eject) {
         if (!flags.dir) {
           throw new JspmError(
             'When using --eject, you must provide an explicit --dir flag to eject into'
           );
         }
-        return eject(flags);
+        return eject(flags as EjectFlags);
       } else {
-        return publish(flags);
+        return publish(flags as PublishFlags);
       }
     })
   );

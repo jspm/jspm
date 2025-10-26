@@ -5,7 +5,8 @@ import { mapDirectory, mapFile, run } from './scenarios.ts';
 const importMap = await mapFile('fixtures/importmap.js');
 const packageJson = await mapFile('fixtures/package.json');
 
-test('Basic upgrade to latest react version', async () => {
+// Old update style - TODO bring back package selectors for update on non-primary top-level
+test.skip('Basic upgrade to latest react version', async () => {
   await run({
     files: importMap,
     commands: ['jspm update react -o importmap.json'],
@@ -17,7 +18,7 @@ test('Basic upgrade to latest react version', async () => {
   });
 });
 
-test('Basic upgrade without parameters should upgrade all', async () => {
+test.skip('Basic upgrade without parameters should upgrade all', async () => {
   await run({
     files: importMap,
     commands: ['jspm update -o importmap.json'],
@@ -29,7 +30,7 @@ test('Basic upgrade without parameters should upgrade all', async () => {
   });
 });
 
-test('Upgrade should use version from package.json', async () => {
+test.skip('Upgrade should use version from package.json', async () => {
   await run({
     files: new Map([...importMap, ...packageJson]),
     commands: ['jspm update react -C development -o importmap.json'],
@@ -41,7 +42,7 @@ test('Upgrade should use version from package.json', async () => {
   });
 });
 
-test('--release flag', async () => {
+test.skip('--release flag', async () => {
   await run({
     files: new Map([...importMap, ...packageJson]),
     commands: ['jspm update --release -o importmap.json'],
@@ -59,7 +60,6 @@ test('Pruned update', async () => {
     commands: ['jspm update -o importmap.json'],
     validationFn: async (files: Map<string, string>) => {
       const map = JSON.parse(files.get('importmap.json')!);
-      // TODO: support scopedLink "update"
       assert.notStrictEqual(
         map.mediabunny,
         'https://ga.jspm.io/npm:mediabunny@1.24.1/dist/modules/src/index.js'

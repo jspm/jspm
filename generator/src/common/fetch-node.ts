@@ -3,6 +3,7 @@ import version from '../version.js';
 import path from 'node:path';
 import { homedir } from 'node:os';
 import process from 'node:process';
+// @ts-ignore
 import nodeFetchCache, { FileSystemCache } from 'node-fetch-cache';
 import { existsSync, readFileSync } from 'node:fs';
 import { rm } from 'node:fs/promises';

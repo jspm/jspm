@@ -350,6 +350,7 @@ export async function getGenerator(
         resolutions: getResolutions(flags),
         cache: getCacheMode(flags),
         integrity: flags.integrity,
+        scopedLink: true,
         typeScript: true,
         commonJS: true, // TODO: only for --local flag
         // Pass provider configs from configuration file

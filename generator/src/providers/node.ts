@@ -83,10 +83,6 @@ export function pkgToUrl(pkg: ExactPackage, layer: string): `${string}/` {
   return `node:${pkg.name}/`;
 }
 
-export function isBuiltin(specifier: string): boolean {
-  return specifier.startsWith('node:') ? true : nodeBuiltinSet.has(specifier);
-}
-
 export function resolveBuiltin(
   specifier: string,
   env: string[]

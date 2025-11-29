@@ -236,7 +236,11 @@ export class ProviderManager {
    * @param layer Layer to use
    * @returns URL for the package
    */
-  pkgToUrl(pkg: ExactPackage, provider: string, layer = 'default'): `${string}/` | Promise<`${string}/`> {
+  pkgToUrl(
+    pkg: ExactPackage,
+    provider: string,
+    layer = 'default'
+  ): `${string}/` | Promise<`${string}/`> {
     const providerInstance = this.#getProvider(provider);
     if (!providerInstance.pkgToUrl)
       throw new JspmError(`Provider ${provider} does not provide versioned package support`);
@@ -302,18 +306,6 @@ export class ProviderManager {
       await walk(pkgUrl, pkgUrl);
       return fileList;
     }
-  }
-
-  /**
-   * Determine with the specifier is a builtin specifier
-   */
-  isBuiltin(specifier: string): boolean {
-    for (const [name, provider] of Object.entries(this.providers).reverse()) {
-      if (!provider.isBuiltin) continue;
-      const context = this.#getProviderContext(name);
-      if (provider.isBuiltin.call(context, specifier)) return true;
-    }
-    return false;
   }
 
   /**

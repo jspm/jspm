@@ -10,10 +10,6 @@ const stdlibUrl = 'https://deno.land/std';
 
 let denoStdVersion;
 
-export function isBuiltin(specifier: string): boolean {
-  return specifier.startsWith('deno:');
-}
-
 export function resolveBuiltin(
   specifier: string,
   env: string[]

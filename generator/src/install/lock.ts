@@ -352,7 +352,7 @@ export async function extractLockConstraintsAndMap(
   const pkgUrls = new Set<string>();
   const promises: Promise<void>[] = [];
 
-  for (const key of Object.keys(map.imports || {})) {
+  for (let key of Object.keys(map.imports || {})) {
     promises.push(
       (async () => {
         if (isPlain(key)) {

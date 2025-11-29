@@ -61,7 +61,7 @@ export function createProvider(baseUrl: string, ownsBaseUrl: boolean): Provider 
           registry: 'node_modules',
           version: encodeBase64(pkgUrl)
         },
-        subpath: subpath === './' ? null : (subpath as `./${string}`),
+        builtin: subpath === './' ? null : (subpath as `./${string}`),
         layer: 'default'
       };
     }

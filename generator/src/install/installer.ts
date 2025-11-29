@@ -56,7 +56,6 @@ export type InstallMode = 'default' | 'latest-primaries' | 'latest-all' | 'freez
 
 export type InstallTarget = {
   pkgTarget: PackageTarget | URL;
-  installSubpath: null | '.' | `./${string}`;
 };
 
 export interface InstallerOptions {
@@ -165,7 +164,6 @@ export class Installer {
    *
    * @param {string} pkgName Name of the package being installed.
    * @param {InstallTarget} target The installation target being installed.
-   * @param {`./${string}` | '.'} traceSubpath
    * @param {InstallMode} mode Specifies how to interact with existing installs.
    * @param {`${string}/` | null} pkgScope URL of the package scope in which this install is occurring, null if it's a top-level install.
    * @param {string} parentUrl URL of the parent for this install.
@@ -173,8 +171,7 @@ export class Installer {
    */
   async installTarget(
     pkgName: string,
-    { pkgTarget, installSubpath }: InstallTarget,
-    traceSubpath: `./${string}` | '.',
+    { pkgTarget }: InstallTarget,
     mode: InstallMode,
     pkgScope: `${string}/` | null,
     parentUrl: string
@@ -191,16 +188,8 @@ export class Installer {
         this.defaultRegistry,
         pkgName
       );
-      resolutionTarget.installSubpath = installSubpath;
       if (JSON.stringify(pkgTarget) !== JSON.stringify(resolutionTarget.pkgTarget))
-        return this.installTarget(
-          pkgName,
-          resolutionTarget,
-          traceSubpath,
-          mode,
-          pkgScope,
-          parentUrl
-        );
+        return this.installTarget(pkgName, resolutionTarget, mode, pkgScope, parentUrl);
     }
 
     // URL targets are installed as locks directly, as we have no versioning
@@ -211,14 +200,8 @@ export class Installer {
 
       this.log('installer/installTarget', `${pkgName} ${pkgScope} -> ${installHref} (URL)`);
 
-      this.newInstalls = setResolution(
-        this.installs,
-        pkgName,
-        installUrl,
-        pkgScope,
-        installSubpath
-      );
-      return { installUrl, installSubpath };
+      this.newInstalls = setResolution(this.installs, pkgName, installUrl, pkgScope);
+      return { installUrl };
     }
 
     const provider = this.getProvider(pkgTarget);
@@ -233,15 +216,9 @@ export class Installer {
           `${pkgName} ${pkgScope} -> ${JSON.stringify(pkg)} (existing match)`
         );
         const installUrl = await this.resolver.pm.pkgToUrl(pkg, provider.provider, provider.layer);
-        this.newInstalls = setResolution(
-          this.installs,
-          pkgName,
-          installUrl,
-          pkgScope,
-          installSubpath
-        );
+        this.newInstalls = setResolution(this.installs, pkgName, installUrl, pkgScope);
         setConstraint(this.constraints, pkgName, pkgTarget, pkgScope);
-        return { installUrl, installSubpath };
+        return { installUrl };
       }
     }
 
@@ -272,30 +249,74 @@ export class Installer {
           `${pkgName} ${pkgScope} -> ${JSON.stringify(latestPkg)} (existing match not latest)`
         );
         const installUrl = await this.resolver.pm.pkgToUrl(pkg, provider.provider, provider.layer);
-        this.newInstalls = setResolution(
-          this.installs,
-          pkgName,
-          installUrl,
-          pkgScope,
-          installSubpath
-        );
+        this.newInstalls = setResolution(this.installs, pkgName, installUrl, pkgScope);
         setConstraint(this.constraints, pkgName, pkgTarget, pkgScope);
-        return { installUrl, installSubpath };
+        return { installUrl };
       }
     }
 
     // Otherwise we install latest and make an attempt to upgrade any existing
     // locks that are compatible to the latest version:
-    this.log(
-      'installer/installTarget',
-      `${pkgName} ${pkgScope} -> ${pkgUrl} ${
-        installSubpath ? installSubpath : '<no-subpath>'
-      } (latest)`
-    );
-    this.newInstalls = setResolution(this.installs, pkgName, pkgUrl, pkgScope, installSubpath);
+    this.log('installer/installTarget', `${pkgName} ${pkgScope} -> ${pkgUrl} (latest)`);
+    this.newInstalls = setResolution(this.installs, pkgName, pkgUrl, pkgScope);
     setConstraint(this.constraints, pkgName, pkgTarget, pkgScope);
     if (mode !== 'freeze') this.upgradeSupportedTo(latestPkg, pkgUrl, installed);
-    return { installUrl: pkgUrl, installSubpath };
+    return { installUrl: pkgUrl };
+  }
+
+  async installBuiltin(
+    install: PackageTarget,
+    specifier: string,
+    mode: InstallMode,
+    parentUrl: string
+  ): Promise<InstalledResolution> {
+    this.log('installer/install', `installing builtin ${specifier} from ${parentUrl}`);
+
+    if (this.resolutions[install.name])
+      return this.installTarget(
+        install.name,
+        newPackageTarget(
+          this.resolutions[install.name],
+          this.opts.baseUrl,
+          this.defaultRegistry,
+          install.name
+        ),
+        mode,
+        null,
+        parentUrl
+      );
+
+    const useLatestPjsonTarget = mode.includes('latest');
+
+    // Find any existing locks in the current package scope, making sure
+    // locks are always in-range for their parent scope pjsons:
+    const existingResolution = getResolution(this.installs, install.name, null);
+    if (!useLatestPjsonTarget && existingResolution) {
+      this.log(
+        'installer/install',
+        `existing lock for ${install.name} from ${parentUrl} is ${JSON.stringify(
+          existingResolution
+        )}`
+      );
+      return existingResolution;
+    }
+
+    // existing primary version fallback
+    if (this.installs.primary[install.name]) {
+      const { installUrl } = getResolution(this.installs, install.name, null);
+      return { installUrl };
+    }
+
+    // global install fallback
+    const definitelyPkgScope = await this.installBaseUrl;
+    const target = newPackageTarget(
+      '*',
+      new URL(definitelyPkgScope),
+      this.defaultRegistry,
+      install.name
+    );
+    const { installUrl } = await this.installTarget(install.name, target, mode, null, parentUrl);
+    return { installUrl };
   }
 
   /**
@@ -313,8 +334,8 @@ export class Installer {
     mode: InstallMode,
     pkgScope: `${string}/` | null = null,
     traceSubpath: `./${string}` | '.',
-    parentUrl: string = this.installBaseUrl
-  ): Promise<string | InstalledResolution> {
+    parentUrl: string
+  ): Promise<InstalledResolution> {
     this.log('installer/install', `installing ${pkgName} from ${parentUrl} in scope ${pkgScope}`);
 
     // Anything installed in the scope of the installer's base URL is treated
@@ -332,7 +353,6 @@ export class Installer {
           this.defaultRegistry,
           pkgName
         ),
-        traceSubpath,
         mode,
         isTopLevel ? null : pkgScope,
         parentUrl
@@ -396,8 +416,7 @@ export class Installer {
           this.installs,
           pkgName,
           flattenedResolution.installUrl,
-          pkgScope,
-          flattenedResolution.installSubpath
+          pkgScope
         );
         return flattenedResolution;
       }
@@ -408,24 +427,6 @@ export class Installer {
       return this.installTarget(
         pkgName,
         pjsonTarget,
-        traceSubpath,
-        mode,
-        isTopLevel ? null : pkgScope,
-        parentUrl
-      );
-    }
-
-    // Try resolve the package as a built-in:
-    const specifier = pkgName + (traceSubpath ? traceSubpath.slice(1) : '');
-    const builtin = this.resolver.resolveBuiltin(specifier);
-    if (builtin) {
-      if (typeof builtin === 'string') return builtin;
-      return this.installTarget(
-        specifier,
-        // TODO: either change the types so resolveBuiltin always returns a
-        // fully qualified InstallTarget, or support string targets here.
-        builtin.target as InstallTarget,
-        traceSubpath,
         mode,
         isTopLevel ? null : pkgScope,
         parentUrl
@@ -435,7 +436,7 @@ export class Installer {
     // existing primary version fallback
     if (this.installs.primary[pkgName]) {
       const { installUrl } = getResolution(this.installs, pkgName, null);
-      return { installUrl, installSubpath: null };
+      return { installUrl };
     }
 
     // global install fallback
@@ -448,12 +449,11 @@ export class Installer {
     const { installUrl } = await this.installTarget(
       pkgName,
       target,
-      null,
       mode,
       isTopLevel ? null : pkgScope,
       parentUrl
     );
-    return { installUrl, installSubpath: null };
+    return { installUrl };
   }
 
   // Note: maintain this live instead of recomputing
@@ -526,8 +526,7 @@ export class Installer {
     for (const { alias, pkgScope } of installed) {
       const resolution = getResolution(this.installs, alias, pkgScope);
       if (!resolution) continue;
-      const { installSubpath } = resolution;
-      this.newInstalls = setResolution(this.installs, alias, pkgUrl, pkgScope, installSubpath);
+      this.newInstalls = setResolution(this.installs, alias, pkgUrl, pkgScope);
     }
 
     return true;
@@ -544,8 +543,7 @@ export class Installer {
       const resolution = getResolution(this.installs, alias, pkgScope);
       if (!resolution) continue;
       if (!ranges.some(range => range.has(pkgVersion, true))) continue;
-      const { installSubpath } = resolution;
-      this.newInstalls = setResolution(this.installs, alias, pkgUrl, pkgScope, installSubpath);
+      this.newInstalls = setResolution(this.installs, alias, pkgUrl, pkgScope);
     }
   }
 }

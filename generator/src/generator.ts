@@ -193,12 +193,12 @@ export interface GeneratorOptions {
    * Custom provider definitions define a provider name, and the provider instance consisting of three main hooks:
    *
    * * `pkgToUrl({ registry: string, name: string, version: string }, layer: string) -> String URL`: Returns the URL for a given exact package registry, name and version to use for this provider. If the provider is using layers, the `layer` string can be used to determine the URL layer (where the `defaultProvider: '[name].[layer]'` form is used to determine the layer, eg minified v unminified etc). It is important that package URLs always end in `/`, because packages must be treated as folders not files. An error will be thrown for package URLs returned not ending in `/`.
-   * * `parsePkgUrl(url: string) -> { { registry: string, name: string, version: string }, layer: string } | undefined`: Defines the converse operation to `pkgToUrl`, converting back from a string URL
+   * * `parseUrlPkg(url: string) -> { { registry: string, name: string, version: string }, layer: string } | undefined`: Defines the converse operation to `pkgToUrl`, converting back from a string URL
    * into the exact package registry, name and version, as well as the layer. Should always return `undefined` for unknown URLs as the first matching provider is treated as authoritative when dealing with
    * multi-provider installations.
    * * `resolveLatestTarget(target: { registry: string, name: string, range: SemverRange }, unstable: boolean, layer: string, parentUrl: string) -> Promise<{ registry: string, name: string, version: string } | null>`: Resolve the latest version to use for a given package target. `unstable` indicates that prerelease versions can be matched. The definition of `SemverRange` is as per the [sver package](https://www.npmjs.com/package/sver#semverrange). Returning `null` corresponds to a package not found error.
    *
-   * The use of `pkgToUrl` and `parsePkgUrl` is what allows the JSPM Generator to dedupe package versions internally based on their unique internal identifier `[registry]:[name]@[version]` regardless of what CDN location is used. URLs that do not support `parsePkgUrl` can still be installed and used fine, they just do not participate in version deduping operations.
+   * The use of `pkgToUrl` and `parseUrlPkg` is what allows the JSPM Generator to dedupe package versions internally based on their unique internal identifier `[registry]:[name]@[version]` regardless of what CDN location is used. URLs that do not support `parseUrlPkg` can still be installed and used fine, they just do not participate in version deduping operations.
    *
    * @example
    * ```js
@@ -1145,8 +1145,7 @@ export class Generator {
 
             return {
               alias,
-              target: newTarget,
-              subpath: target.installSubpath ?? undefined
+              target: newTarget
             } as Install;
           }),
           mode
@@ -1285,7 +1284,7 @@ export class Generator {
           `No "imports" package entry for "${name}" to update. Note update takes package names not package specifiers.`
         );
       }
-      const { installUrl, installSubpath } = resolution;
+      const { installUrl } = resolution;
       const subpaths = (this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports))
         .filter(pin => pin === name || (pin.startsWith(name) && pin[name.length] === '/'))
         .map(pin => `.${pin.slice(name.length)}` as '.' | `./${string}`);
@@ -1294,7 +1293,7 @@ export class Generator {
         installs.push({
           alias: name,
           subpaths,
-          target: { pkgTarget: primaryConstraints[name], installSubpath }
+          target: { pkgTarget: primaryConstraints[name] }
         });
       }
       // otherwise synthetize a range from the current package version
@@ -1310,8 +1309,7 @@ export class Generator {
             name: pkg.pkg.name,
             ranges: [new SemverRange('^' + pkg.pkg.version)],
             unstable: false
-          },
-          installSubpath
+          }
         };
         installs.push({ alias: name, subpaths, target });
       }
@@ -1817,7 +1815,7 @@ export async function lookup(install: string | Install, { provider, cache }: Loo
       `Resolved install "${install}" to package specifier ${target}, but expected a fully qualified install target.`
     );
 
-  const { pkgTarget, installSubpath } = target;
+  const { pkgTarget } = target;
   if (pkgTarget instanceof URL) throw new Error('URL lookups not supported');
   const resolved = await generator.traceMap.resolver.pm.resolveLatestTarget(
     pkgTarget,
@@ -1832,7 +1830,6 @@ export async function lookup(install: string | Install, { provider, cache }: Loo
         name: pkgTarget.name,
         range: pkgTarget.ranges.map(range => range.toString()).join(' || ')
       },
-      installSubpath,
       subpath,
       alias
     },

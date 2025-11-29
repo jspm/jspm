@@ -109,7 +109,7 @@ export function configure(config: any) {
 const exactPkgRegEx = /^(([a-z]+):)?((?:@[^/\\%@]+\/)?[^./\\%@][^/\\%@]*)@([^\/]+)(\/.*)?$/;
 
 export function parseUrlPkg(url: string) {
-  let subpath = null;
+  let builtin = null;
   let layer: string;
   if (url.startsWith(gaUrl)) layer = 'default';
   else if (url.startsWith(systemCdnUrl)) layer = 'system';
@@ -118,11 +118,10 @@ export function parseUrlPkg(url: string) {
     url.slice((layer === 'default' ? gaUrl : systemCdnUrl).length).match(exactPkgRegEx) || [];
   if (registry && name && version) {
     if (registry === 'npm' && name === '@jspm/core' && url.includes('/nodelibs/')) {
-      subpath = `./nodelibs/${url.slice(url.indexOf('/nodelibs/') + 10).split('/')[1]}`;
-      if (subpath && subpath.endsWith('.js')) subpath = subpath.slice(0, -3);
-      else subpath = null;
+      builtin = url.slice(url.indexOf('/nodelibs/') + 10);
+      if (builtin.endsWith('.js')) builtin = builtin.slice(0, -3);
     }
-    return { pkg: { registry, name, version }, layer, subpath };
+    return { pkg: { registry, name, version }, layer, builtin };
   }
 }
 
@@ -482,6 +481,7 @@ export async function publish(
       // for mutable packages, we retain the no-cache status for 30 seconds (for testing)
       // 'x-no-cache-duration': 30
     },
+    // @ts-ignore
     body: tarball
   });
 

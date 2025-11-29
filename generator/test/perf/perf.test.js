@@ -11,7 +11,8 @@ const largeInstallSet = await (
   const generator = new Generator({
     defaultProvider: 'jspm.io',
     resolutions: {
-      react: '16.14.0'
+      react: '16.14.0',
+      porto: '0.0.93'
     }
   });
   const installs = Object.entries(largeInstallSet).map(([name, versionRange]) => ({
@@ -25,7 +26,8 @@ const largeInstallSet = await (
   const generator = new Generator({
     defaultProvider: 'jspm.io',
     resolutions: {
-      react: '16.14.0'
+      react: '16.14.0',
+      porto: '0.0.93'
     }
   });
 

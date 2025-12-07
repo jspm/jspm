@@ -70,7 +70,7 @@ export interface ExactPackage {
  */
 export interface ExactModule {
   pkg: ExactPackage;
-  subpath: `./${string}` | null;
+  builtin: string | null;
   source: PackageProvider;
 }
 
@@ -97,7 +97,7 @@ export interface LatestPackageTarget {
 }
 
 const supportedProtocols = ['https', 'http', 'data', 'file', 'pkg'];
-export async function parseUrlOrBuiltinTarget(
+export async function parseUrlTarget(
   resolver: Resolver,
   targetStr: string,
   parentUrl?: URL
@@ -108,36 +108,20 @@ export async function parseUrlOrBuiltinTarget(
     (registryIndex !== -1 && supportedProtocols.includes(targetStr.slice(0, registryIndex))) ||
     builtinSchemes.has(targetStr.slice(0, registryIndex))
   ) {
-    let target: string | InstallTarget;
-    let alias: string;
     let subpath: '.' | `./${string}` = '.';
-    const maybeBuiltin =
-      builtinSchemes.has(targetStr.slice(0, registryIndex)) && resolver.resolveBuiltin(targetStr);
-    if (maybeBuiltin) {
-      if (typeof maybeBuiltin === 'string') {
-        throw new Error(
-          `Builtin "${targetStr}" was resolved to package specifier ${maybeBuiltin}, but JSPM does not currently support installing specifiers for builtins.`
-        );
-      } else {
-        ({ alias, subpath = '.', target } = maybeBuiltin);
-      }
-    } else {
-      const subpathIndex = targetStr.indexOf('|');
-      if (subpathIndex !== -1) {
-        subpath = `./${targetStr.slice(subpathIndex + 1)}` as `./${string}`;
-        targetStr = targetStr.slice(0, subpathIndex);
-      }
-      target = {
-        pkgTarget: new URL(targetStr + (targetStr.endsWith('/') ? '' : '/'), parentUrl || baseUrl),
-        installSubpath: null
-      };
-      const pkgUrl = await resolver.getPackageBase((target.pkgTarget as URL).href);
-
-      alias =
-        (pkgUrl ? await resolver.getPackageConfig(pkgUrl) : null)?.name ||
-        ((target.pkgTarget as URL).pathname.split('/').slice(0, -1).pop() as string);
+    const subpathIndex = targetStr.indexOf('|');
+    if (subpathIndex !== -1) {
+      subpath = `./${targetStr.slice(subpathIndex + 1)}` as `./${string}`;
+      targetStr = targetStr.slice(0, subpathIndex);
     }
-    if (!alias) throw new JspmError(`Unable to determine an alias for target package ${targetStr}`);
+    const target = {
+      pkgTarget: new URL(targetStr + (targetStr.endsWith('/') ? '' : '/'), parentUrl || baseUrl)
+    };
+    const pkgUrl = await resolver.getPackageBase((target.pkgTarget as URL).href);
+
+    const alias =
+      (pkgUrl ? await resolver.getPackageConfig(pkgUrl) : null)?.name ||
+      ((target.pkgTarget as URL).pathname.split('/').slice(0, -1).pop() as string);
     return { alias, target, subpath };
   }
 }
@@ -163,7 +147,7 @@ export async function parseTarget(
   parentPkgUrl: URL,
   defaultRegistry: string
 ): Promise<Install> {
-  const urlTarget = await parseUrlOrBuiltinTarget(resolver, targetStr, parentPkgUrl);
+  const urlTarget = await parseUrlTarget(resolver, targetStr, parentPkgUrl);
   if (urlTarget) return urlTarget;
 
   // TODO: package aliases support as per https://github.com/npm/rfcs/blob/latest/implemented/0001-package-aliases.md
@@ -233,18 +217,16 @@ export function newPackageTarget(
     target.startsWith('/') ||
     registryIndex === 1
   )
-    return { pkgTarget: new URL(target, parentPkgUrl), installSubpath: null };
+    return { pkgTarget: new URL(target, parentPkgUrl) };
 
   registry = registryIndex < 1 ? defaultRegistry : target.slice(0, registryIndex);
 
   if (registry === 'file')
     return {
-      pkgTarget: new URL(target.slice(registry.length + 1), parentPkgUrl),
-      installSubpath: null
+      pkgTarget: new URL(target.slice(registry.length + 1), parentPkgUrl)
     };
 
-  if (registry === 'https' || registry === 'http')
-    return { pkgTarget: new URL(target), installSubpath: null };
+  if (registry === 'https' || registry === 'http') return { pkgTarget: new URL(target) };
 
   const versionIndex = target.lastIndexOf('@');
   let unstable = false;
@@ -273,8 +255,7 @@ export function newPackageTarget(
     throw new JspmError(`Invalid package target ${target}`);
 
   return {
-    pkgTarget: { registry, name, ranges, unstable },
-    installSubpath: null
+    pkgTarget: { registry, name, ranges, unstable }
   };
 }
 

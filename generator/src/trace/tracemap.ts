@@ -79,14 +79,9 @@ interface VisitOpts {
   ) => Promise<boolean | void>;
 }
 
-function combineSubpaths(
-  installSubpath: '.' | `./${string}` | null,
-  traceSubpath: '.' | `./${string}`
-): `./${string}` | '.' {
+function combineSubpaths(traceSubpath: '.' | `./${string}`): `./${string}` | '.' {
   if (traceSubpath.endsWith('/')) throw new Error('Trailing slash subpaths unsupported');
-  return installSubpath === null || installSubpath === '.' || traceSubpath === '.'
-    ? installSubpath || traceSubpath
-    : `${installSubpath}${traceSubpath.slice(1)}`;
+  return traceSubpath;
 }
 
 // The tracemap fully drives the installer
@@ -355,7 +350,7 @@ export default class TraceMap {
   }
 
   async add(name: string, target: InstallTarget, opts: InstallMode): Promise<InstalledResolution> {
-    return await this.installer.installTarget(name, target, null, opts, null, this.mapUrl.href);
+    return await this.installer.installTarget(name, target, opts, null, this.mapUrl.href);
   }
 
   async resolve(
@@ -551,38 +546,54 @@ export default class TraceMap {
       return resolved;
     }
 
-    // @ts-ignore
-    const installed = await this.installer.install(
+    // Builtins
+    const builtin = this.resolver.resolveBuiltin(specifier);
+    if (builtin) {
+      if (typeof builtin === 'string') return builtin;
+      const { installUrl } = await this.installer.installBuiltin(
+        builtin.target,
+        specifier,
+        installOpts,
+        parentUrl
+      );
+      const resolved = await this.resolver.realPath(
+        await this.resolver.resolveExport(
+          installUrl,
+          (builtin.subpath + subpath.slice(1)) as `.${string}`,
+          cjsEnv,
+          false,
+          specifier,
+          parentUrl
+        )
+      );
+      this.log('tracemap/resolve', `${specifier} ${parentUrl} -> ${resolved} (builtin)`);
+      return resolved;
+    }
+
+    // Normal package install
+    const { installUrl } = await this.installer.install(
       pkgName,
       installOpts,
       toplevel ? null : parentPkgUrl,
       subpath,
       parentUrl
     );
-    if (typeof installed === 'string') {
-      return installed;
-    } else if (installed) {
-      const { installUrl, installSubpath } = installed;
-      const resolved = await this.resolver.realPath(
-        await this.resolver.resolveExport(
-          installUrl,
-          combineSubpaths(
-            installSubpath,
-            parentIsCjs && subpath.endsWith('/') ? (subpath.slice(0, -1) as `./${string}`) : subpath
-          ),
-          cjsEnv,
-          parentIsCjs,
-          specifier,
-          parentUrl
-        )
-      );
-      this.log(
-        'tracemap/resolve',
-        `${specifier} ${parentUrl} -> ${resolved} (installation resolution)`
-      );
-      return resolved;
-    }
-
-    throw new JspmError(`No resolution in map for ${specifier}${importedFrom(parentUrl)}`);
+    const resolved = await this.resolver.realPath(
+      await this.resolver.resolveExport(
+        installUrl,
+        combineSubpaths(
+          parentIsCjs && subpath.endsWith('/') ? (subpath.slice(0, -1) as `./${string}`) : subpath
+        ),
+        cjsEnv,
+        parentIsCjs,
+        specifier,
+        parentUrl
+      )
+    );
+    this.log(
+      'tracemap/resolve',
+      `${specifier} ${parentUrl} -> ${resolved} (installation resolution)`
+    );
+    return resolved;
   }
 }

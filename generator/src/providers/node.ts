@@ -1,10 +1,14 @@
-import { ExactPackage, LatestPackageTarget, PackageConfig } from '../install/package.js';
+import {
+  ExactPackage,
+  LatestPackageTarget,
+  PackageConfig,
+  PackageTarget
+} from '../install/package.js';
 import { SemverRange } from 'sver';
 import {
   resolveLatestTarget as resolveLatestTargetJspm,
   pkgToUrl as pkgToUrlJspm
 } from './jspm.js';
-import { Install } from '../generator.js';
 import { Resolver } from '../trace/resolver.js';
 
 export const nodeBuiltinSet = new Set<string>([
@@ -79,7 +83,10 @@ export function pkgToUrl(pkg: ExactPackage, layer: string): `${string}/` {
   return `node:${pkg.name}/`;
 }
 
-export function resolveBuiltin(specifier: string, env: string[]): string | Install | undefined {
+export function resolveBuiltin(
+  specifier: string,
+  env: string[]
+): string | { target: PackageTarget; subpath: `./${string}` } | undefined {
   let builtin = specifier.startsWith('node:')
     ? specifier.slice(5)
     : nodeBuiltinSet.has(specifier)
@@ -100,15 +107,12 @@ export function resolveBuiltin(specifier: string, env: string[]): string | Insta
 
   return {
     target: {
-      pkgTarget: {
-        registry: 'npm',
-        name: '@jspm/core',
-        ranges: [new SemverRange('*')],
-        unstable: true
-      },
-      installSubpath: `./nodelibs/${builtin}`
+      registry: 'npm',
+      name: '@jspm/core',
+      ranges: [new SemverRange('*')],
+      unstable: true
     },
-    alias: builtin
+    subpath: `./nodelibs/${builtin}`
   };
 }
 

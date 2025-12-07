@@ -12,7 +12,7 @@ import {
   PackageTarget
 } from '../install/package.js';
 import { Resolver } from '../trace/resolver.js';
-import { Install } from '../generator.js';
+import { Install, InstallTarget } from '../generator.js';
 import { JspmError } from '../common/err.js';
 import { Log } from '../common/log.js';
 import { PackageProvider } from '../install/installer.js';
@@ -24,7 +24,7 @@ export interface Provider {
   parseUrlPkg?(
     this: ProviderContext,
     url: string
-  ): ExactPackage | { pkg: ExactPackage; subpath: `./${string}` | null; layer: string } | null;
+  ): ExactPackage | { pkg: ExactPackage; layer: string; builtin: string | null } | null;
 
   pkgToUrl?(
     this: ProviderContext,
@@ -42,7 +42,13 @@ export interface Provider {
 
   ownsUrl?(this: ProviderContext, url: string): boolean;
 
-  resolveBuiltin?(this: ProviderContext, specifier: string, env: string[]): string | Install | null;
+  isBuiltin?(this: ProviderContext, specifier: string): boolean;
+
+  resolveBuiltin?(
+    this: ProviderContext,
+    specifier: string,
+    env: string[]
+  ): string | { target: PackageTarget; subpath: '.' | `./${string}` } | null;
 
   getPackageConfig?(this: ProviderContext, pkgUrl: string): Promise<PackageConfig | null>;
 
@@ -202,7 +208,7 @@ export class ProviderManager {
   parseUrlPkg(url: string): {
     pkg: ExactPackage;
     source: { provider: string; layer: string };
-    subpath: `./${string}` | null;
+    builtin: string | null;
   } | null {
     for (const provider of Object.keys(this.providers).reverse()) {
       const providerInstance = this.providers[provider];
@@ -216,7 +222,7 @@ export class ProviderManager {
             provider,
             layer: 'layer' in result ? result.layer : 'default'
           },
-          subpath: 'subpath' in result ? result.subpath : null
+          builtin: 'builtin' in result ? result.builtin : null
         };
     }
     return null;
@@ -306,9 +312,12 @@ export class ProviderManager {
    * Resolve a builtin module
    *
    * @param specifier Module specifier
-   * @returns Resolved string, install object, or undefined if not resolvable
+   * @returns Resolved string, install target and exports subpath, or undefined if not resolvable
    */
-  resolveBuiltin(specifier: string, env: string[]): string | Install | undefined {
+  resolveBuiltin(
+    specifier: string,
+    env: string[]
+  ): string | { target: PackageTarget; subpath: '.' | `./${string}` } | undefined {
     for (const [name, provider] of Object.entries(this.providers).reverse()) {
       if (!provider.resolveBuiltin) continue;
       const context = this.#getProviderContext(name);

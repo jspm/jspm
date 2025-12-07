@@ -5,7 +5,7 @@ import { fetch } from '../common/fetch.js';
 import { importedFrom, isFetchProtocol } from '../common/url.js';
 // @ts-ignore
 import { parse } from 'es-module-lexer/js';
-import { Install } from '../generator.js';
+import type { InstallTarget, PackageTarget } from '../generator.js';
 import { getMapMatch, allDotKeys } from '../common/package.js';
 import { builtinSchemes, mappableSchemes, ProviderManager } from '../providers/index.js';
 import {
@@ -114,11 +114,13 @@ export class Resolver {
     Object.assign(this.pcfgs, packageConfigs);
   }
 
-  resolveBuiltin(specifier: string): string | Install | undefined {
+  resolveBuiltin(
+    specifier: string
+  ): string | { target: PackageTarget; subpath: '.' | `./${string}` } | undefined {
     return this.pm.resolveBuiltin(specifier, this.env);
   }
 
-  async getPackageBase(url: string): Promise<`${string}/`> {
+  getPackageBase(url: string): `${string}/` | Promise<`${string}/`> {
     const pkg = this.pm.parseUrlPkg(url);
     if (pkg) return this.pm.pkgToUrl(pkg.pkg, pkg.source.provider, pkg.source.layer);
 
@@ -128,13 +130,15 @@ export class Resolver {
     } catch {
       return url as `${string}/`;
     }
-    const rootUrl = new URL('/', testUrl).href as `${string}/`;
-    do {
-      let testUrlHref: `${string}/` = testUrl.href as `${string}/`;
-      if (await this.checkPjson(testUrlHref)) return testUrlHref;
-      // No package base -> use directory itself
-      if (testUrl.href === rootUrl) return new URL('./', url).href as `${string}/`;
-    } while ((testUrl = new URL('../', testUrl)));
+    return (async () => {
+      const rootUrl = new URL('/', testUrl).href as `${string}/`;
+      do {
+        let testUrlHref: `${string}/` = testUrl.href as `${string}/`;
+        if (await this.checkPjson(testUrlHref)) return testUrlHref;
+        // No package base -> use directory itself
+        if (testUrl.href === rootUrl) return new URL('./', url).href as `${string}/`;
+      } while ((testUrl = new URL('../', testUrl)));
+    })();
   }
 
   // TODO: there are actually two different kinds of "package" in the codebase.

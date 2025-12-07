@@ -2,7 +2,7 @@ import type { ExactPackage, LatestPackageTarget, PackageConfig } from '../instal
 import { SemverRange } from 'sver';
 // @ts-ignore
 import { fetch } from '../common/fetch.js';
-import type { Install } from '../generator.js';
+import type { PackageTarget } from '../generator.js';
 import type { ProviderContext } from './index.js';
 
 const cdnUrl = 'https://deno.land/x/';
@@ -10,7 +10,10 @@ const stdlibUrl = 'https://deno.land/std';
 
 let denoStdVersion;
 
-export function resolveBuiltin(specifier: string, env: string[]): string | Install | undefined {
+export function resolveBuiltin(
+  specifier: string,
+  env: string[]
+): string | { target: PackageTarget; subpath: '.' | `./${string}` } | undefined {
   // Bare npm:XXX imports are supported by Deno:
   if (env.includes('deno') && specifier.startsWith('npm:')) return specifier;
 
@@ -25,17 +28,13 @@ export function resolveBuiltin(specifier: string, env: string[]): string | Insta
       subpath = `./${name.slice(slashIndex + 1)}`;
     }
     return {
-      alias,
-      subpath,
       target: {
-        pkgTarget: {
-          registry: 'deno',
-          name: 'std',
-          ranges: [new SemverRange('*')],
-          unstable: true
-        },
-        installSubpath: `./${slashIndex === -1 ? name : name.slice(0, slashIndex)}`
-      }
+        registry: 'deno',
+        name: 'std',
+        ranges: [new SemverRange('*')],
+        unstable: true
+      },
+      subpath
     };
   }
 }
@@ -156,7 +155,7 @@ const vCache = {};
 
 export function parseUrlPkg(
   url: string
-): { pkg: ExactPackage; subpath: `./${string}` | null; layer: string } | undefined {
+): { pkg: ExactPackage; builtin: null | string; layer: string } | undefined {
   let subpath = null;
   if (url.startsWith(stdlibUrl) && url[stdlibUrl.length] === '@') {
     const version = url.slice(stdlibUrl.length + 1, url.indexOf('/', stdlibUrl.length + 1));
@@ -167,7 +166,7 @@ export function parseUrlPkg(
     return {
       pkg: { registry: 'deno', name: 'std', version },
       layer: 'default',
-      subpath: `./${name}${subpath ? (`./${subpath}/mod.ts` as `./${string}`) : ''}`
+      builtin: `deno:${name}/${subpath}`
     };
   } else if (url.startsWith(cdnUrl)) {
     const path = url.slice(cdnUrl.length);
@@ -181,7 +180,7 @@ export function parseUrlPkg(
     );
     return {
       pkg: { registry: 'denoland', name, version },
-      subpath: null,
+      builtin: null,
       layer: 'default'
     };
   }

@@ -25,7 +25,7 @@ test('Support importmap.json when both exist', async () => {
 
       const map = JSON.parse(files.get('importmap.json')!);
       assert(
-        map.imports.react === 'https://cdn.jsdelivr.net/npm/react@19.2.0/index.js',
+        map.imports.react === 'https://cdn.jsdelivr.net/npm/react@19.2.1/index.js',
         'react should be preserved in importmap.js'
       );
       assert(!map.imports.jquery, 'jquery should be pruned from importmap.js');

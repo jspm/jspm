@@ -76,7 +76,9 @@ export async function getPackageConfig(
       let err;
       try {
         // if it is a build error, try surface the build error
-        err = await (await fetch(`${pkgUrl}_error.log`)).text();
+        let errRes = await fetch(`${pkgUrl}_error.log`);
+        if (errRes.ok) err = await errRes.text();
+        else err = `Unable to fetch ${pkgUrl}package.json`;
       } catch {}
       if (err) throw new JspmError(err);
     case 406:
@@ -100,7 +102,10 @@ export async function getPackageConfig(
 
 export function configure(config: any) {
   if (config.authToken) authToken = config.authToken;
-  if (config.cdnUrl) gaUrl = withTrailer(config.cdnUrl);
+  if (config.cdnUrl) {
+    gaUrl = withTrailer(config.cdnUrl);
+    clearParseUrlPkgCache(); // Clear cache when CDN URL changes
+  }
   if (config.publishUrl) publishUrl = withTrailer(config.publishUrl);
   if (config.rawUrl) rawUrl = withTrailer(config.rawUrl);
   if (config.apiUrl) apiUrl = withTrailer(config.apiUrl);
@@ -108,7 +113,34 @@ export function configure(config: any) {
 
 const exactPkgRegEx = /^(([a-z]+):)?((?:@[^/\\%@]+\/)?[^./\\%@][^/\\%@]*)@([^\/]+)(\/.*)?$/;
 
+// Cache for parseUrlPkg results - significantly reduces regex and string operations
+let parseUrlPkgCache = new Map<
+  string,
+  | {
+      pkg: { registry: string; name: string; version: string };
+      layer: string;
+      builtin: string | null;
+    }
+  | undefined
+>();
+
+export function clearParseUrlPkgCache() {
+  parseUrlPkgCache = new Map();
+}
+
 export function parseUrlPkg(url: string) {
+  const cached = parseUrlPkgCache.get(url);
+  if (cached !== undefined) return cached;
+
+  // Check for cache miss with undefined stored (url doesn't match)
+  if (parseUrlPkgCache.has(url)) return undefined;
+
+  const result = parseUrlPkgUncached(url);
+  parseUrlPkgCache.set(url, result);
+  return result;
+}
+
+function parseUrlPkgUncached(url: string) {
   let builtin = null;
   let layer: string;
   if (url.startsWith(gaUrl)) layer = 'default';

@@ -592,12 +592,6 @@ export class Resolver {
     }
 
     if (pcfg.exports !== undefined && pcfg.exports !== null) {
-      function allDotKeys(exports: Record<string, any>) {
-        for (let p in exports) {
-          if (p[0] !== '.') return false;
-        }
-        return true;
-      }
       if (typeof pcfg.exports === 'string') {
         if (subpath === '.')
           return this.finalizeResolve(

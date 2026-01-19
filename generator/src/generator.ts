@@ -1901,6 +1901,48 @@ export class Generator {
     if (this.combineSubpaths) map.combineSubpaths();
     return map.toJSON();
   }
+
+  /**
+   * Download all files to disk within the import map to a directory. A rebased import map, with URLs relative
+   * to the output directory is returned.
+   *
+   * Example usage:
+   *
+   * const finalMap = await generator.downloadAll('deps');
+   *
+   * @param outputDirectory The output directory, resolved relative to process.cwd(), where the import
+   * map and its files are stored on the file system. Defaults to 'dist'
+   */
+  async downloadAll(outputDirectory: string = 'deps'): Promise<ImportMap> {
+    if (!isNode) {
+      throw new JspmError('downloadAll is only available in nodejs');
+    }
+
+    const fs = await import(eval('"node:fs/promises"'));
+    const path = await import(eval('"node:path"'));
+
+    const cloudOrigins = new Set<string>();
+
+    for (const url in this.traceMap.installer.resolver.traceEntries) {
+      cloudOrigins.add(new URL(url).origin);
+      const r = await fetch(url);
+      if (!r.ok) {
+        throw Error(`Failed to download file from url '${url}'`);
+      }
+      const text = await r.text();
+      const filename = path.resolve(outputDirectory, '.' + new URL(url).pathname);
+      await fs.mkdir(filename.slice(0, filename.lastIndexOf('/')), { recursive: true });
+      await fs.writeFile(filename, text, 'utf-8');
+    }
+
+    // Remove cloud origins from all URLs
+    let finalMap: ImportMap = this.importMap.clone();
+    for (const cloudOrigin of cloudOrigins) {
+      finalMap = finalMap.rebase(cloudOrigin);
+    }
+
+    return finalMap;
+  }
 }
 
 export interface LookupOptions {

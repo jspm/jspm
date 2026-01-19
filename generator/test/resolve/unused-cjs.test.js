@@ -26,7 +26,7 @@ assert.deepStrictEqual(generator.getMap(), {
   },
   scopes: {
     './cjspkg/': {
-      jquery: 'https://ga.jspm.io/npm:jquery@3.7.1/dist/jquery.js'
+      jquery: 'https://ga.jspm.io/npm:jquery@4.0.0/dist-module/jquery.module.js'
     }
   }
 });

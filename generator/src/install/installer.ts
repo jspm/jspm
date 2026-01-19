@@ -539,21 +539,10 @@ export class Installer {
         this.constraints.secondary[pkgScope] || Object.create(null))[name] = target;
     }
 
-    // Maintain the index incrementally
-    if (this._constraintsByKey) {
-      const key = `${target.registry}:${target.name}`;
-      const constraint: PackageConstraint = {
-        alias: name,
-        pkgScope,
-        ranges: target.ranges
-      };
-      const list = this._constraintsByKey.get(key);
-      if (list) {
-        list.push(constraint);
-      } else {
-        this._constraintsByKey.set(key, [constraint]);
-      }
-    }
+    // Invalidate the index - it will be rebuilt lazily on next access
+    // This is simpler and safer than trying to maintain it incrementally
+    // since setConstraint can update existing constraints
+    this._constraintsByKey = null;
   }
 
   // Get constraints for a package, building index lazily

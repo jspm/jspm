@@ -8,7 +8,6 @@ const largeInstallSet = await (
 
 // First, prime the fetch cache so we are not testing the network as much as possible
 {
-  await clearCache();
   const generator = new Generator({
     defaultProvider: 'jspm.io',
     resolutions: {

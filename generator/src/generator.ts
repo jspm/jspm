@@ -2154,12 +2154,10 @@ export {
 };
 
 export type {
-  CachedAnalysis,
   PublishOutput as DeployOutput,
   ExactModule,
   ExactPackage,
   ExportsTarget,
-  GeneratorCache,
   HtmlAnalysis,
   HtmlTag,
   HtmlAttr,

@@ -365,6 +365,13 @@ export interface GeneratorOptions {
   integrity?: boolean;
 
   /**
+   * Whether to include "dependencyCache" field in the import map.
+   * When enabled, the import map will include direct static and dynamic
+   * dependencies for each module URL in the final pruned graph.
+   */
+  dependencyCache?: boolean;
+
+  /**
    * The number of fetch retries to attempt for request failures.
    * Defaults to 3.
    */

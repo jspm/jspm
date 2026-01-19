@@ -1,4 +1,4 @@
-import { Generator } from '@jspm/generator';
+import { clearCache, Generator } from '@jspm/generator';
 import assert from 'assert';
 import { fetch } from '../../lib/common/fetch.js';
 
@@ -8,6 +8,7 @@ const largeInstallSet = await (
 
 // First, prime the fetch cache so we are not testing the network as much as possible
 {
+  // await clearCache();
   const generator = new Generator({
     defaultProvider: 'jspm.io',
     resolutions: {
@@ -18,7 +19,9 @@ const largeInstallSet = await (
   const installs = Object.entries(largeInstallSet).map(([name, versionRange]) => ({
     target: name + '@' + versionRange
   }));
+  const start = performance.now();
   await generator.install(installs);
+  console.log(`PERF TEST TIME (uncached): ${performance.now() - start}ms`);
 }
 
 // Then we do the actual perf test run
@@ -38,5 +41,5 @@ const largeInstallSet = await (
   const start = performance.now();
   await generator.install(installs);
 
-  console.log(`PERF TEST TIME: ${performance.now() - start}ms`);
+  console.log(`PERF TEST TIME (cached): ${performance.now() - start}ms`);
 }

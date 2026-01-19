@@ -29,10 +29,20 @@ export function getMapMatch<T = any>(
   return bestMatch;
 }
 
-export function allDotKeys(exports: Record<string, any>) {
+// Cache for allDotKeys results - same exports object is checked multiple times
+const allDotKeysCache = new WeakMap<Record<string, any>, boolean>();
+
+export function allDotKeys(exports: Record<string, any>): boolean {
+  const cached = allDotKeysCache.get(exports);
+  if (cached !== undefined) return cached;
+
   for (let p in exports) {
-    if (p[0] !== '.') return false;
+    if (p[0] !== '.') {
+      allDotKeysCache.set(exports, false);
+      return false;
+    }
   }
+  allDotKeysCache.set(exports, true);
   return true;
 }
 

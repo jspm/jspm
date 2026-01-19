@@ -3,14 +3,11 @@ import { Log } from '../common/log.js';
 import { registryProviders } from '../providers/index.js';
 import { Resolver } from '../trace/resolver.js';
 import {
-  getConstraintFor,
   getFlattenedResolution,
   getResolution,
   InstalledResolution,
   LockResolutions,
   PackageConstraint,
-  setConstraint,
-  setResolution,
   VersionConstraints
 } from './lock.js';
 import { ExactPackage, newPackageTarget, PackageTarget } from './package.js';
@@ -104,6 +101,12 @@ export class Installer {
   resolutions: Record<string, string>;
   log: Log;
   resolver: Resolver;
+  // Cached set of package URLs - maintained incrementally for performance
+  private _pkgUrls: Set<string> | null = null;
+  // Index of packages by registry:name for fast lookup in getBestExistingMatch
+  private _pkgsByKey: Map<string, ExactPackage[]> | null = null;
+  // Index of constraints by registry:name for fast lookup
+  private _constraintsByKey: Map<string, PackageConstraint[]> | null = null;
 
   constructor(baseUrl: `${string}/`, opts: InstallerOptions, log: Log, resolver: Resolver) {
     this.log = log;
@@ -200,7 +203,7 @@ export class Installer {
 
       this.log('installer/installTarget', `${pkgName} ${pkgScope} -> ${installHref} (URL)`);
 
-      this.newInstalls = setResolution(this.installs, pkgName, installUrl, pkgScope);
+      this.newInstalls = this.setResolution(pkgName, installUrl, pkgScope);
       return { installUrl };
     }
 
@@ -216,8 +219,8 @@ export class Installer {
           `${pkgName} ${pkgScope} -> ${JSON.stringify(pkg)} (existing match)`
         );
         const installUrl = await this.resolver.pm.pkgToUrl(pkg, provider.provider, provider.layer);
-        this.newInstalls = setResolution(this.installs, pkgName, installUrl, pkgScope);
-        setConstraint(this.constraints, pkgName, pkgTarget, pkgScope);
+        this.newInstalls = this.setResolution(pkgName, installUrl, pkgScope);
+        this.setConstraint(pkgName, pkgTarget, pkgScope);
         return { installUrl };
       }
     }
@@ -229,7 +232,7 @@ export class Installer {
       this.resolver
     );
     const pkgUrl = await this.resolver.pm.pkgToUrl(latestPkg, provider.provider, provider.layer);
-    const installed = getConstraintFor(latestPkg.name, latestPkg.registry, this.constraints);
+    const installed = this.getConstraintFor(latestPkg.name, latestPkg.registry);
 
     // If this is a secondary install, then we ideally want to upgrade all
     // existing locks on this package to latest and use that. If there's a
@@ -249,8 +252,8 @@ export class Installer {
           `${pkgName} ${pkgScope} -> ${JSON.stringify(latestPkg)} (existing match not latest)`
         );
         const installUrl = await this.resolver.pm.pkgToUrl(pkg, provider.provider, provider.layer);
-        this.newInstalls = setResolution(this.installs, pkgName, installUrl, pkgScope);
-        setConstraint(this.constraints, pkgName, pkgTarget, pkgScope);
+        this.newInstalls = this.setResolution(pkgName, installUrl, pkgScope);
+        this.setConstraint(pkgName, pkgTarget, pkgScope);
         return { installUrl };
       }
     }
@@ -258,8 +261,8 @@ export class Installer {
     // Otherwise we install latest and make an attempt to upgrade any existing
     // locks that are compatible to the latest version:
     this.log('installer/installTarget', `${pkgName} ${pkgScope} -> ${pkgUrl} (latest)`);
-    this.newInstalls = setResolution(this.installs, pkgName, pkgUrl, pkgScope);
-    setConstraint(this.constraints, pkgName, pkgTarget, pkgScope);
+    this.newInstalls = this.setResolution(pkgName, pkgUrl, pkgScope);
+    this.setConstraint(pkgName, pkgTarget, pkgScope);
     if (mode !== 'freeze') this.upgradeSupportedTo(latestPkg, pkgUrl, installed);
     return { installUrl: pkgUrl };
   }
@@ -412,12 +415,7 @@ export class Installer {
         (mode === 'freeze' ||
           (await this.inRange(flattenedResolution.installUrl, pjsonTarget.pkgTarget)))
       ) {
-        this.newInstalls = setResolution(
-          this.installs,
-          pkgName,
-          flattenedResolution.installUrl,
-          pkgScope
-        );
+        this.newInstalls = this.setResolution(pkgName, flattenedResolution.installUrl, pkgScope);
         return flattenedResolution;
       }
     }
@@ -456,8 +454,10 @@ export class Installer {
     return { installUrl };
   }
 
-  // Note: maintain this live instead of recomputing
-  private get pkgUrls() {
+  // Cached set of package URLs - built once then maintained incrementally
+  private get pkgUrls(): Set<string> {
+    if (this._pkgUrls) return this._pkgUrls;
+
     const pkgUrls = new Set<string>();
     for (const pkgUrl of Object.values(this.installs.primary)) {
       pkgUrls.add(pkgUrl.installUrl);
@@ -474,20 +474,149 @@ export class Installer {
         pkgUrls.add(installUrl);
       }
     }
+    this._pkgUrls = pkgUrls;
     return pkgUrls;
   }
 
-  private async getBestExistingMatch(matchPkg: PackageTarget): Promise<ExactPackage | null> {
-    let bestMatch: ExactPackage | null = null;
+  // Set resolution and maintain caches incrementally
+  private setResolution(
+    name: string,
+    installUrl: `${string}/`,
+    pkgScope: `${string}/` | null = null
+  ): boolean {
+    let changed: boolean;
+    if (pkgScope === null) {
+      const existing = this.installs.primary[name];
+      if (existing && existing.installUrl === installUrl) {
+        changed = false;
+      } else {
+        this.installs.primary[name] = { installUrl };
+        changed = true;
+      }
+    } else {
+      this.installs.secondary[pkgScope] = this.installs.secondary[pkgScope] || {};
+      const existing = this.installs.secondary[pkgScope][name];
+      if (existing && existing.installUrl === installUrl) {
+        changed = false;
+      } else {
+        this.installs.secondary[pkgScope][name] = { installUrl };
+        changed = true;
+      }
+    }
+    // Maintain the pkgUrls cache incrementally
+    if (this._pkgUrls) {
+      this._pkgUrls.add(installUrl);
+    }
+    // Maintain the pkgsByKey index incrementally
+    if (this._pkgsByKey && changed) {
+      const parsed = this.resolver.pm.parseUrlPkg(installUrl);
+      if (parsed) {
+        const key = `${parsed.pkg.registry}:${parsed.pkg.name}`;
+        const list = this._pkgsByKey.get(key);
+        if (list) {
+          // Check if this exact version is already in the list
+          if (!list.some(p => p.version === parsed.pkg.version)) {
+            list.push(parsed.pkg);
+          }
+        } else {
+          this._pkgsByKey.set(key, [parsed.pkg]);
+        }
+      }
+    }
+    return changed;
+  }
+
+  // Set constraint and maintain the index incrementally
+  private setConstraint(
+    name: string,
+    target: PackageTarget,
+    pkgScope: `${string}/` | null = null
+  ): void {
+    if (pkgScope === null) {
+      this.constraints.primary[name] = target;
+    } else {
+      (this.constraints.secondary[pkgScope] =
+        this.constraints.secondary[pkgScope] || Object.create(null))[name] = target;
+    }
+
+    // Invalidate the index - it will be rebuilt lazily on next access
+    // This is simpler and safer than trying to maintain it incrementally
+    // since setConstraint can update existing constraints
+    this._constraintsByKey = null;
+  }
+
+  // Get constraints for a package, building index lazily
+  private getConstraintFor(name: string, registry: string): PackageConstraint[] {
+    if (!this._constraintsByKey) {
+      // Build the index
+      const index = new Map<string, PackageConstraint[]>();
+      for (const [alias, target] of Object.entries(this.constraints.primary)) {
+        if (target instanceof URL) continue;
+        const key = `${target.registry}:${target.name}`;
+        const constraint: PackageConstraint = { alias, pkgScope: null, ranges: target.ranges };
+        const list = index.get(key);
+        if (list) list.push(constraint);
+        else index.set(key, [constraint]);
+      }
+      for (const [pkgScope, scope] of Object.entries(this.constraints.secondary)) {
+        for (const [alias, target] of Object.entries(scope)) {
+          if (target instanceof URL) continue;
+          const key = `${target.registry}:${target.name}`;
+          const constraint: PackageConstraint = {
+            alias,
+            pkgScope: pkgScope as `${string}/`,
+            ranges: target.ranges
+          };
+          const list = index.get(key);
+          if (list) list.push(constraint);
+          else index.set(key, [constraint]);
+        }
+      }
+      this._constraintsByKey = index;
+    }
+
+    return this._constraintsByKey.get(`${registry}:${name}`) || [];
+  }
+
+  // Build the package index lazily
+  private buildPkgIndex(): Map<string, ExactPackage[]> {
+    if (this._pkgsByKey) return this._pkgsByKey;
+
+    const index = new Map<string, ExactPackage[]>();
     for (const pkgUrl of this.pkgUrls) {
-      const pkg = await this.resolver.pm.parseUrlPkg(pkgUrl);
-      if (pkg && (await this.inRange(pkg.pkg, matchPkg))) {
-        if (bestMatch)
+      const parsed = this.resolver.pm.parseUrlPkg(pkgUrl);
+      if (parsed) {
+        const key = `${parsed.pkg.registry}:${parsed.pkg.name}`;
+        const list = index.get(key);
+        if (list) {
+          if (!list.some(p => p.version === parsed.pkg.version)) {
+            list.push(parsed.pkg);
+          }
+        } else {
+          index.set(key, [parsed.pkg]);
+        }
+      }
+    }
+    this._pkgsByKey = index;
+    return index;
+  }
+
+  private async getBestExistingMatch(matchPkg: PackageTarget): Promise<ExactPackage | null> {
+    const index = this.buildPkgIndex();
+    const key = `${matchPkg.registry}:${matchPkg.name}`;
+    const candidates = index.get(key);
+
+    if (!candidates) return null;
+
+    let bestMatch: ExactPackage | null = null;
+    for (const pkg of candidates) {
+      if (matchPkg.ranges.some(range => range.has(pkg.version, true))) {
+        if (bestMatch) {
           bestMatch =
-            Semver.compare(new Semver(bestMatch.version), pkg.pkg.version) === -1
-              ? pkg.pkg
-              : bestMatch;
-        else bestMatch = pkg.pkg;
+            Semver.compare(new Semver(bestMatch.version), pkg.version) === -1 ? pkg : bestMatch;
+        } else {
+          bestMatch = pkg;
+        }
       }
     }
     return bestMatch;
@@ -526,7 +655,7 @@ export class Installer {
     for (const { alias, pkgScope } of installed) {
       const resolution = getResolution(this.installs, alias, pkgScope);
       if (!resolution) continue;
-      this.newInstalls = setResolution(this.installs, alias, pkgUrl, pkgScope);
+      this.newInstalls = this.setResolution(alias, pkgUrl, pkgScope);
     }
 
     return true;
@@ -543,7 +672,7 @@ export class Installer {
       const resolution = getResolution(this.installs, alias, pkgScope);
       if (!resolution) continue;
       if (!ranges.some(range => range.has(pkgVersion, true))) continue;
-      this.newInstalls = setResolution(this.installs, alias, pkgUrl, pkgScope);
+      this.newInstalls = this.setResolution(alias, pkgUrl, pkgScope);
     }
   }
 }

@@ -67,6 +67,29 @@ import { minimatch } from 'minimatch';
 import type { ExportsTarget, LatestPackageTarget, PackageTarget } from './install/package.js';
 
 /**
+ * Cached analysis data for a module
+ */
+export interface CachedAnalysis {
+  deps: string[];
+  dynamicDeps: string[];
+  size: number;
+  integrity: string;
+  format: 'json' | 'esm' | 'css' | 'wasm';
+  wasCjs: boolean;
+}
+
+/**
+ * Serializable cache structure for the Generator.
+ * Can be saved to disk and restored to speed up subsequent runs.
+ */
+export interface GeneratorCache {
+  /** Package configurations keyed by full package URL */
+  packageConfigs: Record<string, PackageConfig | null>;
+  /** Module analysis data keyed by full module URL */
+  analysis: Record<string, CachedAnalysis>;
+}
+
+/**
  * @interface GeneratorOptions.
  */
 export interface GeneratorOptions {
@@ -486,6 +509,31 @@ export interface GeneratorOptions {
    * retain individual mappings.
    */
   combineSubpaths?: boolean;
+
+  /**
+   * Enable trace caching to optimize uncached runs.
+   *
+   * When set to `true`, enables caching of package configs and analysis data
+   * which can be retrieved via `getCache()`.
+   *
+   * When set to a `GeneratorCache` object, restores a previously saved cache
+   * and enables caching for the session.
+   *
+   * @example
+   * ```js
+   * // First run - build cache
+   * const gen1 = new Generator({ mapUrl: import.meta.url, traceCache: true });
+   * await gen1.install('react');
+   * const cache = gen1.getCache();
+   * fs.writeFileSync('cache.json', JSON.stringify(cache));
+   *
+   * // Second run - use cache (fast)
+   * const savedCache = JSON.parse(fs.readFileSync('cache.json'));
+   * const gen2 = new Generator({ mapUrl: import.meta.url, traceCache: savedCache });
+   * await gen2.install('react');  // uses cached data, fewer fetches
+   * ```
+   */
+  traceCache?: GeneratorCache | true;
 }
 
 /**
@@ -590,6 +638,7 @@ export class Generator {
   flattenScopes: boolean;
   combineSubpaths: boolean;
   scopedLink: boolean;
+  cacheEnabled: boolean;
 
   /**
    * Constructs a new Generator instance.
@@ -641,8 +690,10 @@ export class Generator {
     customResolver,
     flattenScopes = true,
     combineSubpaths = true,
-    scopedLink = false
+    scopedLink = false,
+    traceCache = undefined
   }: GeneratorOptions = {}) {
+    this.cacheEnabled = !!traceCache;
     if (typeof preserveSymlinks !== 'boolean') preserveSymlinks = isNode;
 
     // Default logic for the mapUrl, baseUrl and rootUrl:
@@ -734,6 +785,27 @@ export class Generator {
       log,
       resolver
     );
+
+    // Populate resolver caches from input cache if provided
+    if (traceCache && traceCache !== true) {
+      Object.assign(resolver.pcfgs, traceCache.packageConfigs);
+      // Also mark pcfgPromises as resolved so getPackageConfig doesn't re-fetch
+      for (const url of Object.keys(traceCache.packageConfigs)) {
+        resolver.pcfgPromises[url] = Promise.resolve(traceCache.packageConfigs[url]);
+      }
+
+      for (const [url, cached] of Object.entries(traceCache.analysis)) {
+        resolver.traceEntries[url] = {
+          ...cached,
+          hasStaticParent: true,
+          usesCjs: false,
+          cjsLazyDeps: null,
+          parseError: null
+        };
+        // Mark as already analyzed so analyze() doesn't re-fetch
+        resolver.traceEntryPromises[url] = Promise.resolve();
+      }
+    }
 
     // Reconstruct constraints and locks from the input map:
     this.map = new ImportMap({ mapUrl: this.mapUrl, rootUrl: this.rootUrl });
@@ -1760,6 +1832,56 @@ export class Generator {
   }
 
   /**
+   * Get the serializable cache for this generator session.
+   *
+   * Returns a pruned cache containing only the package configs and analysis
+   * entries that were actually used in the final module graph. This cache
+   * can be saved to disk and passed to a future Generator via the `traceCache`
+   * option to speed up subsequent runs.
+   *
+   * Only includes cacheable formats (json, esm, css, wasm) and entries without
+   * parse errors. CJS/TypeScript/System formats are excluded as they require
+   * dynamic transpilation.
+   *
+   * @example
+   * ```js
+   * const generator = new Generator({ traceCache: true });
+   * await generator.install('react');
+   * const cache = generator.getCache();
+   * fs.writeFileSync('cache.json', JSON.stringify(cache));
+   * ```
+   */
+  getCache(): GeneratorCache {
+    const visited = this.traceMap.resolver.visitedUrls;
+    const cache: GeneratorCache = { packageConfigs: {}, analysis: {} };
+
+    // Only include visited package configs
+    for (const url of visited) {
+      const pcfg = this.traceMap.resolver.pcfgs[url];
+      if (pcfg !== undefined) {
+        cache.packageConfigs[url] = pcfg;
+      }
+    }
+
+    // Only include visited analysis entries (cacheable formats, no parse errors)
+    for (const url of visited) {
+      const entry = this.traceMap.resolver.traceEntries[url];
+      if (entry && !entry.parseError && ['json', 'esm', 'css', 'wasm'].includes(entry.format)) {
+        cache.analysis[url] = {
+          deps: entry.deps,
+          dynamicDeps: entry.dynamicDeps,
+          size: entry.size,
+          integrity: entry.integrity,
+          format: entry.format as 'json' | 'esm' | 'css' | 'wasm',
+          wasCjs: entry.wasCjs
+        };
+      }
+    }
+
+    return cache;
+  }
+
+  /**
    * Obtain the final generated import map, with flattening and subpaths combined
    * (unless otherwise disabled via the Generator flattenScopes and combineSubpaths options).
    *
@@ -2032,10 +2154,12 @@ export {
 };
 
 export type {
+  CachedAnalysis,
   PublishOutput as DeployOutput,
   ExactModule,
   ExactPackage,
   ExportsTarget,
+  GeneratorCache,
   HtmlAnalysis,
   HtmlTag,
   HtmlAttr,

@@ -82,6 +82,9 @@ export class Resolver {
   traceTs: boolean;
   traceSystem: boolean;
   installer: Installer;
+  // Track visited URLs during final extraction for cache pruning
+  // Populated by extractMap's visitor, cleared on each extractMap call
+  visitedUrls: Set<string> = new Set();
   constructor({
     env,
     fetchOpts,

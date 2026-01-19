@@ -265,6 +265,9 @@ export default class TraceMap {
       map.extend(this.inputMap);
     }
 
+    // Clear visited URLs for cache pruning - will be populated during this extraction
+    this.resolver.visitedUrls.clear();
+
     // visit to build the mappings
     const staticList = new Set();
     const dynamicList = new Set();
@@ -278,6 +281,12 @@ export default class TraceMap {
       entry
     ) => {
       if (!list.has(resolved)) list.add(resolved);
+
+      // Track visited URLs for cache pruning
+      this.resolver.visitedUrls.add(resolved);
+      const pkgUrl = await this.resolver.getPackageBase(resolved);
+      if (pkgUrl) this.resolver.visitedUrls.add(pkgUrl);
+
       // no entry applies to builtins
       if (entry) {
         if (integrity) map.setIntegrity(resolved, entry.integrity);

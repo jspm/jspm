@@ -9,12 +9,15 @@ import { PackageConfig } from '../install/package.js';
 import { encodeBase64, decodeBase64 } from '../common/b64.js';
 
 export function createProvider(baseUrl: string, ownsBaseUrl: boolean): Provider {
+  const fileListCache = new Map<string, Promise<Set<string>>>();
+
   return {
     ownsUrl,
     pkgToUrl,
     parseUrlPkg,
     resolveLatestTarget,
-    getPackageConfig
+    getPackageConfig,
+    getFileList
   };
 
   function ownsUrl(this: ProviderContext, url: string) {
@@ -112,6 +115,45 @@ export function createProvider(baseUrl: string, ownsBaseUrl: boolean): Provider 
     await remap.call(this, pcfg.devDependencies);
     return pcfg;
   }
+
+  async function getFileList(
+    this: ProviderContext,
+    pkgUrl: string
+  ): Promise<Set<string> | undefined> {
+    if (!pkgUrl.endsWith('/')) pkgUrl += '/';
+    const cached = fileListCache.get(pkgUrl);
+    if (cached) return cached;
+
+    const promise = (async () => {
+      if (!_readdir)
+        ({ readdir: _readdir } = await import('node:fs/promises'));
+      if (!_fileURLToPath)
+        ({ fileURLToPath: _fileURLToPath } = await import('node:url'));
+
+      const basePath = _fileURLToPath(pkgUrl);
+      const fileList = new Set<string>();
+
+      async function walk(dir: string, prefix: string) {
+        const entries = await _readdir(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.name === 'node_modules' || entry.name === '.git')
+            continue;
+          const rel = prefix ? prefix + '/' + entry.name : entry.name;
+          if (entry.isDirectory()) {
+            await walk(dir + '/' + entry.name, rel);
+          } else {
+            fileList.add(rel);
+          }
+        }
+      }
+
+      await walk(basePath.replace(/[\\/]+$/, ''), '');
+      return fileList;
+    })();
+
+    fileListCache.set(pkgUrl, promise);
+    return promise;
+  }
 }
 
 /**
@@ -121,6 +163,7 @@ export function createProvider(baseUrl: string, ownsBaseUrl: boolean): Provider 
  * TODO: we don't currently handle the target's version constraints here
  */
 let realpath, pathToFileURL;
+let _readdir, _fileURLToPath;
 async function nodeResolve(
   this: ProviderContext,
   name: string,

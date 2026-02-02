@@ -99,7 +99,7 @@ export function createProvider(baseUrl: string, ownsBaseUrl: boolean): Provider 
     async function remap(this: ProviderContext, deps: Record<string, string> | null) {
       if (!deps) return;
       for (const [name, dep] of Object.entries(deps)) {
-        if (!isLocal(dep)) continue;
+        if (!isLocal(dep) && !isAlias(dep)) continue;
 
         const remappedUrl = new URL(`./node_modules/${name}`, pkgUrl);
         if (!(await dirExists.call(this, remappedUrl))) continue;
@@ -213,4 +213,8 @@ async function dirExists(this: ProviderContext, url: URL, parentUrl?: string) {
 
 function isLocal(dep: string): boolean {
   return dep.startsWith('file:');
+}
+
+function isAlias(dep: string): boolean {
+  return dep.startsWith('npm:');
 }

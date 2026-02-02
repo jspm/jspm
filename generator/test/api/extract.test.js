@@ -107,7 +107,7 @@ const inputMap = {
 
 {
   // custom scope respected
-  inputMap.scopes['https://ga.jspm.io/']['#node.js'] = 'https://custom.com/foo.js';
+  inputMap.scopes['https://ga.jspm.io/']['#node.js'] = 'https://foo.com/foo.js';
 
   const generator = new Generator({
     inputMap,
@@ -127,7 +127,7 @@ const inputMap = {
   assert.strictEqual(Object.keys(map.imports).length, 1);
   assert.strictEqual(
     inputMap.scopes['https://ga.jspm.io/']['#node.js'],
-    'https://custom.com/foo.js'
+    'https://foo.com/foo.js'
   );
   assert.strictEqual(
     map.scopes['https://ga.jspm.io/']['@babel/compat-data/native-modules'],

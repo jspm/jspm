@@ -333,23 +333,6 @@ export class ProviderManager {
     parentUrl: string,
     resolver: Resolver
   ): Promise<ExactPackage> {
-    // find the range to resolve latest
-    let range: any;
-    for (const possibleRange of target.ranges.sort(target.ranges[0].constructor.compare)) {
-      if (!range) {
-        range = possibleRange;
-      } else if (possibleRange.gt(range) && !range.contains(possibleRange)) {
-        range = possibleRange;
-      }
-    }
-
-    const latestTarget = {
-      registry: target.registry,
-      name: target.name,
-      range,
-      unstable: target.unstable
-    };
-
     const providerInstance = this.#getProvider(provider);
     if (!providerInstance.resolveLatestTarget)
       throw new JspmError(
@@ -357,7 +340,7 @@ export class ProviderManager {
       );
     const pkg = await providerInstance.resolveLatestTarget?.call(
       this.#getProviderContext(provider),
-      latestTarget,
+      target,
       layer,
       parentUrl,
       resolver
@@ -370,7 +353,7 @@ export class ProviderManager {
       );
     } else {
       throw new JspmError(
-        `Unable to resolve package ${latestTarget.registry}:${latestTarget.name} in range "${latestTarget.range}" from parent ${parentUrl}.`
+        `Unable to resolve package ${target.registry}:${target.name} in range "${target.range}" from parent ${parentUrl}.`
       );
     }
   }

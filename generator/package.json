@@ -49,10 +49,10 @@
     "@babel/preset-typescript": "^7.24.7",
     "@jspm/import-map": "^1.2.2",
     "es-module-lexer": "^1.5.4",
-    "node-fetch-cache": "^5.0.2",
     "minimatch": "^10.0.1",
+    "node-fetch-cache": "^5.0.2",
     "pako": "^2.1.0",
-    "sver": "^1.8.4",
+    "sver": "^2.0.1",
     "tar-stream": "^3.1.6"
   },
   "devDependencies": {

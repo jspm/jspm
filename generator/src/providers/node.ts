@@ -109,7 +109,7 @@ export function resolveBuiltin(
     target: {
       registry: 'npm',
       name: '@jspm/core',
-      ranges: [new SemverRange('*')],
+      range: new SemverRange('*'),
       unstable: true
     },
     subpath: `./nodelibs/${builtin}`

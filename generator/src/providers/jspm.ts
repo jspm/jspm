@@ -343,6 +343,24 @@ export async function resolveLatestTarget(
     await ensureBuild(this, lookup, this.fetchOpts, resolver);
     return lookup;
   }
+
+  // Fallback for compound ranges (union, intersection, comparators) that
+  // don't map to a single JSPM lookup — resolve via full version list:
+  {
+    const versions = await fetchVersions.call(this, name);
+    const version = range.bestMatch(versions, unstable);
+    if (version) {
+      const pkg = { registry, name, version: version.toString() };
+      this.log(
+        'jspm/resolveLatestTarget',
+        `${target.registry}:${target.name}@${range} -> BEST_MATCH ${pkg.version}${
+          parentUrl ? ' [' + parentUrl + ']' : ''
+        }`
+      );
+      await ensureBuild(this, pkg, this.fetchOpts, resolver);
+      return pkg;
+    }
+  }
   return null;
 }
 
@@ -368,7 +386,7 @@ async function lookupRange(
     } else {
       // not found
       const versions = await fetchVersions.call(this, name);
-      const semverRange = new SemverRange(String(range) || '*', unstable);
+      const semverRange = new SemverRange(String(range) || '*');
       const version = semverRange.bestMatch(versions, unstable);
 
       if (version) {

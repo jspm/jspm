@@ -105,7 +105,7 @@ const inputMap = {
   assert.strictEqual(Object.keys(map.scopes['https://ga.jspm.io/']).length, 1);
 }
 
-if (typeof window !== 'undefined') {
+if (typeof window === 'undefined') {
   // custom scope respected
   inputMap.scopes['https://ga.jspm.io/']['#node.js'] = 'https://custom.com/foo.js';
 

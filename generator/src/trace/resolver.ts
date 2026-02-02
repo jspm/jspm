@@ -549,7 +549,7 @@ export class Resolver {
     const stdlibTarget = {
       registry: 'npm',
       name: '@jspm/core',
-      ranges: [new SemverRange('*')],
+      range: new SemverRange('*'),
       unstable: true
     };
     const provider = this.installer.getProvider(stdlibTarget);

@@ -251,7 +251,7 @@ async function packageTargetFromExact(
     return {
       registry,
       name,
-      ranges: [new SemverRange(version)],
+      range: new SemverRange(version),
       unstable: false
     };
   if (permitDowngrades) {
@@ -259,27 +259,27 @@ async function packageTargetFromExact(
       return {
         registry,
         name,
-        ranges: [new SemverRange(v.major)],
+        range: new SemverRange(String(v.major)),
         unstable: false
       };
     if (v.minor !== 0)
       return {
         registry,
         name,
-        ranges: [new SemverRange(v.major + '.' + v.minor)],
+        range: new SemverRange(v.major + '.' + v.minor),
         unstable: false
       };
     return {
       registry,
       name,
-      ranges: [new SemverRange(version)],
+      range: new SemverRange(version),
       unstable: false
     };
   } else {
     return {
       registry,
       name,
-      ranges: [new SemverRange('^' + version)],
+      range: new SemverRange('^' + version),
       unstable: false
     };
   }
@@ -288,7 +288,7 @@ async function packageTargetFromExact(
 export interface PackageConstraint {
   alias: string;
   pkgScope: `${string}/` | null;
-  ranges: any[];
+  range: any;
 }
 
 export function getConstraintFor(
@@ -299,7 +299,7 @@ export function getConstraintFor(
   const installs: PackageConstraint[] = [];
   for (const [alias, target] of Object.entries(constraints.primary)) {
     if (!(target instanceof URL) && target.registry === registry && target.name === name)
-      installs.push({ alias, pkgScope: null, ranges: target.ranges });
+      installs.push({ alias, pkgScope: null, range: target.range });
   }
   for (const [pkgScope, scope] of Object.entries(constraints.secondary)) {
     for (const alias of Object.keys(scope)) {
@@ -308,7 +308,7 @@ export function getConstraintFor(
         installs.push({
           alias,
           pkgScope: pkgScope as `${string}/`,
-          ranges: target.ranges
+          range: target.range
         });
     }
   }

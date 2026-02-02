@@ -42,7 +42,7 @@ const generator = new Generator({
 });
 
 const esmsPkg = await generator.traceMap.resolver.pm.resolveLatestTarget(
-  { name: 'es-module-shims', registry: 'npm', ranges: [new SemverRange('*')] },
+  { name: 'es-module-shims', registry: 'npm', range: new SemverRange('*') },
   generator.traceMap.installer.defaultProvider,
   undefined,
   generator.traceMap.resolver

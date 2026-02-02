@@ -1036,7 +1036,7 @@ export class Generator {
           {
             name: 'es-module-shims',
             registry: 'npm',
-            ranges: [new SemverRange('*')],
+            range: new SemverRange('*'),
             unstable: false
           },
           this.traceMap.installer.defaultProvider,
@@ -1386,7 +1386,7 @@ export class Generator {
           pkgTarget: {
             registry: pkg.pkg.registry,
             name: pkg.pkg.name,
-            ranges: [new SemverRange('^' + pkg.pkg.version)],
+            range: new SemverRange('^' + pkg.pkg.version),
             unstable: false
           }
         };
@@ -1957,7 +1957,7 @@ export async function lookup(install: string | Install, { provider, cache }: Loo
       target: {
         registry: pkgTarget.registry,
         name: pkgTarget.name,
-        range: pkgTarget.ranges.map(range => range.toString()).join(' || ')
+        range: pkgTarget.range.toString()
       },
       subpath,
       alias

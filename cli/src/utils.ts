@@ -968,7 +968,7 @@ export async function getLatestEsms(generator: Generator, provider: string) {
     {
       name: 'es-module-shims',
       registry: 'npm',
-      ranges: [new SemverRange('*')]
+      range: new SemverRange('*')
     },
     generator.traceMap.installer!.defaultProvider
   );

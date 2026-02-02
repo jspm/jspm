@@ -31,7 +31,7 @@ export function resolveBuiltin(
       target: {
         registry: 'deno',
         name: 'std',
-        ranges: [new SemverRange('*')],
+        range: new SemverRange('*'),
         unstable: true
       },
       subpath

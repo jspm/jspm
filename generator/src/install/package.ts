@@ -3,8 +3,6 @@ import { baseUrl, isRelative } from '../common/url.js';
 // @ts-ignore
 import sver from 'sver';
 const { SemverRange } = sver;
-// @ts-ignore
-import convertRange from 'sver/convert-range.js';
 import { InstallTarget, PackageProvider } from './installer.js';
 import { Resolver } from '../trace/resolver.js';
 import { builtinSchemes } from '../providers/index.js';
@@ -81,20 +79,14 @@ export interface ExactModule {
 export interface PackageTarget {
   registry: string;
   name: string;
-  ranges: any[];
+  range: any;
   unstable: boolean;
 }
 
 /**
- * LatestPackageTarget pins down the latest version of a package on an external
- * registry, such as npm or deno.
+ * @deprecated Use PackageTarget directly — ranges are now singular.
  */
-export interface LatestPackageTarget {
-  registry: string;
-  name: string;
-  range: any;
-  unstable: boolean;
-}
+export type LatestPackageTarget = PackageTarget;
 
 const supportedProtocols = ['https', 'http', 'data', 'file', 'pkg'];
 export async function parseUrlTarget(
@@ -209,7 +201,7 @@ export function newPackageTarget(
     target = './';
   }
 
-  let registry: string, name: string, ranges: any[];
+  let registry: string, name: string, range: any;
   const registryIndex = target.indexOf(':');
   if (
     target.startsWith('./') ||
@@ -233,19 +225,14 @@ export function newPackageTarget(
   if (versionIndex > registryIndex + 1) {
     name = target.slice(registryIndex + 1, versionIndex);
     const version = target.slice(versionIndex + 1);
-    ranges =
-      pkgName || SemverRange.isValid(version)
-        ? [new SemverRange(version)]
-        : version.split('||').map(v => convertRange(v));
+    range = new SemverRange(version || '*');
     if (version === '') unstable = true;
   } else if (registryIndex === -1 && pkgName) {
     name = pkgName;
-    ranges = SemverRange.isValid(target)
-      ? [new SemverRange(target)]
-      : target.split('||').map(v => convertRange(v));
+    range = new SemverRange(target);
   } else {
     name = target.slice(registryIndex + 1);
-    ranges = [new SemverRange('*')];
+    range = new SemverRange('*');
   }
 
   if (registryIndex === -1 && name.indexOf('/') !== -1 && name[0] !== '@') registry = 'github';
@@ -255,7 +242,7 @@ export function newPackageTarget(
     throw new JspmError(`Invalid package target ${target}`);
 
   return {
-    pkgTarget: { registry, name, ranges, unstable }
+    pkgTarget: { registry, name, range, unstable }
   };
 }
 

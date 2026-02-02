@@ -209,6 +209,22 @@ export class Installer {
 
     const provider = this.getProvider(pkgTarget);
 
+    // For secondary installs, prefer the primary resolution if it satisfies
+    // our range. This prevents unnecessary version splits where a stale
+    // higher version from getBestExistingMatch would override the primary:
+    if (pkgScope !== null && this.installs.primary[pkgName]) {
+      const primaryUrl = this.installs.primary[pkgName].installUrl;
+      if (await this.inRange(primaryUrl, pkgTarget)) {
+        this.log(
+          'installer/installTarget',
+          `${pkgName} ${pkgScope} -> ${primaryUrl} (primary consolidation)`
+        );
+        this.newInstalls = this.setResolution(pkgName, primaryUrl, pkgScope);
+        this.setConstraint(pkgName, pkgTarget, pkgScope);
+        return { installUrl: primaryUrl };
+      }
+    }
+
     // Look for an existing lock for this package if we're in an install mode
     // that supports them:
     if (mode === 'default' || mode === 'freeze' || !useLatest) {
@@ -234,18 +250,53 @@ export class Installer {
     const pkgUrl = await this.resolver.pm.pkgToUrl(latestPkg, provider.provider, provider.layer);
     const installed = this.getConstraintFor(latestPkg.name, latestPkg.registry);
 
-    // If this is a secondary install, then we ideally want to upgrade all
-    // existing locks on this package to latest and use that. If there's a
-    // constraint and we can't, then we fallback to the best existing lock:
-    if (
+    // If there's an existing primary at a different version, check whether
+    // the primary can be upgraded to latest. If it can, great - use latest.
+    // If it can't, consolidate with the primary if our range allows it.
+    // Otherwise we have to split (fall through to install latest):
+    if (this.installs.primary[pkgName]) {
+      const primaryUrl = this.installs.primary[pkgName].installUrl;
+      if (primaryUrl !== pkgUrl) {
+        // Can all existing installs be upgraded to latest?
+        if (mode !== 'freeze' && this.tryUpgradeAllTo(latestPkg, pkgUrl, installed)) {
+          // Yes - fall through to install latest
+        } else {
+          // No - can we consolidate with the primary instead?
+          if (await this.inRange(primaryUrl, pkgTarget)) {
+            this.log(
+              'installer/installTarget',
+              `${pkgName} ${pkgScope} -> ${primaryUrl} (primary consolidation)`
+            );
+            this.newInstalls = this.setResolution(pkgName, primaryUrl, pkgScope);
+            this.setConstraint(pkgName, pkgTarget, pkgScope);
+            return { installUrl: primaryUrl };
+          }
+          // No - for secondary installs, try best existing match before splitting:
+          if (!isTopLevel) {
+            const pkg = await this.getBestExistingMatch(pkgTarget);
+            if (pkg) {
+              this.log(
+                'installer/installTarget',
+                `${pkgName} ${pkgScope} -> ${JSON.stringify(latestPkg)} (existing match not latest)`
+              );
+              const installUrl = await this.resolver.pm.pkgToUrl(pkg, provider.provider, provider.layer);
+              this.newInstalls = this.setResolution(pkgName, installUrl, pkgScope);
+              this.setConstraint(pkgName, pkgTarget, pkgScope);
+              return { installUrl };
+            }
+          }
+          // Split - fall through to install latest
+        }
+      }
+    } else if (
       mode !== 'freeze' &&
       !useLatest &&
       !isTopLevel &&
       latestPkg &&
       !this.tryUpgradeAllTo(latestPkg, pkgUrl, installed)
     ) {
+      // Secondary install with no primary: try best existing match
       const pkg = await this.getBestExistingMatch(pkgTarget);
-      // cannot upgrade to latest -> stick with existing resolution (if compatible)
       if (pkg) {
         this.log(
           'installer/installTarget',
@@ -533,6 +584,18 @@ export class Installer {
     pkgScope: `${string}/` | null = null
   ): void {
     if (pkgScope === null) {
+      // Don't overwrite a specific primary constraint with a wildcard one.
+      // This prevents subpath installs (e.g. react/jsx-runtime → react@*)
+      // from diluting an explicit version constraint (e.g. react@18.3.1):
+      const existing = this.constraints.primary[name];
+      if (
+        existing &&
+        !(existing instanceof URL) &&
+        !(target instanceof URL) &&
+        !existing.range.isWildcard &&
+        target.range.isWildcard
+      )
+        return;
       this.constraints.primary[name] = target;
     } else {
       (this.constraints.secondary[pkgScope] =
@@ -553,7 +616,7 @@ export class Installer {
       for (const [alias, target] of Object.entries(this.constraints.primary)) {
         if (target instanceof URL) continue;
         const key = `${target.registry}:${target.name}`;
-        const constraint: PackageConstraint = { alias, pkgScope: null, ranges: target.ranges };
+        const constraint: PackageConstraint = { alias, pkgScope: null, range: target.range };
         const list = index.get(key);
         if (list) list.push(constraint);
         else index.set(key, [constraint]);
@@ -565,7 +628,7 @@ export class Installer {
           const constraint: PackageConstraint = {
             alias,
             pkgScope: pkgScope as `${string}/`,
-            ranges: target.ranges
+            range: target.range
           };
           const list = index.get(key);
           if (list) list.push(constraint);
@@ -610,7 +673,7 @@ export class Installer {
 
     let bestMatch: ExactPackage | null = null;
     for (const pkg of candidates) {
-      if (matchPkg.ranges.some(range => range.has(pkg.version, true))) {
+      if (matchPkg.range.has(pkg.version, true)) {
         if (bestMatch) {
           bestMatch =
             Semver.compare(new Semver(bestMatch.version), pkg.version) === -1 ? pkg : bestMatch;
@@ -632,7 +695,7 @@ export class Installer {
     return (
       pkgExact.registry === target.registry &&
       pkgExact.name === target.name &&
-      target.ranges.some(range => range.has(pkgExact.version, true))
+      target.range.has(pkgExact.version, true)
     );
   }
 
@@ -645,8 +708,8 @@ export class Installer {
     const pkgVersion = new Semver(pkg.version);
 
     let allCompatible = true;
-    for (const { ranges } of installed) {
-      if (ranges.every(range => !range.has(pkgVersion))) allCompatible = false;
+    for (const { range } of installed) {
+      if (!range.has(pkgVersion)) allCompatible = false;
     }
 
     if (!allCompatible) return false;
@@ -668,10 +731,10 @@ export class Installer {
     installed: PackageConstraint[]
   ) {
     const pkgVersion = new Semver(pkg.version);
-    for (const { alias, pkgScope, ranges } of installed) {
+    for (const { alias, pkgScope, range } of installed) {
       const resolution = getResolution(this.installs, alias, pkgScope);
       if (!resolution) continue;
-      if (!ranges.some(range => range.has(pkgVersion, true))) continue;
+      if (!range.has(pkgVersion, true)) continue;
       this.newInstalls = this.setResolution(alias, pkgUrl, pkgScope);
     }
   }

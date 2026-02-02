@@ -60,7 +60,7 @@ export async function resolveLatestTarget(
 ): Promise<ExactPackage | null> {
   const { registry, name, range, unstable } = target;
   const versions = await fetchVersions.call(this, name);
-  const semverRange = new SemverRange(String(range) || '*', unstable);
+  const semverRange = new SemverRange(String(range) || '*');
   const version = semverRange.bestMatch(versions, unstable);
   if (version) {
     return { registry, name, version: version.toString() };

@@ -1,0 +1,10 @@
+{
+  "name": "npmalias-test",
+  "exports": {
+    ".": "./index.js"
+  },
+  "dependencies": {
+    "jquery3": "npm:jquery@^3.7.1",
+    "jquery4": "npm:jquery@^4.0.0"
+  }
+}

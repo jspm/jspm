@@ -639,6 +639,11 @@ Download the application package foo@bar into the folder foo, merging its import
 
 Manages publishes to the JSPM providers, currently in experimental preview.
 
+WARNING: jspm publish is experimental and should only be used for prototyping.
+Unlike the https://ga.jspm.io/ CDN which is stable, reliability guarantees are
+not provided for publishing on https://jspm.io/. For reliable package delivery,
+use npm publish — all npm packages are available on the https://ga.jspm.io/ CDN.
+
 For publishing (default):
 
   jspm publish

@@ -216,5 +216,5 @@ function isLocal(dep: string): boolean {
 }
 
 function isAlias(dep: string): boolean {
-  return dep.startsWith('npm:');
+  return dep.indexOf(':') > 1;
 }

@@ -1,0 +1,9 @@
+{
+  "name": "githubalias-test",
+  "exports": {
+    ".": "./index.js"
+  },
+  "dependencies": {
+    "foo": "github:user/foo"
+  }
+}

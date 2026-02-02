@@ -215,8 +215,9 @@ async function writeHtmlOutput(
   }
 
   // TODO: Inject env into the import map somehow.
+  const entryPoints = pins.length ? pins : Object.keys(generator.getMap().imports || {});
   const outputHtml = await generator.htmlInject(html, {
-    pins: pins ?? true,
+    pins: entryPoints,
     htmlUrl: generator.mapUrl, // URL of the output map
     rootUrl: generator.rootUrl,
     preload: flags.release ? true : getPreloadMode(flags),

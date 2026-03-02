@@ -30,31 +30,13 @@ const AUTH_POLL_INTERVAL = 5 * 1000; // 5 seconds between auth polls
 
 // Serialized cache — stores resolved values that persist across serialization
 interface JspmCache {
-  lookupCache: Record<string, ExactPackage>;
-  resolveCache: Record<
-    string,
-    {
-      latest?: ExactPackage | null;
-      majors: Record<string, ExactPackage | null>;
-      minors: Record<string, ExactPackage | null>;
-      tags: Record<string, ExactPackage | null>;
-    }
-  >;
   cachedErrors: Record<string, boolean>;
   buildRequested: Record<string, true>;
 }
 
-// In-flight promises — instance state, reset on configure()
+// Instance caches — reset on configure()
+let lookupCache: Record<string, ExactPackage> = {};
 let lookupInflight: Record<string, Promise<ExactPackage>> = {};
-let resolveInflight: Record<
-  string,
-  {
-    latest: Promise<ExactPackage | null> | null;
-    majors: Record<string, Promise<ExactPackage | null>>;
-    minors: Record<string, Promise<ExactPackage | null>>;
-    tags: Record<string, Promise<ExactPackage | null>>;
-  }
-> = {};
 let cachedErrorsInflight: Record<string, Promise<boolean>> = {};
 let buildRequestedInflight: Record<string, Promise<void>> = {};
 
@@ -117,8 +99,8 @@ export async function getPackageConfig(
 
 export function configure(config: any) {
   versionsCacheMap = {};
+  lookupCache = {};
   lookupInflight = {};
-  resolveInflight = {};
   cachedErrorsInflight = {};
   buildRequestedInflight = {};
   if (config.authToken) authToken = config.authToken;
@@ -181,8 +163,6 @@ function getJspmCache(context: ProviderContext): JspmCache {
   const jspmCache = context.context.jspmCache;
   if (!context.context.jspmCache) {
     return (context.context.jspmCache = {
-      lookupCache: {},
-      resolveCache: {},
       cachedErrors: {},
       buildRequested: {}
     });
@@ -287,31 +267,8 @@ export async function resolveLatestTarget(
     return pkg;
   }
 
-  const { resolveCache } = getJspmCache(this);
-  const cacheKey = target.registry + ':' + target.name;
-
-  const cache = (resolveCache[cacheKey] = resolveCache[cacheKey] || {
-    majors: Object.create(null),
-    minors: Object.create(null),
-    tags: Object.create(null)
-  });
-  const inflight = (resolveInflight[cacheKey] = resolveInflight[cacheKey] || {
-    latest: null,
-    majors: Object.create(null),
-    minors: Object.create(null),
-    tags: Object.create(null)
-  });
-
   if (range.isWildcard || (range.isExact && range.version.tag === 'latest')) {
-    let lookup: ExactPackage | null;
-    if ('latest' in cache) {
-      lookup = cache.latest;
-    } else {
-      lookup = await (inflight.latest ||
-        (inflight.latest = lookupRange.call(this, registry, name, '', unstable, parentUrl)));
-      cache.latest = lookup;
-      inflight.latest = null;
-    }
+    const lookup = await lookupRange.call(this, registry, name, '', unstable, parentUrl);
     if (!lookup) return null;
     this.log(
       'jspm/resolveLatestTarget',
@@ -323,20 +280,11 @@ export async function resolveLatestTarget(
     return lookup;
   }
   if (range.isExact && range.version.tag) {
-    const tag = range.version.tag;
-    let lookup: ExactPackage | null;
-    if (tag in cache.tags) {
-      lookup = cache.tags[tag];
-    } else {
-      lookup = await (inflight.tags[tag] ||
-        (inflight.tags[tag] = lookupRange.call(this, registry, name, tag, unstable, parentUrl)));
-      cache.tags[tag] = lookup;
-      delete inflight.tags[tag];
-    }
+    const lookup = await lookupRange.call(this, registry, name, range.version.tag, unstable, parentUrl);
     if (!lookup) return null;
     this.log(
       'jspm/resolveLatestTarget',
-      `${target.registry}:${target.name}@${range} -> TAG ${tag}${
+      `${target.registry}:${target.name}@${range} -> TAG ${range.version.tag}${
         parentUrl ? ' [' + parentUrl + ']' : ''
       }`
     );
@@ -345,16 +293,7 @@ export async function resolveLatestTarget(
   }
   let stableFallback = false;
   if (range.isMajor) {
-    const major = range.version.major;
-    let lookup: ExactPackage | null;
-    if (major in cache.majors) {
-      lookup = cache.majors[major];
-    } else {
-      lookup = await (inflight.majors[major] ||
-        (inflight.majors[major] = lookupRange.call(this, registry, name, major, unstable, parentUrl)));
-      cache.majors[major] = lookup;
-      delete inflight.majors[major];
-    }
+    const lookup = await lookupRange.call(this, registry, name, range.version.major, unstable, parentUrl);
     if (!lookup) return null;
     // if the latest major is actually a downgrade, use the latest minor version (fallthrough)
     // note this might miss later major prerelease versions, which should strictly be supported via a pkg@X@ unstable major lookup
@@ -373,15 +312,7 @@ export async function resolveLatestTarget(
   }
   if (stableFallback || range.isStable) {
     const minor = `${range.version.major}.${range.version.minor}`;
-    let lookup: ExactPackage | null;
-    if (minor in cache.minors) {
-      lookup = cache.minors[minor];
-    } else {
-      lookup = await (inflight.minors[minor] ||
-        (inflight.minors[minor] = lookupRange.call(this, registry, name, minor, unstable, parentUrl)));
-      cache.minors[minor] = lookup;
-      delete inflight.minors[minor];
-    }
+    const lookup = await lookupRange.call(this, registry, name, minor, unstable, parentUrl);
     // in theory a similar downgrade to the above can happen for stable prerelease ranges ~1.2.3-pre being downgraded to 1.2.2
     // this will be solved by the pkg@X.Y@ unstable minor lookup
     if (!lookup) return null;
@@ -427,7 +358,6 @@ async function lookupRange(
   unstable: boolean,
   parentUrl?: string
 ): Promise<ExactPackage | null> {
-  const { lookupCache } = getJspmCache(this);
   const url = pkgToLookupUrl({ registry, name, version: range }, unstable);
   if (url in lookupCache) return lookupCache[url];
   if (url in lookupInflight) return lookupInflight[url];

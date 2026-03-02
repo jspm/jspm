@@ -1514,6 +1514,7 @@ export class Generator {
 
     // Get the file list from the package and read all the file data
     const fileList = await this.traceMap.resolver.getFileList(pkg);
+    if (!fileList) throw new JspmError(`Unable to get file listing for ${pkg}`);
     const fileData: SourceData = {};
     await Promise.all(
       [...fileList].map(async file => {

@@ -89,6 +89,43 @@ test('build with rollup config', async () => {
   });
 });
 
+test('build with --hash-entries flag', async () => {
+  const filesBuild = await mapDirectory('fixtures/scenario_build_app');
+  await run({
+    files: filesBuild,
+    commands: ['jspm build --out dist --hash-entries --no-install'],
+    validationFn: async (files: Map<string, string>) => {
+      // Entry points should NOT exist with their original names
+      ok(!files.has('dist/app.js'), 'Original app.js should not exist when --hash-entries is used');
+      ok(
+        !files.has('dist/utils.js'),
+        'Original utils.js should not exist when --hash-entries is used'
+      );
+
+      // Find the hashed entry files
+      const hashedApp = [...files.keys()].find(
+        f => f.startsWith('dist/app-') && f.endsWith('.js') && !f.endsWith('.js.map')
+      );
+      const hashedUtils = [...files.keys()].find(
+        f => f.startsWith('dist/utils-') && f.endsWith('.js') && !f.endsWith('.js.map')
+      );
+      ok(hashedApp, 'Hashed app entry file should exist (e.g. dist/app-XXXXXXXX.js)');
+      ok(hashedUtils, 'Hashed utils entry file should exist (e.g. dist/utils-XXXXXXXX.js)');
+
+      // Verify dist package.json exports reference hashed filenames
+      const distPkg = JSON.parse(files.get('dist/package.json')!);
+      ok(
+        distPkg.exports['.'].includes('-') && distPkg.exports['.'].endsWith('.js'),
+        'package.json exports "." should reference hashed filename'
+      );
+      ok(
+        distPkg.exports['./utils'].includes('-') && distPkg.exports['./utils'].endsWith('.js'),
+        'package.json exports "./utils" should reference hashed filename'
+      );
+    }
+  });
+});
+
 test('build with --no-install flag', async () => {
   const filesBuild = await mapDirectory('fixtures/scenario_build_app');
   await run({

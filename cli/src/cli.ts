@@ -498,7 +498,8 @@ generateOpts(
       })
       .option('--install', 'Generate import map after build completes', {
         default: true
-      }),
+      })
+      .option('--hash-entries', 'Hash entry point filenames in the output'),
     true
   )
 )
@@ -568,6 +569,8 @@ export interface BuildFlags extends GenerateFlags {
   minify?: boolean;
   /** Generate import map after build completes (defaults to true) */
   install?: boolean;
+  /** Hash entry point filenames in the output */
+  hashEntries?: boolean;
 }
 
 // Publish command - main command is now just publish with --eject flag for eject functionality

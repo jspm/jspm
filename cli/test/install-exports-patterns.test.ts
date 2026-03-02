@@ -47,22 +47,15 @@ test('Install with exports field subpath patterns', async () => {
       assert(map.imports!['test-package/utils']);
 
       // Component pattern subpaths
-      assert(map.imports!['test-package/components/button.js']);
-      assert(map.imports!['test-package/components/input.js']);
+      assert(map.imports!['test-package/components/']);
       assert.strictEqual(
-        map.imports!['test-package/components/button.js'],
-        './src/components/button.js'
-      );
-      assert.strictEqual(
-        map.imports!['test-package/components/input.js'],
-        './src/components/input.js'
+        map.imports!['test-package/components/'],
+        './src/components/'
       );
 
       // CSS pattern subpaths with extension
-      assert(map.imports!['test-package/styles/main.css']);
-      assert(map.imports!['test-package/styles/theme.css']);
-      assert.strictEqual(map.imports!['test-package/styles/main.css'], './assets/css/main.css');
-      assert.strictEqual(map.imports!['test-package/styles/theme.css'], './assets/css/theme.css');
+      assert(map.imports!['test-package/styles/']);
+      assert.strictEqual(map.imports!['test-package/styles/'], './assets/css/');
 
       // Conditional exports with patterns
       assert(map.imports!['test-package/lib/math']);

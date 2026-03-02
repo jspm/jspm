@@ -79,7 +79,9 @@ export async function eject(flags: EjectFlags) {
   const log = withType('publish/eject');
 
   console.warn(
-    `${c.yellow('Warning:')} jspm publish is experimental and should only be used for prototyping. Unlike the https://ga.jspm.io/ CDN which is stable, reliability guarantees are not provided for publishing on https://jspm.io/. For reliable package delivery, use npm publish — all npm packages are available on the https://ga.jspm.io/ CDN.`
+    `${c.yellow(
+      'Warning:'
+    )} jspm publish is experimental and should only be used for prototyping. Unlike the https://ga.jspm.io/ CDN which is stable, reliability guarantees are not provided for publishing on https://jspm.io/. For reliable package delivery, use npm publish — all npm packages are available on the https://ga.jspm.io/ CDN.`
   );
 
   const pkg = flags.eject;
@@ -123,7 +125,9 @@ export async function publish(flags: PublishFlags = {}) {
   const log = withType('publish/publish');
 
   console.warn(
-    `${c.yellow('Warning:')} jspm publish is experimental and should only be used for prototyping. Unlike the https://ga.jspm.io/ CDN which is stable, reliability guarantees are not provided for publishing on https://jspm.io/. For reliable package delivery, use npm publish — all npm packages are available on the https://ga.jspm.io/ CDN.`
+    `${c.yellow(
+      'Warning:'
+    )} jspm publish is experimental and should only be used for prototyping. Unlike the https://ga.jspm.io/ CDN which is stable, reliability guarantees are not provided for publishing on https://jspm.io/. For reliable package delivery, use npm publish — all npm packages are available on the https://ga.jspm.io/ CDN.`
   );
 
   // Use initProject to get validated project configuration

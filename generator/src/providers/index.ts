@@ -17,8 +17,6 @@ import { JspmError } from '../common/err.js';
 import { Log } from '../common/log.js';
 import { PackageProvider } from '../install/installer.js';
 import type { ImportMap } from '@jspm/import-map';
-import { isNode } from '../common/env.js';
-import { fetch } from '../common/fetch.js';
 
 export interface Provider {
   parseUrlPkg?(
@@ -280,31 +278,6 @@ export class ProviderManager {
         pkgUrl
       );
       return fileList || undefined;
-    }
-    // if we don't have a provider, and we are on the local filesystem, verify there
-    // is a package.json and do a glob excluding node_modules
-    if ((isNode && pkgUrl.startsWith('file:')) || pkgUrl.startsWith('https:')) {
-      const fileList = new Set<string>();
-      async function walk(path: string, basePath: string) {
-        try {
-          const res = await fetch(path);
-
-          if (res.status === 200) {
-            fileList.add(path.slice(basePath.length));
-          } else if (res.status === 204) {
-            if (!path.endsWith('/')) path += '/';
-            const dirListing = await res.json();
-            for (const entry of dirListing) {
-              if (entry === 'node_modules' || entry === '.git') continue;
-              await walk(path + entry, basePath);
-            }
-          }
-        } catch (e) {
-          throw new JspmError(`Unable to read package ${path} - ${e.toString()}`);
-        }
-      }
-      await walk(pkgUrl, pkgUrl);
-      return fileList;
     }
   }
 

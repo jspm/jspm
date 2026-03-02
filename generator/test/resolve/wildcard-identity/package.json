@@ -3,5 +3,11 @@
   "exports": {
     ".": "./index.js",
     "./modules/*": "./modules/*"
-  }
+  },
+  "files": [
+    "index.js",
+    "modules/a.js",
+    "modules/b.js",
+    "modules/c.js"
+  ]
 }

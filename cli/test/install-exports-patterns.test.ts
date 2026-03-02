@@ -48,10 +48,7 @@ test('Install with exports field subpath patterns', async () => {
 
       // Component pattern subpaths
       assert(map.imports!['test-package/components/']);
-      assert.strictEqual(
-        map.imports!['test-package/components/'],
-        './src/components/'
-      );
+      assert.strictEqual(map.imports!['test-package/components/'], './src/components/');
 
       // CSS pattern subpaths with extension
       assert(map.imports!['test-package/styles/']);

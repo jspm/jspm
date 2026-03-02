@@ -816,7 +816,8 @@ export class Generator {
     if (!integrity) this.map.integrity = {};
     if (inputMap) this.addMappings(inputMap);
     this.flattenScopes = flattenScopes;
-    this.combineSubpaths = combineSubpaths === true ? 'scopes' : combineSubpaths === false ? 'none' : combineSubpaths;
+    this.combineSubpaths =
+      combineSubpaths === true ? 'scopes' : combineSubpaths === false ? 'none' : combineSubpaths;
 
     // Set the fetch retry count
     if (typeof fetchRetries === 'number') setRetryCount(fetchRetries);
@@ -1280,7 +1281,7 @@ export class Generator {
               return alias;
             }
             // If the provider supports it, get a file listing for the package to assist with glob expansions
-            const fileList = await this.traceMap.resolver.pm.getFileList(installed.installUrl);
+            const fileList = await this.traceMap.resolver.getFileList(installed.installUrl);
             // Expand exports into entry point list
             const resolutionMap = new Map<string, string>();
             await expandExportsResolutions(
@@ -1512,7 +1513,7 @@ export class Generator {
     if (!pkg.endsWith('/')) pkg += '/';
 
     // Get the file list from the package and read all the file data
-    const fileList = await this.traceMap.resolver.pm.getFileList(pkg);
+    const fileList = await this.traceMap.resolver.getFileList(pkg);
     const fileData: SourceData = {};
     await Promise.all(
       [...fileList].map(async file => {

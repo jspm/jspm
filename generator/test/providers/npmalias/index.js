@@ -1,2 +1,2 @@
-import "jquery3";
-import "jquery4";
+import 'jquery3';
+import 'jquery4';

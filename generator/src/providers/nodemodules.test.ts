@@ -35,11 +35,7 @@ try {
   assert.ok(fileList instanceof Set, 'getFileList should return a Set');
 
   const files = [...fileList].sort();
-  assert.deepStrictEqual(files, [
-    'package.json',
-    'src/index.js',
-    'src/utils/helper.js',
-  ]);
+  assert.deepStrictEqual(files, ['package.json', 'src/index.js', 'src/utils/helper.js']);
 
   // Second call should return the cached result (same reference)
   const fileList2 = await provider.getFileList!.call({} as any, pkgUrl);

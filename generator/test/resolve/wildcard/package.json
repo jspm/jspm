@@ -1,5 +1,8 @@
 {
   "exports": {
     "./some/*": "./a-*.js"
-  }
+  },
+  "files": [
+    "a-module.js"
+  ]
 }

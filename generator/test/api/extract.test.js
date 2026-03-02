@@ -125,10 +125,7 @@ const inputMap = {
     'https://ga.jspm.io/npm:@babel/core@7.26.10/lib/index.js'
   );
   assert.strictEqual(Object.keys(map.imports).length, 1);
-  assert.strictEqual(
-    inputMap.scopes['https://ga.jspm.io/']['#node.js'],
-    'https://foo.com/foo.js'
-  );
+  assert.strictEqual(inputMap.scopes['https://ga.jspm.io/']['#node.js'], 'https://foo.com/foo.js');
   assert.strictEqual(
     map.scopes['https://ga.jspm.io/']['@babel/compat-data/native-modules'],
     'https://ga.jspm.io/npm:@babel/compat-data@7.28.0/native-modules.js'

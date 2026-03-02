@@ -3,14 +3,10 @@ import assert from 'assert';
 
 const generator = new Generator({
   mapUrl: import.meta.url,
-  defaultProvider: 'unpkg',
+  defaultProvider: 'unpkg'
 });
 
-await generator.install([
-  '@webflow/react@1.0.2',
-  'react@18.3.1',
-  'react/jsx-runtime'
-]);
+await generator.install(['@webflow/react@1.0.2', 'react@18.3.1', 'react/jsx-runtime']);
 const json = generator.getMap();
 
 // The react dependency should remain at version 18

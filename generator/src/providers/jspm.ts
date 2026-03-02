@@ -22,26 +22,41 @@ let publishUrl = 'https://dev.qitkao.com/';
 let rawUrl = 'https://jspm.io/';
 
 let authToken;
+let versionsCacheMap: Record<string, string[]> = {};
 
 const BUILD_POLL_TIME = 60 * 1000;
 const BUILD_POLL_INTERVAL = 5 * 1000;
 const AUTH_POLL_INTERVAL = 5 * 1000; // 5 seconds between auth polls
 
+// Serialized cache — stores resolved values that persist across serialization
 interface JspmCache {
-  lookupCache: Map<string, Promise<ExactPackage>>;
-  versionsCacheMap: Map<string, string[]>;
+  lookupCache: Record<string, ExactPackage>;
   resolveCache: Record<
     string,
     {
-      latest: Promise<ExactPackage | null>;
-      majors: Record<string, Promise<ExactPackage | null>>;
-      minors: Record<string, Promise<ExactPackage | null>>;
-      tags: Record<string, Promise<ExactPackage | null>>;
+      latest?: ExactPackage | null;
+      majors: Record<string, ExactPackage | null>;
+      minors: Record<string, ExactPackage | null>;
+      tags: Record<string, ExactPackage | null>;
     }
   >;
-  cachedErrors: Map<string, Promise<boolean>>;
-  buildRequested: Map<string, Promise<void>>;
+  cachedErrors: Record<string, boolean>;
+  buildRequested: Record<string, true>;
 }
+
+// In-flight promises — instance state, reset on configure()
+let lookupInflight: Record<string, Promise<ExactPackage>> = {};
+let resolveInflight: Record<
+  string,
+  {
+    latest: Promise<ExactPackage | null> | null;
+    majors: Record<string, Promise<ExactPackage | null>>;
+    minors: Record<string, Promise<ExactPackage | null>>;
+    tags: Record<string, Promise<ExactPackage | null>>;
+  }
+> = {};
+let cachedErrorsInflight: Record<string, Promise<boolean>> = {};
+let buildRequestedInflight: Record<string, Promise<void>> = {};
 
 export const supportedLayers = ['default', 'system'];
 
@@ -101,6 +116,11 @@ export async function getPackageConfig(
 }
 
 export function configure(config: any) {
+  versionsCacheMap = {};
+  lookupInflight = {};
+  resolveInflight = {};
+  cachedErrorsInflight = {};
+  buildRequestedInflight = {};
   if (config.authToken) authToken = config.authToken;
   if (config.cdnUrl) {
     gaUrl = withTrailer(config.cdnUrl);
@@ -161,11 +181,10 @@ function getJspmCache(context: ProviderContext): JspmCache {
   const jspmCache = context.context.jspmCache;
   if (!context.context.jspmCache) {
     return (context.context.jspmCache = {
-      lookupCache: new Map(),
-      versionsCacheMap: new Map(),
+      lookupCache: {},
       resolveCache: {},
-      cachedErrors: new Map(),
-      buildRequested: new Map()
+      cachedErrors: {},
+      buildRequested: {}
     });
   }
   return jspmCache;
@@ -185,7 +204,8 @@ async function checkBuildOrError(
   }
   const { cachedErrors } = getJspmCache(context);
   // no package.json! Check if there's a build error:
-  if (cachedErrors.has(pkgUrl)) return cachedErrors.get(pkgUrl);
+  if (pkgUrl in cachedErrors) return cachedErrors[pkgUrl];
+  if (pkgUrl in cachedErrorsInflight) return cachedErrorsInflight[pkgUrl];
 
   const cachedErrorPromise = (async () => {
     try {
@@ -196,10 +216,12 @@ async function checkBuildOrError(
         )}&body=_Reporting%20CDN%20Build%20Error._%0A%0A%3C!--%20%20No%20further%20description%20necessary,%20just%20click%20%22Submit%20new%20issue%22%20--%3E`
       );
     } catch (e) {
+      cachedErrors[pkgUrl] = false;
+      delete cachedErrorsInflight[pkgUrl];
       return false;
     }
   })();
-  cachedErrors.set(pkgUrl, cachedErrorPromise);
+  cachedErrorsInflight[pkgUrl] = cachedErrorPromise;
   return cachedErrorPromise;
 }
 
@@ -217,7 +239,8 @@ async function ensureBuild(
 
   // no package.json AND no build error -> post a build request
   // once the build request has been posted, try polling for up to 2 mins
-  if (buildRequested.has(fullName)) return buildRequested.get(fullName);
+  if (fullName in buildRequested) return;
+  if (fullName in buildRequestedInflight) return buildRequestedInflight[fullName];
   const buildPromise = (async () => {
     const buildRes = await fetch(`${apiUrl}build/${fullName}`, fetchOpts);
     if (!buildRes.ok && buildRes.status !== 403) {
@@ -232,7 +255,11 @@ async function ensureBuild(
     while (true) {
       await new Promise(resolve => setTimeout(resolve, BUILD_POLL_INTERVAL));
 
-      if (await checkBuildOrError(context, pkgToUrl(pkg, 'default'), fetchOpts, resolver)) return;
+      if (await checkBuildOrError(context, pkgToUrl(pkg, 'default'), fetchOpts, resolver)) {
+        buildRequested[fullName] = true;
+        delete buildRequestedInflight[fullName];
+        return;
+      }
 
       if (Date.now() - startTime >= BUILD_POLL_TIME)
         throw new JspmError(
@@ -240,7 +267,7 @@ async function ensureBuild(
         );
     }
   })();
-  buildRequested.set(fullName, buildPromise);
+  buildRequestedInflight[fullName] = buildPromise;
   return buildPromise;
 }
 
@@ -261,10 +288,14 @@ export async function resolveLatestTarget(
   }
 
   const { resolveCache } = getJspmCache(this);
+  const cacheKey = target.registry + ':' + target.name;
 
-  const cache = (resolveCache[target.registry + ':' + target.name] = resolveCache[
-    target.registry + ':' + target.name
-  ] || {
+  const cache = (resolveCache[cacheKey] = resolveCache[cacheKey] || {
+    majors: Object.create(null),
+    minors: Object.create(null),
+    tags: Object.create(null)
+  });
+  const inflight = (resolveInflight[cacheKey] = resolveInflight[cacheKey] || {
     latest: null,
     majors: Object.create(null),
     minors: Object.create(null),
@@ -272,10 +303,15 @@ export async function resolveLatestTarget(
   });
 
   if (range.isWildcard || (range.isExact && range.version.tag === 'latest')) {
-    let lookup = await (cache.latest ||
-      (cache.latest = lookupRange.call(this, registry, name, '', unstable, parentUrl)));
-    // Deno wat?
-    if (lookup instanceof Promise) lookup = await lookup;
+    let lookup: ExactPackage | null;
+    if ('latest' in cache) {
+      lookup = cache.latest;
+    } else {
+      lookup = await (inflight.latest ||
+        (inflight.latest = lookupRange.call(this, registry, name, '', unstable, parentUrl)));
+      cache.latest = lookup;
+      inflight.latest = null;
+    }
     if (!lookup) return null;
     this.log(
       'jspm/resolveLatestTarget',
@@ -288,10 +324,15 @@ export async function resolveLatestTarget(
   }
   if (range.isExact && range.version.tag) {
     const tag = range.version.tag;
-    let lookup = await (cache.tags[tag] ||
-      (cache.tags[tag] = lookupRange.call(this, registry, name, tag, unstable, parentUrl)));
-    // Deno wat?
-    if (lookup instanceof Promise) lookup = await lookup;
+    let lookup: ExactPackage | null;
+    if (tag in cache.tags) {
+      lookup = cache.tags[tag];
+    } else {
+      lookup = await (inflight.tags[tag] ||
+        (inflight.tags[tag] = lookupRange.call(this, registry, name, tag, unstable, parentUrl)));
+      cache.tags[tag] = lookup;
+      delete inflight.tags[tag];
+    }
     if (!lookup) return null;
     this.log(
       'jspm/resolveLatestTarget',
@@ -305,10 +346,15 @@ export async function resolveLatestTarget(
   let stableFallback = false;
   if (range.isMajor) {
     const major = range.version.major;
-    let lookup = await (cache.majors[major] ||
-      (cache.majors[major] = lookupRange.call(this, registry, name, major, unstable, parentUrl)));
-    // Deno wat?
-    if (lookup instanceof Promise) lookup = await lookup;
+    let lookup: ExactPackage | null;
+    if (major in cache.majors) {
+      lookup = cache.majors[major];
+    } else {
+      lookup = await (inflight.majors[major] ||
+        (inflight.majors[major] = lookupRange.call(this, registry, name, major, unstable, parentUrl)));
+      cache.majors[major] = lookup;
+      delete inflight.majors[major];
+    }
     if (!lookup) return null;
     // if the latest major is actually a downgrade, use the latest minor version (fallthrough)
     // note this might miss later major prerelease versions, which should strictly be supported via a pkg@X@ unstable major lookup
@@ -327,12 +373,17 @@ export async function resolveLatestTarget(
   }
   if (stableFallback || range.isStable) {
     const minor = `${range.version.major}.${range.version.minor}`;
-    let lookup = await (cache.minors[minor] ||
-      (cache.minors[minor] = lookupRange.call(this, registry, name, minor, unstable, parentUrl)));
+    let lookup: ExactPackage | null;
+    if (minor in cache.minors) {
+      lookup = cache.minors[minor];
+    } else {
+      lookup = await (inflight.minors[minor] ||
+        (inflight.minors[minor] = lookupRange.call(this, registry, name, minor, unstable, parentUrl)));
+      cache.minors[minor] = lookup;
+      delete inflight.minors[minor];
+    }
     // in theory a similar downgrade to the above can happen for stable prerelease ranges ~1.2.3-pre being downgraded to 1.2.2
     // this will be solved by the pkg@X.Y@ unstable minor lookup
-    // Deno wat?
-    if (lookup instanceof Promise) lookup = await lookup;
     if (!lookup) return null;
     this.log(
       'jspm/resolveLatestTarget',
@@ -378,11 +429,13 @@ async function lookupRange(
 ): Promise<ExactPackage | null> {
   const { lookupCache } = getJspmCache(this);
   const url = pkgToLookupUrl({ registry, name, version: range }, unstable);
-  if (lookupCache.has(url)) return lookupCache.get(url);
+  if (url in lookupCache) return lookupCache[url];
+  if (url in lookupInflight) return lookupInflight[url];
   const lookupPromise = (async () => {
     const version = await getTextIfOk(url, this.fetchOpts);
+    let result: ExactPackage;
     if (version) {
-      return { registry, name, version: version.trim() };
+      result = { registry, name, version: version.trim() };
     } else {
       // not found
       const versions = await fetchVersions.call(this, name);
@@ -390,16 +443,20 @@ async function lookupRange(
       const version = semverRange.bestMatch(versions, unstable);
 
       if (version) {
-        return { registry, name, version: version.toString() };
+        result = { registry, name, version: version.toString() };
+      } else {
+        throw new JspmError(
+          `Unable to resolve ${registry}:${name}@${range} to a valid version${importedFrom(
+            parentUrl
+          )}`
+        );
       }
-      throw new JspmError(
-        `Unable to resolve ${registry}:${name}@${range} to a valid version${importedFrom(
-          parentUrl
-        )}`
-      );
     }
+    lookupCache[url] = result;
+    delete lookupInflight[url];
+    return result;
   })();
-  lookupCache.set(url, lookupPromise);
+  lookupInflight[url] = lookupPromise;
   return lookupPromise;
 }
 
@@ -418,14 +475,13 @@ async function getTextIfOk(url, fetchOpts): Promise<string | null> {
 }
 
 export async function fetchVersions(this: ProviderContext, name: string): Promise<string[]> {
-  const { versionsCacheMap } = getJspmCache(this);
-  if (versionsCacheMap.has(name)) {
-    return versionsCacheMap.get(name);
+  if (name in versionsCacheMap) {
+    return versionsCacheMap[name];
   }
   const registryLookup =
-    JSON.parse(await getTextIfOk(`https://npmlookup.jspm.io/${encodeURI(name)}`, {})) || {};
+    JSON.parse(await getTextIfOk(`https://npmlookup.jspm.io/${encodeURI(name)}`, { cache: 'no-cache' })) || {};
   const versions = Object.keys(registryLookup.versions || {});
-  versionsCacheMap.set(name, versions);
+  versionsCacheMap[name] = versions;
 
   return versions;
 }

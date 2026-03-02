@@ -346,7 +346,7 @@ export async function getGenerator(
         flattenScopes:
           flags.flattenScopes === false ? false : Boolean(flags.release || flags.flattenScopes),
         combineSubpaths:
-          flags.combineSubpaths === false ? false : Boolean(flags.release || flags.combineSubpaths),
+          flags.combineSubpaths === false ? 'none' : (flags.release || flags.combineSubpaths) ? 'both' : 'scopes',
         defaultProvider,
         resolutions: getResolutions(flags),
         cache: getCacheMode(flags),

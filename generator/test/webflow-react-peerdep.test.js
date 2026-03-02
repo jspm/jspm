@@ -13,9 +13,6 @@ await generator.install([
 ]);
 const json = generator.getMap();
 
-console.log('Generated import map:');
-console.log(JSON.stringify(json, null, 2));
-
 // The react dependency should remain at version 18
 for (const [key, value] of Object.entries(json.imports || {})) {
   if (key === 'react' || key.startsWith('react/')) {
@@ -36,5 +33,3 @@ for (const [scope, entries] of Object.entries(json.scopes || {})) {
     }
   }
 }
-
-console.log('All react references are version 18 - PASS');

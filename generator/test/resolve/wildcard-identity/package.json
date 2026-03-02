@@ -1,0 +1,7 @@
+{
+  "name": "wildcard-identity",
+  "exports": {
+    ".": "./index.js",
+    "./modules/*": "./modules/*"
+  }
+}

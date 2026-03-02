@@ -507,8 +507,12 @@ export interface GeneratorOptions {
    *
    * Set this option to false to disable this default behaviour and
    * retain individual mappings.
+   *
+   * When set to true or 'scopes' (default), only scoped mappings are combined.
+   * When set to 'both', both top-level imports and scoped mappings are combined.
+   * When set to false or 'none', combining is disabled entirely.
    */
-  combineSubpaths?: boolean;
+  combineSubpaths?: boolean | 'scopes' | 'both' | 'none';
 
   /**
    * Enable trace caching to optimize uncached runs.
@@ -636,7 +640,7 @@ export class Generator {
   log: Log;
   integrity: boolean;
   flattenScopes: boolean;
-  combineSubpaths: boolean;
+  combineSubpaths: 'scopes' | 'both' | 'none';
   scopedLink: boolean;
   cacheEnabled: boolean;
 
@@ -812,7 +816,7 @@ export class Generator {
     if (!integrity) this.map.integrity = {};
     if (inputMap) this.addMappings(inputMap);
     this.flattenScopes = flattenScopes;
-    this.combineSubpaths = combineSubpaths;
+    this.combineSubpaths = combineSubpaths === true ? 'scopes' : combineSubpaths === false ? 'none' : combineSubpaths;
 
     // Set the fetch retry count
     if (typeof fetchRetries === 'number') setRetryCount(fetchRetries);
@@ -1618,7 +1622,7 @@ export class Generator {
     if (map) {
       if (this.flattenScopes) map.flatten();
       map.sort();
-      if (this.combineSubpaths) map.combineSubpaths();
+      if (this.combineSubpaths !== 'none') map.combineSubpaths(this.combineSubpaths);
     }
 
     // If importMap option is set to true, pass a clone of the generator's map
@@ -1793,7 +1797,7 @@ export class Generator {
     map.rebase(mapUrl, rootUrl);
     if (this.flattenScopes) map.flatten();
     map.sort();
-    if (this.combineSubpaths) map.combineSubpaths();
+    if (this.combineSubpaths !== 'none') map.combineSubpaths(this.combineSubpaths);
     return { map: map.toJSON(), staticDeps, dynamicDeps };
   }
 
@@ -1898,7 +1902,7 @@ export class Generator {
     if (mapUrl) map.rebase(mapUrl, rootUrl);
     if (this.flattenScopes) map.flatten();
     map.sort();
-    if (this.combineSubpaths) map.combineSubpaths();
+    if (this.combineSubpaths !== 'none') map.combineSubpaths(this.combineSubpaths);
     return map.toJSON();
   }
 }

@@ -213,9 +213,10 @@ export class ImportMap implements IImportMap {
    * these will be replaced with a single path mapping { "base/": "/" }.
    * Groupings are done throughout all import scopes individually.
    *
+   * @param targets Which sections to combine: 'scopes' (default) or 'both' (includes top-level imports)
    * @returns ImportMap for chaining
    */
-  combineSubpaths() {
+  combineSubpaths(targets: 'scopes' | 'both' = 'scopes') {
     // iterate possible bases and submappings, grouping bases greedily
     const combineSubpathMappings = (mappings: Record<string, string>) => {
       let outMappings: Record<string, string> = Object.create(null);
@@ -307,10 +308,13 @@ export class ImportMap implements IImportMap {
       return outMappings;
     };
 
-    // Only applies for scopes since "imports" are generally treated as
-    // an authoritative entry point list
-    for (const scope of Object.keys(this.scopes)) {
-      this.scopes[scope] = combineSubpathMappings(this.scopes[scope]);
+    if (targets === 'both') {
+      this.imports = combineSubpathMappings(this.imports);
+    }
+    if (targets === 'scopes' || targets === 'both') {
+      for (const scope of Object.keys(this.scopes)) {
+        this.scopes[scope] = combineSubpathMappings(this.scopes[scope]);
+      }
     }
 
     return this;

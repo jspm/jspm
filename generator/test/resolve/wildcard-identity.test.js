@@ -35,8 +35,7 @@ import assert from 'assert';
 
 // With combineSubpaths: 'both', identity wildcard exports are combined
 // into a single folder mapping
-if (typeof window === 'undefined') {
-  // TODO: uncomment once import-map@1.3.0 is released
+{
   const generator = new Generator({
     mapUrl: import.meta.url,
     defaultProvider: 'nodemodules',

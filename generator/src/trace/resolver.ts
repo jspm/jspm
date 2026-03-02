@@ -1,7 +1,7 @@
 import { PackageConfig, ExportsTarget } from '../install/package.js';
 import { JspmError } from '../common/err.js';
 // @ts-ignore
-import { fetch } from '../common/fetch.js';
+import { fetch, isVirtualUrl } from '../common/fetch.js';
 import { importedFrom, isFetchProtocol } from '../common/url.js';
 // @ts-ignore
 import { parse } from 'es-module-lexer/js';
@@ -212,8 +212,8 @@ export class Resolver {
     // First try the provider's own file listing
     const providerFileList = await this.pm.getFileList(pkgUrl);
     if (providerFileList) return providerFileList;
-    // On Node.js, walk the filesystem via the fetch shim's 204 directory convention
-    if (isNode && pkgUrl.startsWith('file:')) {
+    // Walk via the fetch shim's 204 directory convention (file: on Node, or virtual URLs)
+    if ((isNode && pkgUrl.startsWith('file:')) || isVirtualUrl(pkgUrl)) {
       const fileList = new Set<string>();
       async function walk(path: string, basePath: string) {
         try {

@@ -54,7 +54,8 @@ export function expandExportsResolutions(
   exports: ExportsTarget | Record<string, ExportsTarget>,
   env: string[],
   files?: Set<string> | undefined,
-  exportsResolutions: Map<string, string> = new Map()
+  exportsResolutions: Map<string, string> = new Map(),
+  trailingSlashSubpaths?: Set<string>
 ) {
   if (typeof exports !== 'object' || exports === null || !allDotKeys(exports)) {
     let targetList = new Set<string>();
@@ -75,7 +76,8 @@ export function expandExportsResolutions(
           subpath,
           target,
           files,
-          exportsResolutions
+          exportsResolutions,
+          trailingSlashSubpaths
         );
       }
     }
@@ -203,7 +205,8 @@ function expandExportsTarget(
   subpath: string,
   target: string,
   files: Set<string> | undefined,
-  entriesMap: Map<string, string>
+  entriesMap: Map<string, string>,
+  trailingSlashSubpaths?: Set<string>
 ) {
   if (!target.startsWith('./') || !(subpath.startsWith('./') || subpath === '.')) return;
   if (target.indexOf('*') === -1 || subpath.indexOf('*') === -1) {
@@ -216,6 +219,22 @@ function expandExportsTarget(
   // First determine the list of files that could match the target glob
   const lhs = target.slice(2, target.indexOf('*'));
   const rhs = target.slice(target.indexOf('*') + 1);
+
+  // Detect wildcard patterns that can be collapsed to trailing-slash mappings.
+  // When subpath and target share the same suffix after '*', all expanded entries
+  // can later be replaced with a single trailing-slash entry in the import map.
+  if (trailingSlashSubpaths) {
+    const subpathSuffix = subpath.slice(subpath.indexOf('*') + 1);
+    if (subpathSuffix === rhs) {
+      const subpathPrefix = subpath.slice(0, subpath.indexOf('*'));
+      // For empty suffixes, trailing-slash is always safe.
+      // For non-empty suffixes, verify all files under the target prefix match
+      // the suffix so the trailing-slash mapping doesn't over-match.
+      if (!subpathSuffix || [...files].filter(f => f.startsWith(lhs)).every(f => f.endsWith(subpathSuffix))) {
+        trailingSlashSubpaths.add(subpathPrefix);
+      }
+    }
+  }
 
   const fileMatches = new Set<string>();
   for (const file of files) {

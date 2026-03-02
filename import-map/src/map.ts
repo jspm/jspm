@@ -321,6 +321,34 @@ export class ImportMap implements IImportMap {
   }
 
   /**
+   * Condense import entries sharing a common prefix into a single
+   * trailing-slash entry. Entries with inconsistent URL bases (e.g.
+   * shadowed exports) are left in place alongside the prefix entry.
+   *
+   * @param prefixes Import key prefixes to condense (e.g. "pkg/modules/")
+   * @returns ImportMap for chaining
+   */
+  condenseImports(prefixes: Set<string>) {
+    for (const prefix of prefixes) {
+      for (const key in this.imports) {
+        if (!key.startsWith(prefix) || key === prefix) continue;
+
+        const suffix = key.slice(prefix.length);
+        const value = this.imports[key];
+
+        if (!value.endsWith(suffix)) continue;
+
+        this.imports[prefix] ??= value.slice(0, value.length - suffix.length);
+        if (value.startsWith(this.imports[prefix])) {
+          delete this.imports[key];
+        }
+      }
+    }
+
+    return this;
+  }
+
+  /**
    * Groups the import map scopes to shared URLs to reduce duplicate mappings.
    *
    * For two given scopes, "https://site.com/x/" and "https://site.com/y/",
@@ -457,7 +485,7 @@ export class ImportMap implements IImportMap {
     let changedScopeProps = false;
     // Create a temporary map to collect scopes by their rebased URLs
     const rebasedScopes: Record<string, Record<string, string>> = Object.create(null);
-    
+
     for (const scope of Object.keys(this.scopes)) {
       const scopeImports = this.scopes[scope];
       let changedScopeImportProps = false;
@@ -488,7 +516,7 @@ export class ImportMap implements IImportMap {
         mapUrl,
         rootUrl
       );
-      
+
       // Check if this scope URL already exists in our rebased collection
       if (rebasedScopes[newScope]) {
         // Merge the imports from this scope into the existing one
@@ -502,7 +530,7 @@ export class ImportMap implements IImportMap {
         }
       }
     }
-    
+
     // Replace the scopes with the unified rebased scopes
     this.scopes = rebasedScopes;
     if (changedScopeProps) this.scopes = alphabetize(this.scopes);

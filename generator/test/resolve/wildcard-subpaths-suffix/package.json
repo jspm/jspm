@@ -1,0 +1,7 @@
+{
+  "name": "wildcard-suffix-test",
+  "exports": {
+    ".": "./index.js",
+    "./foo/*.js": "./src/*.js"
+  }
+}

@@ -97,11 +97,10 @@ export default async function build(flags: BuildFlags) {
       format: 'esm',
       assetFileNames: '[name][extname]',
       entryFileNames: flags.hashEntries
-        ? (chunkInfo) => {
+        ? chunkInfo => {
             const name = chunkInfo.name;
             const dotIdx = name.lastIndexOf('.');
-            if (dotIdx !== -1)
-              return `${name.slice(0, dotIdx)}-[hash:8]${name.slice(dotIdx)}`;
+            if (dotIdx !== -1) return `${name.slice(0, dotIdx)}-[hash:8]${name.slice(dotIdx)}`;
             return '[name]-[hash:8]';
           }
         : '[name]',

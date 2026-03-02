@@ -18,12 +18,32 @@ const map = {
   }
 };
 
+// Default ('scopes') leaves top-level imports untouched
 {
   const importMap = new ImportMap({ map });
 
   importMap.combineSubpaths();
 
   deepStrictEqual(importMap.toJSON(), map);
+}
+
+// 'both' combines top-level imports as well
+{
+  const importMap = new ImportMap({ map });
+
+  importMap.sort();
+  importMap.combineSubpaths('both');
+
+  deepStrictEqual(importMap.toJSON(), {
+    imports: {
+      '/url/': '/another/',
+      '/url/sub/': '/another/x/',
+      'base/': '/',
+      'base/another/c': '/another/c.js',
+      'base/another/d': '/another/b.js',
+      'only/mapping.js': './only/mapping.js'
+    }
+  });
 }
 
 {

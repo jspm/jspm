@@ -125,10 +125,8 @@ export function createProvider(baseUrl: string, ownsBaseUrl: boolean): Provider 
     if (cached) return cached;
 
     const promise = (async () => {
-      if (!_readdir)
-        ({ readdir: _readdir } = await import('node:fs/promises'));
-      if (!_fileURLToPath)
-        ({ fileURLToPath: _fileURLToPath } = await import('node:url'));
+      if (!_readdir) ({ readdir: _readdir } = await import('node:fs/promises'));
+      if (!_fileURLToPath) ({ fileURLToPath: _fileURLToPath } = await import('node:url'));
 
       const basePath = _fileURLToPath(pkgUrl);
       const fileList = new Set<string>();
@@ -136,8 +134,7 @@ export function createProvider(baseUrl: string, ownsBaseUrl: boolean): Provider 
       async function walk(dir: string, prefix: string) {
         const entries = await _readdir(dir, { withFileTypes: true });
         for (const entry of entries) {
-          if (entry.name === 'node_modules' || entry.name === '.git')
-            continue;
+          if (entry.name === 'node_modules' || entry.name === '.git') continue;
           const rel = prefix ? prefix + '/' + entry.name : entry.name;
           if (entry.isDirectory()) {
             await walk(dir + '/' + entry.name, rel);

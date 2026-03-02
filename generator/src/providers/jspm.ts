@@ -280,7 +280,14 @@ export async function resolveLatestTarget(
     return lookup;
   }
   if (range.isExact && range.version.tag) {
-    const lookup = await lookupRange.call(this, registry, name, range.version.tag, unstable, parentUrl);
+    const lookup = await lookupRange.call(
+      this,
+      registry,
+      name,
+      range.version.tag,
+      unstable,
+      parentUrl
+    );
     if (!lookup) return null;
     this.log(
       'jspm/resolveLatestTarget',
@@ -293,7 +300,14 @@ export async function resolveLatestTarget(
   }
   let stableFallback = false;
   if (range.isMajor) {
-    const lookup = await lookupRange.call(this, registry, name, range.version.major, unstable, parentUrl);
+    const lookup = await lookupRange.call(
+      this,
+      registry,
+      name,
+      range.version.major,
+      unstable,
+      parentUrl
+    );
     if (!lookup) return null;
     // if the latest major is actually a downgrade, use the latest minor version (fallthrough)
     // note this might miss later major prerelease versions, which should strictly be supported via a pkg@X@ unstable major lookup
@@ -409,7 +423,9 @@ export async function fetchVersions(this: ProviderContext, name: string): Promis
     return versionsCacheMap[name];
   }
   const registryLookup =
-    JSON.parse(await getTextIfOk(`https://npmlookup.jspm.io/${encodeURI(name)}`, { cache: 'no-cache' })) || {};
+    JSON.parse(
+      await getTextIfOk(`https://npmlookup.jspm.io/${encodeURI(name)}`, { cache: 'no-cache' })
+    ) || {};
   const versions = Object.keys(registryLookup.versions || {});
   versionsCacheMap[name] = versions;
 

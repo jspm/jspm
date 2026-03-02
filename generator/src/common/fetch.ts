@@ -51,6 +51,10 @@ export function setVirtualSourceData(urlBase: string, sourceData: SourceData) {
   virtualSources[urlBase.endsWith('/') ? urlBase : urlBase + '/'] = sourceData;
 }
 
+export function isVirtualUrl(url: string): boolean {
+  return Object.keys(virtualSources).some(base => url.startsWith(base));
+}
+
 const emptyHeaders = new Headers();
 const jsonHeaders = new Headers([['content-type', 'application/json']]);
 

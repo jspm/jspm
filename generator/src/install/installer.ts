@@ -279,7 +279,11 @@ export class Installer {
                 'installer/installTarget',
                 `${pkgName} ${pkgScope} -> ${JSON.stringify(latestPkg)} (existing match not latest)`
               );
-              const installUrl = await this.resolver.pm.pkgToUrl(pkg, provider.provider, provider.layer);
+              const installUrl = await this.resolver.pm.pkgToUrl(
+                pkg,
+                provider.provider,
+                provider.layer
+              );
               this.newInstalls = this.setResolution(pkgName, installUrl, pkgScope);
               this.setConstraint(pkgName, pkgTarget, pkgScope);
               return { installUrl };

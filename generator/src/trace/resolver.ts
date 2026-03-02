@@ -1,7 +1,7 @@
 import { PackageConfig, ExportsTarget } from '../install/package.js';
 import { JspmError } from '../common/err.js';
 // @ts-ignore
-import { fetch } from '../common/fetch.js';
+import { fetch, isVirtualUrl } from '../common/fetch.js';
 import { importedFrom, isFetchProtocol } from '../common/url.js';
 // @ts-ignore
 import { parse } from 'es-module-lexer/js';
@@ -205,6 +205,49 @@ export class Resolver {
         }
       })();
     return this.pcfgPromises[pkgUrl];
+  }
+
+  async getFileList(pkgUrl: string): Promise<Set<string> | undefined> {
+    if (!pkgUrl.endsWith('/')) pkgUrl += '/';
+    // First try the provider's own file listing
+    const providerFileList = await this.pm.getFileList(pkgUrl);
+    if (providerFileList) return providerFileList;
+    // Walk via the fetch shim's 204 directory convention (file: on Node, or virtual URLs)
+    if ((isNode && pkgUrl.startsWith('file:')) || isVirtualUrl(pkgUrl)) {
+      const fileList = new Set<string>();
+      async function walk(path: string, basePath: string) {
+        try {
+          const res = await fetch(path);
+          if (res.status === 200) {
+            fileList.add(path.slice(basePath.length));
+          } else if (res.status === 204) {
+            if (!path.endsWith('/')) path += '/';
+            const dirListing = await res.json();
+            for (const entry of dirListing) {
+              if (entry === 'node_modules' || entry === '.git') continue;
+              await walk(path + entry, basePath);
+            }
+          }
+        } catch (e) {
+          throw new JspmError(`Unable to read package ${path} - ${e.toString()}`);
+        }
+      }
+      await walk(pkgUrl, pkgUrl);
+      return fileList;
+    }
+    // In fetch-only environments, use package.json "files" as the listing
+    const pcfg = await this.getPackageConfig(pkgUrl);
+    if (pcfg && Array.isArray((pcfg as any).files)) {
+      return new Set(
+        (pcfg as any).files.filter(
+          (file: string) =>
+            typeof file === 'string' &&
+            !file.startsWith('/') &&
+            !file.endsWith('/') &&
+            !file.startsWith('.')
+        )
+      );
+    }
   }
 
   async getDepList(pkgUrl: string, dev = false): Promise<string[]> {

@@ -96,7 +96,15 @@ export default async function build(flags: BuildFlags) {
     const { output } = await bundle.generate({
       format: 'esm',
       assetFileNames: '[name][extname]',
-      entryFileNames: '[name]',
+      entryFileNames: flags.hashEntries
+        ? (chunkInfo) => {
+            const name = chunkInfo.name;
+            const dotIdx = name.lastIndexOf('.');
+            if (dotIdx !== -1)
+              return `${name.slice(0, dotIdx)}-[hash:8]${name.slice(dotIdx)}`;
+            return '[name]-[hash:8]';
+          }
+        : '[name]',
       chunkFileNames: 'lib/[name]-[hash:8].js',
       sourcemap: true,
       compact: flags.minify
@@ -143,11 +151,18 @@ export default async function build(flags: BuildFlags) {
         readFileSync(join(projectConfig.projectPath, 'package.json'), 'utf8')
       );
       // TODO: do this properly!
-      pjson.exports = JSON.parse(
-        JSON.stringify(pjson.exports)
-          .replace(/\.ts"/g, '.js"')
-          .replace(/\.mts"/g, '.mjs"')
-      );
+      let exportsStr = JSON.stringify(pjson.exports)
+        .replace(/\.ts"/g, '.js"')
+        .replace(/\.mts"/g, '.mjs"');
+      // Replace entry filenames with their hashed versions
+      if (flags.hashEntries) {
+        for (const chunk of output) {
+          if (chunk.type === 'chunk' && chunk.isEntry && chunk.fileName !== chunk.name) {
+            exportsStr = exportsStr.split(chunk.name).join(chunk.fileName);
+          }
+        }
+      }
+      pjson.exports = JSON.parse(exportsStr);
       const outPath = join(flags.out!, 'package.json');
       const outDir = dirname(outPath);
       await mkdir(outDir, { recursive: true });

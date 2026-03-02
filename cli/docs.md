@@ -290,6 +290,7 @@ to generate an optimized production map.
 * `--no-minify`                      Disable build minification (default: true)
 * `-o, --out` _&lt;dir&gt;_                  Path to the output directory for the build (default: dist)
 * `--install`                        Generate import map after build completes (default: true)
+* `--hash-entries`                   Hash entry point filenames in the output 
 * `--integrity`                      Add module integrity attributes to the import map 
 * `--preload` _[mode]_                 Add module preloads to HTML output (default: static, dynamic) 
 * `--root` _&lt;url&gt;_                     URL to treat as server root, i.e. rebase import maps against 
@@ -346,6 +347,11 @@ Build using a custom import map file.
 jspm publish [options]
 ```
 Manages publishes to the JSPM providers, currently in experimental preview.
+
+WARNING: jspm publish is experimental and should only be used for prototyping.
+Unlike the https://ga.jspm.io/ CDN which is stable, reliability guarantees are
+not provided for publishing on https://jspm.io/. For reliable package delivery,
+use npm publish ΓÇö all npm packages are available on the https://ga.jspm.io/ CDN.
 
 For publishing (default):
 

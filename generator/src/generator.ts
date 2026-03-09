@@ -657,7 +657,6 @@ export class Generator {
   flattenScopes: boolean;
   combineSubpaths: 'scopes' | 'both' | 'none';
   expandWildcards: boolean;
-  wildcardPrefixes: Set<string> = new Set();
   scopedLink: boolean;
   cacheEnabled: boolean;
 
@@ -1301,20 +1300,14 @@ export class Generator {
             }
             // If the provider supports it, get a file listing for the package to assist with glob expansions
             const fileList = await this.traceMap.resolver.getFileList(installed.installUrl);
-            // Expand exports into entry point list, collecting wildcard prefixes
-            // that can later be collapsed into trailing-slash import map entries
+            // Expand exports into entry point list
             const resolutionMap = new Map<string, string>();
-            const trailingSlashSubpaths = this.expandWildcards ? undefined : new Set<string>();
             await expandExportsResolutions(
               pcfg.exports,
               this.traceMap.resolver.env,
               fileList,
-              resolutionMap,
-              trailingSlashSubpaths
+              resolutionMap
             );
-            if (trailingSlashSubpaths)
-              for (const prefix of trailingSlashSubpaths)
-                this.wildcardPrefixes.add(alias + prefix.slice(1));
             return [...resolutionMap].map(([subpath, _entry]) => alias + subpath.slice(1));
           } else if (subpaths) {
             subpaths.every(subpath => {
@@ -1920,7 +1913,45 @@ export class Generator {
    * combineSubpaths() additionally combines scopes (or both) when enabled.
    */
   private simplify(map: ImportMap) {
-    map.condenseImports(this.wildcardPrefixes);
+    if (!this.expandWildcards) {
+      const resolver = this.traceMap.resolver;
+      const condensePrefixes: { imports?: Set<string>; scopes?: Record<string, Set<string>> } = {};
+
+      const collectPrefixes = (entries: Record<string, string>, scopeUrl?: string) => {
+        const prefixes = new Set<string>();
+        const seen = new Set<string>();
+        for (const key of Object.keys(entries)) {
+          const resolved = scopeUrl ? map.resolve(key, scopeUrl) : map.resolve(key);
+          const pkgUrl = resolver.getPackageBaseCached(resolved);
+          if (!pkgUrl || seen.has(pkgUrl)) continue;
+          seen.add(pkgUrl);
+          const firstSlash = key.indexOf('/');
+          const pkgName =
+            firstSlash === -1
+              ? key
+              : key[0] === '@'
+              ? key.slice(0, key.indexOf('/', firstSlash + 1))
+              : key.slice(0, firstSlash);
+          for (const prefix of resolver.getWildcardPrefixes(pkgUrl))
+            prefixes.add(pkgName + prefix.slice(1));
+        }
+        return prefixes.size ? prefixes : undefined;
+      };
+
+      const importPrefixes = collectPrefixes(map.imports);
+      if (importPrefixes) condensePrefixes.imports = importPrefixes;
+
+      for (const scopeUrl of Object.keys(map.scopes)) {
+        const scopePrefixes = collectPrefixes(map.scopes[scopeUrl], scopeUrl);
+        if (scopePrefixes) {
+          condensePrefixes.scopes = condensePrefixes.scopes || {};
+          condensePrefixes.scopes[scopeUrl] = scopePrefixes;
+        }
+      }
+
+      if (condensePrefixes.imports || condensePrefixes.scopes)
+        map.condenseImports(condensePrefixes);
+    }
     if (this.combineSubpaths !== 'none') map.combineSubpaths(this.combineSubpaths);
   }
 

@@ -1,0 +1,10 @@
+{
+  "name": "wildcard-scoped-test",
+  "version": "1.0.0",
+  "exports": {
+    ".": "./index.js"
+  },
+  "dependencies": {
+    "wildcard-dep": "*"
+  }
+}

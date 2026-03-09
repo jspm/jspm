@@ -119,10 +119,7 @@ import assert from 'assert';
   const json = generator.getMap();
 
   // Should condense "./foo/*.js" -> "./src/*.js" into a trailing-slash entry
-  assert.ok(
-    json.imports['wildcard-suffix-test/foo/'],
-    'Should have trailing-slash entry for foo/'
-  );
+  assert.ok(json.imports['wildcard-suffix-test/foo/'], 'Should have trailing-slash entry for foo/');
   assert.strictEqual(
     json.imports['wildcard-suffix-test/foo/a.js'],
     undefined,
@@ -158,12 +155,6 @@ import assert from 'assert';
     'Should not have trailing-slash entry when non-matching files exist'
   );
   // Should have individual entries instead
-  assert.ok(
-    json.imports['wildcard-mixed-test/foo/a.js'],
-    'Should have individual entry for a.js'
-  );
-  assert.ok(
-    json.imports['wildcard-mixed-test/foo/b.js'],
-    'Should have individual entry for b.js'
-  );
+  assert.ok(json.imports['wildcard-mixed-test/foo/a.js'], 'Should have individual entry for a.js');
+  assert.ok(json.imports['wildcard-mixed-test/foo/b.js'], 'Should have individual entry for b.js');
 }

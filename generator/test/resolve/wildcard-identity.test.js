@@ -1,13 +1,38 @@
 import { Generator } from '@jspm/generator';
 import assert from 'assert';
 
-// Without combineSubpaths for imports, wildcard identity exports
-// expand into individual entries
+// Lossless wildcard condensing is on by default (expandWildcards: false),
+// so identity wildcard exports are always condensed into trailing-slash entries.
 {
   const generator = new Generator({
     mapUrl: import.meta.url,
     defaultProvider: 'nodemodules',
     combineSubpaths: 'scopes'
+  });
+
+  await generator.install({
+    target: new URL('./wildcard-identity', import.meta.url).href,
+    subpaths: true
+  });
+
+  const json = generator.getMap();
+
+  // Main export is still listed
+  assert.strictEqual(json.imports['wildcard-identity'], './wildcard-identity/index.js');
+  // Subpaths are condensed into a trailing-slash entry (lossless)
+  assert.strictEqual(json.imports['wildcard-identity/modules/'], './wildcard-identity/modules/');
+  // Individual entries should not exist
+  assert.strictEqual(json.imports['wildcard-identity/modules/a.js'], undefined);
+  assert.strictEqual(json.imports['wildcard-identity/modules/b.js'], undefined);
+  assert.strictEqual(json.imports['wildcard-identity/modules/c.js'], undefined);
+}
+
+// With expandWildcards: true, wildcard exports are expanded into individual entries
+{
+  const generator = new Generator({
+    mapUrl: import.meta.url,
+    defaultProvider: 'nodemodules',
+    expandWildcards: true
   });
 
   await generator.install({
@@ -31,30 +56,4 @@ import assert from 'assert';
     json.imports['wildcard-identity/modules/c.js'],
     './wildcard-identity/modules/c.js'
   );
-}
-
-// With combineSubpaths: 'both', identity wildcard exports are combined
-// into a single folder mapping
-{
-  const generator = new Generator({
-    mapUrl: import.meta.url,
-    defaultProvider: 'nodemodules',
-    combineSubpaths: 'both'
-  });
-
-  await generator.install({
-    target: new URL('./wildcard-identity', import.meta.url).href,
-    subpaths: true
-  });
-
-  const json = generator.getMap();
-
-  // The main export is still listed
-  assert.strictEqual(json.imports['wildcard-identity'], './wildcard-identity/index.js');
-  // Subpaths are combined into a folder mapping
-  assert.strictEqual(json.imports['wildcard-identity/modules/'], './wildcard-identity/modules/');
-  // Individual entries should not exist
-  assert.strictEqual(json.imports['wildcard-identity/modules/a.js'], undefined);
-  assert.strictEqual(json.imports['wildcard-identity/modules/b.js'], undefined);
-  assert.strictEqual(json.imports['wildcard-identity/modules/c.js'], undefined);
 }

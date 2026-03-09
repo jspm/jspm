@@ -1,0 +1,8 @@
+{
+  "name": "wildcard-shadowed-test",
+  "exports": {
+    ".": "./index.js",
+    "./modules/special": "./different/special.js",
+    "./modules/*": "./modules/*"
+  }
+}

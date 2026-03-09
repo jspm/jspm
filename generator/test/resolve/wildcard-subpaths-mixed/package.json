@@ -1,0 +1,7 @@
+{
+  "name": "wildcard-mixed-test",
+  "exports": {
+    ".": "./index.js",
+    "./foo/*.js": "./src/*.js"
+  }
+}

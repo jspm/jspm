@@ -216,6 +216,40 @@ export class ImportMap implements IImportMap {
    * @param targets Which sections to combine: 'scopes' (default) or 'both' (includes top-level imports)
    * @returns ImportMap for chaining
    */
+  /**
+   * Condense import entries sharing a common prefix into a single
+   * trailing-slash entry. Entries with inconsistent URL bases (e.g.
+   * shadowed exports) are left in place alongside the prefix entry.
+   *
+   * @param prefixes Import key prefixes to condense (e.g. "pkg/modules/")
+   * @returns ImportMap for chaining
+   */
+  condenseImports(prefixes: { imports?: Set<string>, scopes?: Record<string, Set<string>> }) {
+    const condenseMappings = (mappings: Record<string, string>, safePrefixes: Set<string>) => {
+      for (const prefix of safePrefixes) {
+        for (const key of Object.keys(mappings)) {
+          if (!key.startsWith(prefix) || key === prefix) continue;
+          const suffix = key.slice(prefix.length);
+          const value = mappings[key];
+          if (!value.endsWith(suffix)) continue;
+          mappings[prefix] ??= value.slice(0, value.length - suffix.length);
+          if (value.startsWith(mappings[prefix])) {
+            delete mappings[key];
+          }
+        }
+      }
+    };
+
+    if (prefixes.imports)
+      condenseMappings(this.imports, prefixes.imports);
+    if (prefixes.scopes)
+      for (const scope of Object.keys(prefixes.scopes))
+        if (this.scopes[scope])
+          condenseMappings(this.scopes[scope], prefixes.scopes[scope]);
+
+    return this;
+  }
+
   combineSubpaths(targets: 'scopes' | 'both' = 'scopes') {
     // iterate possible bases and submappings, grouping bases greedily
     const combineSubpathMappings = (mappings: Record<string, string>) => {
@@ -457,7 +491,7 @@ export class ImportMap implements IImportMap {
     let changedScopeProps = false;
     // Create a temporary map to collect scopes by their rebased URLs
     const rebasedScopes: Record<string, Record<string, string>> = Object.create(null);
-    
+
     for (const scope of Object.keys(this.scopes)) {
       const scopeImports = this.scopes[scope];
       let changedScopeImportProps = false;
@@ -488,7 +522,7 @@ export class ImportMap implements IImportMap {
         mapUrl,
         rootUrl
       );
-      
+
       // Check if this scope URL already exists in our rebased collection
       if (rebasedScopes[newScope]) {
         // Merge the imports from this scope into the existing one
@@ -502,7 +536,7 @@ export class ImportMap implements IImportMap {
         }
       }
     }
-    
+
     // Replace the scopes with the unified rebased scopes
     this.scopes = rebasedScopes;
     if (changedScopeProps) this.scopes = alphabetize(this.scopes);

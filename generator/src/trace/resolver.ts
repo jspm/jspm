@@ -6,7 +6,7 @@ import { importedFrom, isFetchProtocol } from '../common/url.js';
 // @ts-ignore
 import { parse } from 'es-module-lexer/js';
 import type { InstallTarget, PackageTarget } from '../generator.js';
-import { getMapMatch, allDotKeys } from '../common/package.js';
+import { getMapMatch, allDotKeys, getWildcardPrefixes } from '../common/package.js';
 import { builtinSchemes, mappableSchemes, ProviderManager } from '../providers/index.js';
 import {
   Analysis,
@@ -69,6 +69,7 @@ export class Resolver {
   pcfgPromises: Record<string, Promise<PackageConfig | null>> = Object.create(null);
   analysisPromises: Record<string, Promise<void>> = Object.create(null);
   pcfgs: Record<string, PackageConfig | null> = Object.create(null);
+  fileLists: Record<string, Set<string> | undefined> = Object.create(null);
   fetchOpts: any;
   preserveSymlinks;
   pm: ProviderManager;
@@ -209,9 +210,10 @@ export class Resolver {
 
   async getFileList(pkgUrl: string): Promise<Set<string> | undefined> {
     if (!pkgUrl.endsWith('/')) pkgUrl += '/';
+    if (pkgUrl in this.fileLists) return this.fileLists[pkgUrl];
     // First try the provider's own file listing
     const providerFileList = await this.pm.getFileList(pkgUrl);
-    if (providerFileList) return providerFileList;
+    if (providerFileList) return (this.fileLists[pkgUrl] = providerFileList);
     // Walk via the fetch shim's 204 directory convention (file: on Node, or virtual URLs)
     if ((isNode && pkgUrl.startsWith('file:')) || isVirtualUrl(pkgUrl)) {
       const fileList = new Set<string>();
@@ -233,12 +235,12 @@ export class Resolver {
         }
       }
       await walk(pkgUrl, pkgUrl);
-      return fileList;
+      return (this.fileLists[pkgUrl] = fileList);
     }
     // In fetch-only environments, use package.json "files" as the listing
     const pcfg = await this.getPackageConfig(pkgUrl);
     if (pcfg && Array.isArray((pcfg as any).files)) {
-      return new Set(
+      return (this.fileLists[pkgUrl] = new Set(
         (pcfg as any).files.filter(
           (file: string) =>
             typeof file === 'string' &&
@@ -246,8 +248,31 @@ export class Resolver {
             !file.endsWith('/') &&
             !file.startsWith('.')
         )
-      );
+      ));
     }
+  }
+
+  getPackageBaseCached(url: string): `${string}/` | undefined {
+    let testUrl: URL;
+    try {
+      testUrl = new URL('./', url);
+    } catch {
+      return undefined;
+    }
+    const rootUrl = new URL('/', testUrl).href;
+    do {
+      const href = testUrl.href as `${string}/`;
+      if (this.pcfgs[href]) return href;
+      if (testUrl.href === rootUrl) return undefined;
+    } while ((testUrl = new URL('../', testUrl)));
+    return undefined;
+  }
+
+  getWildcardPrefixes(pkgUrl: string): Set<string> {
+    if (!pkgUrl.endsWith('/')) pkgUrl += '/';
+    const pcfg = this.pcfgs[pkgUrl];
+    if (!pcfg?.exports) return new Set();
+    return getWildcardPrefixes(pcfg.exports, this.env, this.fileLists[pkgUrl]);
   }
 
   async getDepList(pkgUrl: string, dev = false): Promise<string[]> {

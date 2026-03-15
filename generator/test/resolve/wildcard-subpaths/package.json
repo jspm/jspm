@@ -1,0 +1,7 @@
+{
+  "name": "wildcard-subpaths-test",
+  "exports": {
+    ".": "./index.js",
+    "./modules/*": "./modules/*"
+  }
+}

@@ -515,6 +515,21 @@ export interface GeneratorOptions {
   combineSubpaths?: boolean | 'scopes' | 'both' | 'none';
 
   /**
+   * Whether to expand wildcard exports into individual import map entries.
+   *
+   * @default false
+   *
+   * When false (default), wildcard exports like `"./modules/*": "./modules/*"`
+   * are represented as a single trailing-slash entry (`pkg/modules/` → base/)
+   * instead of being expanded into individual entries per file. This is
+   * lossless and preserves the package's encapsulation boundaries.
+   *
+   * Set to true to expand wildcard exports into individual entries (previous
+   * behavior).
+   */
+  expandWildcards?: boolean;
+
+  /**
    * Enable trace caching to optimize uncached runs.
    *
    * When set to `true`, enables caching of package configs and analysis data
@@ -641,6 +656,7 @@ export class Generator {
   integrity: boolean;
   flattenScopes: boolean;
   combineSubpaths: 'scopes' | 'both' | 'none';
+  expandWildcards: boolean;
   scopedLink: boolean;
   cacheEnabled: boolean;
 
@@ -694,6 +710,7 @@ export class Generator {
     customResolver,
     flattenScopes = true,
     combineSubpaths = true,
+    expandWildcards = false,
     scopedLink = false,
     traceCache = undefined
   }: GeneratorOptions = {}) {
@@ -818,6 +835,7 @@ export class Generator {
     this.flattenScopes = flattenScopes;
     this.combineSubpaths =
       combineSubpaths === true ? 'scopes' : combineSubpaths === false ? 'none' : combineSubpaths;
+    this.expandWildcards = expandWildcards;
 
     // Set the fetch retry count
     if (typeof fetchRetries === 'number') setRetryCount(fetchRetries);
@@ -1624,7 +1642,7 @@ export class Generator {
     if (map) {
       if (this.flattenScopes) map.flatten();
       map.sort();
-      if (this.combineSubpaths !== 'none') map.combineSubpaths(this.combineSubpaths);
+      this.simplify(map);
     }
 
     // If importMap option is set to true, pass a clone of the generator's map
@@ -1764,6 +1782,7 @@ export class Generator {
       preserveSymlinks: this.traceMap.resolver.preserveSymlinks,
       flattenScopes: this.flattenScopes,
       combineSubpaths: this.combineSubpaths,
+      expandWildcards: this.expandWildcards,
       scopedLink: this.scopedLink
     });
     cloned.traceMap.resolver.pm.providers = {
@@ -1799,7 +1818,7 @@ export class Generator {
     map.rebase(mapUrl, rootUrl);
     if (this.flattenScopes) map.flatten();
     map.sort();
-    if (this.combineSubpaths !== 'none') map.combineSubpaths(this.combineSubpaths);
+    this.simplify(map);
     return { map: map.toJSON(), staticDeps, dynamicDeps };
   }
 
@@ -1888,6 +1907,55 @@ export class Generator {
   }
 
   /**
+   * Simplify the import map by collapsing wildcard-expanded prefixes into
+   * trailing-slash entries, and optionally combining scope subpaths.
+   * Wildcard condensing is always applied when expandWildcards is false (lossless).
+   * combineSubpaths() additionally combines scopes (or both) when enabled.
+   */
+  private simplify(map: ImportMap) {
+    if (!this.expandWildcards) {
+      const resolver = this.traceMap.resolver;
+      const condensePrefixes: { imports?: Set<string>; scopes?: Record<string, Set<string>> } = {};
+
+      const collectPrefixes = (entries: Record<string, string>, scopeUrl?: string) => {
+        const prefixes = new Set<string>();
+        const seen = new Set<string>();
+        for (const key of Object.keys(entries)) {
+          const resolved = scopeUrl ? map.resolve(key, scopeUrl) : map.resolve(key);
+          const pkgUrl = resolver.getPackageBaseCached(resolved);
+          if (!pkgUrl || seen.has(pkgUrl)) continue;
+          seen.add(pkgUrl);
+          const firstSlash = key.indexOf('/');
+          const pkgName =
+            firstSlash === -1
+              ? key
+              : key[0] === '@'
+              ? key.slice(0, key.indexOf('/', firstSlash + 1))
+              : key.slice(0, firstSlash);
+          for (const prefix of resolver.getWildcardPrefixes(pkgUrl))
+            prefixes.add(pkgName + prefix.slice(1));
+        }
+        return prefixes.size ? prefixes : undefined;
+      };
+
+      const importPrefixes = collectPrefixes(map.imports);
+      if (importPrefixes) condensePrefixes.imports = importPrefixes;
+
+      for (const scopeUrl of Object.keys(map.scopes)) {
+        const scopePrefixes = collectPrefixes(map.scopes[scopeUrl], scopeUrl);
+        if (scopePrefixes) {
+          condensePrefixes.scopes = condensePrefixes.scopes || {};
+          condensePrefixes.scopes[scopeUrl] = scopePrefixes;
+        }
+      }
+
+      if (condensePrefixes.imports || condensePrefixes.scopes)
+        map.condenseImports(condensePrefixes);
+    }
+    if (this.combineSubpaths !== 'none') map.combineSubpaths(this.combineSubpaths);
+  }
+
+  /**
    * Obtain the final generated import map, with flattening and subpaths combined
    * (unless otherwise disabled via the Generator flattenScopes and combineSubpaths options).
    *
@@ -1904,7 +1972,7 @@ export class Generator {
     if (mapUrl) map.rebase(mapUrl, rootUrl);
     if (this.flattenScopes) map.flatten();
     map.sort();
-    if (this.combineSubpaths !== 'none') map.combineSubpaths(this.combineSubpaths);
+    this.simplify(map);
     return map.toJSON();
   }
 }

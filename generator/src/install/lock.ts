@@ -362,6 +362,11 @@ export async function extractLockConstraintsAndMap(
           // Get the target package details in URL space:
           const targetUrl = resolveUrl(map.imports[key], mapUrl, rootUrl);
           const { parsedTarget, pkgUrl } = await resolveTargetPkg(targetUrl, resolver);
+
+          // Skip @empty.js stub entries produced by link() for missing modules —
+          // these resolve to @jspm/core but cannot be traced as real dependencies.
+          if (parsedTarget?.pkg.name === '@jspm/core' && (targetUrl.endsWith('/@empty.js') || targetUrl.endsWith('/@empty.dew.js'))) return;
+
           pkgUrls.add(pkgUrl);
 
           // If the plain specifier resolves to a package on some provider's CDN,
@@ -416,6 +421,10 @@ export async function extractLockConstraintsAndMap(
             // Get the target package details in URL space:
             const targetUrl = resolveUrl(scope[key], mapUrl, rootUrl);
             let { parsedTarget, pkgUrl } = await resolveTargetPkg(targetUrl, resolver);
+
+            // Skip @empty.js stub entries produced by link() for missing modules.
+            if (parsedTarget?.pkg.name === '@jspm/core' && (targetUrl.endsWith('/@empty.js') || targetUrl.endsWith('/@empty.dew.js'))) return;
+
             pkgUrls.add(pkgUrl);
 
             if (parsedTarget) {

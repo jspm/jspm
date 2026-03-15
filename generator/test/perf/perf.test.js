@@ -16,6 +16,7 @@ const generatorOpts = {
     react: '16.14.0',
     porto: '0.0.93',
     '@walletconnect/utils': '2.23.7',
+    '@walletconnect/sign-client': '2.23.7',
     'framer-motion': '12.34.0',
     'viem': '2.46.0'
   }

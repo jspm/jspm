@@ -5,6 +5,8 @@ import assert from 'assert';
 // trailing-slash import map entry instead of individual entries per file.
 // This is the fix for https://github.com/jspm/jspm/issues/2702.
 
+const isBrowser = typeof process === 'undefined' || !process.versions?.node;
+
 // Default combineSubpaths: true
 {
   const generator = new Generator({
@@ -19,30 +21,39 @@ import assert from 'assert';
 
   const json = generator.getMap();
 
-  // Should have a trailing-slash entry instead of individual entries
-  assert.ok(
-    json.imports['wildcard-subpaths-test/modules/'],
-    'Should have trailing-slash entry for modules/'
-  );
-  assert.strictEqual(
-    json.imports['wildcard-subpaths-test/modules/a.js'],
-    undefined,
-    'Should not have individual entry for a.js'
-  );
-  assert.strictEqual(
-    json.imports['wildcard-subpaths-test/modules/b.js'],
-    undefined,
-    'Should not have individual entry for b.js'
-  );
-  assert.strictEqual(
-    json.imports['wildcard-subpaths-test/modules/c.js'],
-    undefined,
-    'Should not have individual entry for c.js'
-  );
+  if (isBrowser) {
+    // In the browser there is no file listing, so wildcard exports
+    // cannot be expanded — only the main export is mapped.
+    assert.ok(
+      json.imports['wildcard-subpaths-test'],
+      'Should have main entry in browser'
+    );
+  } else {
+    // Should have a trailing-slash entry instead of individual entries
+    assert.ok(
+      json.imports['wildcard-subpaths-test/modules/'],
+      'Should have trailing-slash entry for modules/'
+    );
+    assert.strictEqual(
+      json.imports['wildcard-subpaths-test/modules/a.js'],
+      undefined,
+      'Should not have individual entry for a.js'
+    );
+    assert.strictEqual(
+      json.imports['wildcard-subpaths-test/modules/b.js'],
+      undefined,
+      'Should not have individual entry for b.js'
+    );
+    assert.strictEqual(
+      json.imports['wildcard-subpaths-test/modules/c.js'],
+      undefined,
+      'Should not have individual entry for c.js'
+    );
+  }
 }
 
 // combineSubpaths: false — should still collapse wildcard-expanded prefixes
-{
+if (!isBrowser) {
   const generator = new Generator({
     mapUrl: import.meta.url,
     defaultProvider: 'nodemodules',
@@ -70,7 +81,7 @@ import assert from 'assert';
 
 // Shadowed exports: specific exports that override the wildcard should be
 // preserved alongside the trailing-slash entry.
-{
+if (!isBrowser) {
   const generator = new Generator({
     mapUrl: import.meta.url,
     defaultProvider: 'nodemodules',
@@ -104,7 +115,7 @@ import assert from 'assert';
 
 // Suffix wildcards: "./foo/*.js" -> "./src/*.js" should condense to
 // a trailing-slash entry with remapped base.
-{
+if (!isBrowser) {
   const generator = new Generator({
     mapUrl: import.meta.url,
     defaultProvider: 'nodemodules',
@@ -134,7 +145,7 @@ import assert from 'assert';
 
 // Mixed file types: "./foo/*.js" -> "./src/*.js" with non-.js files in src/
 // should NOT condense, to avoid leaking non-exported files.
-{
+if (!isBrowser) {
   const generator = new Generator({
     mapUrl: import.meta.url,
     defaultProvider: 'nodemodules',

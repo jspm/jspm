@@ -14,7 +14,8 @@ const generatorOpts = {
   defaultProvider: 'jspm.io',
   resolutions: {
     react: '16.14.0',
-    porto: '0.0.93'
+    porto: '0.0.93',
+    '@walletconnect/utils': '2.23.7'
   }
 };
 

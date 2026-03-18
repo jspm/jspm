@@ -27,7 +27,8 @@ export async function clearCache() {
 const _fetch = nodeFetchCache.create({
   cache: new FileSystemCache({
     cacheDirectory: path.join(cacheDir, 'fetch-cache')
-  })
+  }),
+  shouldCacheResponse: response => response.ok
 });
 
 const emptyHeaders = new Headers();

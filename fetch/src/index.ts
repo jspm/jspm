@@ -154,9 +154,13 @@ export function createFetch(opts?: CreateFetchOptions) {
               buffer
             );
 
-            // Only cache successful responses
+            // Cache successful responses in both tiers
             if (response.ok && !noStore) {
               cache.set(urlStr, response, fetchOpts?.immutable);
+            }
+            // Cache 404s in memory only (not persisted)
+            else if (response.status === 404 && !noStore) {
+              cache.setMemoryOnly(urlStr, response);
             }
 
             return response;

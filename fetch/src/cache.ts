@@ -107,6 +107,10 @@ export class Cache {
     return undefined;
   }
 
+  setMemoryOnly(url: string, response: CachedResponse): void {
+    this.#memory.set(url, response);
+  }
+
   set(url: string, response: CachedResponse, immutable = false): void {
     // Always store in memory
     this.#memory.set(url, response);

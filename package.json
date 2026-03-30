@@ -1,6 +1,7 @@
 {
   "workspaces": [
     "import-map",
+    "fetch",
     "generator",
     "plugin-rollup",
     "cli"

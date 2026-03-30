@@ -11,20 +11,6 @@
     "test": "chomp test"
   },
   "imports": {
-    "#fetch": {
-      "source": {
-        "vscode": "./lib/common/fetch-vscode.js",
-        "deno": "./lib/common/fetch-deno.js",
-        "node": "./lib/common/fetch-node.js",
-        "default": "./lib/common/fetch-native.js"
-      },
-      "default": {
-        "vscode": "./dist/fetch-vscode.js",
-        "deno": "./dist/fetch-deno.js",
-        "node": "./dist/fetch-node.js",
-        "default": "./dist/fetch-native.js"
-      }
-    },
     "#test/*": {
       "source": "./test/*.js"
     }
@@ -47,10 +33,10 @@
     "@babel/core": "^7.24.7",
     "@babel/plugin-syntax-import-attributes": "^7.24.7",
     "@babel/preset-typescript": "^7.24.7",
+    "@jspm/fetch": "^1.0.0",
     "@jspm/import-map": "^1.4.0",
     "es-module-lexer": "^1.5.4",
     "minimatch": "^10.0.1",
-    "node-fetch-cache": "^5.0.2",
     "pako": "^2.1.0",
     "sver": "^2.0.1",
     "tar-stream": "^3.1.6"

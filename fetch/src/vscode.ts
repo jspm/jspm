@@ -1,7 +1,7 @@
-import { fetch as _fetch } from './fetch-native.js';
-export { clearCache } from './fetch-native.js';
+import { fetch as _fetch } from './native.js';
+export { clearCache } from './native.js';
 
-function sourceResponse(buffer) {
+function sourceResponse(buffer: string) {
   return {
     status: 200,
     statusText: 'dir',
@@ -12,13 +12,13 @@ function sourceResponse(buffer) {
       return JSON.parse(buffer.toString());
     },
     arrayBuffer() {
-      return buffer.buffer || buffer;
+      return new TextEncoder().encode(buffer).buffer;
     }
   };
 }
 
-let _readdir;
-const dirResponse = path => ({
+let _readdir: any;
+const dirResponse = (path: string) => ({
   status: 204,
   async text() {
     return '';
@@ -46,8 +46,8 @@ export const fetch = async function (url: URL, opts?: Record<string, any>) {
         try {
           await vscode.workspace.fs.readFile(vscode.Uri.parse(urlString));
           return { status: 404, statusText: 'Directory does not exist' };
-        } catch (e) {
-          if (e.code === 'FileIsADirectory') return dirResponse;
+        } catch (e: any) {
+          if (e.code === 'FileIsADirectory') return dirResponse(urlString);
           throw e;
         }
       }
@@ -55,8 +55,8 @@ export const fetch = async function (url: URL, opts?: Record<string, any>) {
         return sourceResponse(
           new TextDecoder().decode(await vscode.workspace.fs.readFile(vscode.Uri.parse(urlString)))
         );
-      } catch (e) {
-        if (e.code === 'FileIsADirectory') return dirResponse;
+      } catch (e: any) {
+        if (e.code === 'FileIsADirectory') return dirResponse(urlString);
         if (e.code === 'Unavailable' || e.code === 'EntryNotFound' || e.code === 'FileNotFound')
           return { status: 404, statusText: e.toString() };
         return { status: 500, statusText: e.toString() };

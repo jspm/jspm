@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 
 export function clearCache() {}
 
-let _readdir;
+let _readdir: any;
 export const fetch = async function (url: URL, ...args: any[]) {
   const urlString = url.toString();
   if (
@@ -32,7 +32,7 @@ export const fetch = async function (url: URL, ...args: any[]) {
           return new TextEncoder().encode(source.toString()).buffer;
         }
       };
-    } catch (e) {
+    } catch (e: any) {
       if (e.code === 'EISDIR')
         return {
           status: 204,

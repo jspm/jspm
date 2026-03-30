@@ -64,6 +64,8 @@ export interface TraceMapOptions extends InstallerOptions {
    * This will be the default in the next major.
    */
   noPins?: boolean;
+
+  inputMapFallbacks?: boolean | 'semver-compatible';
 }
 
 interface VisitOpts {

@@ -123,7 +123,7 @@ deps = [
     'lib/##.test.js',
     'lib',
 ]
-run = 'node --test --test-force-exit -C source --enable-source-maps $DEP'
+run = 'node -C source --enable-source-maps $DEP'
 
 [[task]]
 name = 'test:integration'
@@ -135,7 +135,7 @@ deps = [
     'test/##.test.js',
     'lib',
 ]
-run = 'node --test --test-force-exit -C source --enable-source-maps $DEP'
+run = 'node -C source --enable-source-maps $DEP'
 
 [[task]]
 name = 'integration-debug:#'

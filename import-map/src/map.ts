@@ -19,6 +19,16 @@ export interface IImportMap {
   }
 }
 
+class MapMatcher {
+  prefixMatches: string[];
+  results: Map<string, string | undefined> = new Map();
+  constructor(map: Record<string, any>) {
+    this.prefixMatches = Object.keys(map)
+      .filter((match) => match.endsWith("/") || match.endsWith("*"))
+      .sort((matchA, matchB) => (matchA.length < matchB.length ? 1 : -1));
+  }
+}
+
 export class ImportMap implements IImportMap {
   imports: Record<string, string> = Object.create(null);
   scopes: Record<string, Record<string, string>> = Object.create(null);
@@ -37,6 +47,12 @@ export class ImportMap implements IImportMap {
    * in which case it is taken to be the root of the mapUrl.
    */
   rootUrl: URL | null;
+
+  #importsMatcher: MapMatcher;
+  #scopeMatchers: Record<string, MapMatcher>;
+  #scopeCandidates: [string, string][];
+  #scopeMatchCache: Map<string, [string, string][]>;
+  #resolveCache: Map<string, string>;
 
   /**
    * Create a new import map instance
@@ -71,6 +87,11 @@ export class ImportMap implements IImportMap {
       rootUrl = new URL("/", this.mapUrl);
     else if (typeof rootUrl === "string") rootUrl = new URL(rootUrl);
     this.rootUrl = rootUrl || null;
+    this.#importsMatcher = new MapMatcher(this.imports);
+    this.#scopeMatchers = Object.create(null);
+    this.#scopeCandidates = [];
+    this.#scopeMatchCache = new Map();
+    this.#resolveCache = new Map();
     if (map) this.extend(map);
   }
 
@@ -106,6 +127,22 @@ export class ImportMap implements IImportMap {
     return this;
   }
 
+  #refreshCaches() {
+    this.#importsMatcher = new MapMatcher(this.imports);
+    this.#scopeMatchers = Object.create(null);
+    for (const scope of Object.keys(this.scopes)) {
+      this.#scopeMatchers[scope] = new MapMatcher(this.scopes[scope]);
+    }
+    this.#scopeCandidates = Object.keys(this.scopes)
+      .map((scope): [string, string] => [
+        scope,
+        resolve(scope, this.mapUrl, this.rootUrl),
+      ])
+      .sort(([, a], [, b]) => (a.length < b.length ? 1 : -1));
+    this.#scopeMatchCache.clear();
+    this.#resolveCache.clear();
+  }
+
   /**
    * Performs an alphanumerical sort on the import map imports and scopes
    * @returns ImportMap for chaining
@@ -134,6 +171,7 @@ export class ImportMap implements IImportMap {
       this.scopes[parent] = this.scopes[parent] || Object.create(null);
       this.scopes[parent][name] = target;
     }
+    this.#refreshCaches();
     return this;
   }
   /**
@@ -202,6 +240,7 @@ export class ImportMap implements IImportMap {
       this.integrity[newRelPkgUrl] = this.integrity[url];
       delete this.integrity[url];
     }
+    this.#refreshCaches();
     return this;
   }
 
@@ -247,6 +286,7 @@ export class ImportMap implements IImportMap {
         if (this.scopes[scope])
           condenseMappings(this.scopes[scope], prefixes.scopes[scope]);
 
+    this.#refreshCaches();
     return this;
   }
 
@@ -351,6 +391,7 @@ export class ImportMap implements IImportMap {
       }
     }
 
+    this.#refreshCaches();
     return this;
   }
 
@@ -437,6 +478,7 @@ export class ImportMap implements IImportMap {
       }
       if (flattenedAll) delete this.scopes[scope];
     }
+    this.#refreshCaches();
     return this;
   }
 
@@ -556,6 +598,7 @@ export class ImportMap implements IImportMap {
     if (changedIntegrityProps) this.integrity = alphabetize(this.integrity);
     this.mapUrl = mapUrl;
     this.rootUrl = rootUrl;
+    this.#refreshCaches();
     return this;
   }
 
@@ -569,27 +612,28 @@ export class ImportMap implements IImportMap {
   resolve(specifier: string, parentUrl: string | URL = this.mapUrl): string {
     if (typeof parentUrl !== "string") parentUrl = parentUrl.toString();
     parentUrl = resolve(parentUrl, this.mapUrl, this.rootUrl);
+    const cacheKey = `${parentUrl}\0${specifier}`;
+    const cached = this.#resolveCache.get(cacheKey);
+    if (cached !== undefined) return cached;
     let specifierUrl: URL | undefined;
     if (!isPlain(specifier)) {
       specifierUrl = new URL(specifier, parentUrl);
       specifier = specifierUrl.href;
     }
-    const scopeMatches = getScopeMatches(
-      parentUrl,
-      this.scopes,
-      this.mapUrl,
-      this.rootUrl
-    );
+    const scopeMatches = this.#getScopeMatches(parentUrl);
     for (const [scope] of scopeMatches) {
-      let mapMatch = getMapMatch(specifier, this.scopes[scope]);
+      const scopeMatcher = this.#scopeMatchers[scope];
+      let mapMatch = getMapMatch.call(scopeMatcher, specifier, this.scopes[scope]);
       if (!mapMatch && specifierUrl) {
         mapMatch =
-          getMapMatch(
+          getMapMatch.call(
+            scopeMatcher,
             (specifier = rebase(specifier, this.mapUrl, this.rootUrl)),
             this.scopes[scope]
           ) ||
           (this.rootUrl &&
-            getMapMatch(
+            getMapMatch.call(
+              scopeMatcher,
               (specifier = rebase(specifier, this.mapUrl, null)),
               this.scopes[scope]
             )) ||
@@ -597,22 +641,26 @@ export class ImportMap implements IImportMap {
       }
       if (mapMatch) {
         const target = this.scopes[scope][mapMatch];
-        return resolve(
+        const resolved = resolve(
           target + specifier.slice(mapMatch.length),
           this.mapUrl,
           this.rootUrl
         );
+        this.#resolveCache.set(cacheKey, resolved);
+        return resolved;
       }
     }
-    let mapMatch = getMapMatch(specifier, this.imports);
+    let mapMatch = getMapMatch.call(this.#importsMatcher, specifier, this.imports);
     if (!mapMatch && specifierUrl) {
       mapMatch =
-        getMapMatch(
+        getMapMatch.call(
+          this.#importsMatcher,
           (specifier = rebase(specifier, this.mapUrl, this.rootUrl)),
           this.imports
         ) ||
         (this.rootUrl &&
-          getMapMatch(
+          getMapMatch.call(
+            this.#importsMatcher,
             (specifier = rebase(specifier, this.mapUrl, null)),
             this.imports
           )) ||
@@ -620,14 +668,32 @@ export class ImportMap implements IImportMap {
     }
     if (mapMatch) {
       const target = this.imports[mapMatch];
-      return resolve(
+      const resolved = resolve(
         target + specifier.slice(mapMatch.length),
         this.mapUrl,
         this.rootUrl
       );
+      this.#resolveCache.set(cacheKey, resolved);
+      return resolved;
     }
-    if (specifierUrl) return specifierUrl.href;
+    if (specifierUrl) {
+      this.#resolveCache.set(cacheKey, specifierUrl.href);
+      return specifierUrl.href;
+    }
     throw new Error(`Unable to resolve ${specifier} in ${parentUrl}`);
+  }
+
+  #getScopeMatches(parentUrl: string): [string, string][] {
+    const cached = this.#scopeMatchCache.get(parentUrl);
+    if (cached) return cached;
+    const matches = this.#scopeCandidates.filter(([, scopeUrl]) => {
+      return (
+        scopeUrl === parentUrl ||
+        (scopeUrl.endsWith("/") && parentUrl.startsWith(scopeUrl))
+      );
+    });
+    this.#scopeMatchCache.set(parentUrl, matches);
+    return matches;
   }
 
   /**
@@ -644,33 +710,54 @@ export class ImportMap implements IImportMap {
   }
 }
 
+const scopeCandidateCache = new WeakMap<
+  Record<string, Record<string, string>>,
+  { keyCount: number; candidates: [string, string][] }
+>();
+
 export function getScopeMatches(
   parentUrl: string,
   scopes: Record<string, Record<string, string>>,
   mapUrl: URL,
   rootUrl?: URL
 ): [string, string][] {
-  let scopeCandidates = Object.keys(scopes).map((scope) => [
-    scope,
-    resolve(scope, mapUrl, rootUrl),
-  ]);
-  scopeCandidates = scopeCandidates.sort(([, matchA], [, matchB]) =>
-    matchA.length < matchB.length ? 1 : -1
-  );
+  const keys = Object.keys(scopes);
+  let cached = scopeCandidateCache.get(scopes);
+  if (!cached || cached.keyCount !== keys.length) {
+    const candidates = keys
+      .map((scope): [string, string] => [scope, resolve(scope, mapUrl, rootUrl)])
+      .sort(([, a], [, b]) => (a.length < b.length ? 1 : -1));
+    cached = { keyCount: keys.length, candidates };
+    scopeCandidateCache.set(scopes, cached);
+  }
 
-  return scopeCandidates.filter(([, scopeUrl]) => {
+  return cached.candidates.filter(([, scopeUrl]) => {
     return (
       scopeUrl === parentUrl ||
       (scopeUrl.endsWith("/") && parentUrl.startsWith(scopeUrl))
     );
-  }) as [string, string][];
+  });
 }
 
 export function getMapMatch<T = any>(
+  this: MapMatcher | void,
   specifier: string,
   map: Record<string, T>
 ): string | undefined {
   if (specifier in map) return specifier;
+  if (this instanceof MapMatcher) {
+    const cached = this.results.get(specifier);
+    if (cached !== undefined) return cached;
+    let curMatch: string | undefined;
+    for (const match of this.prefixMatches) {
+      const wildcard = match.endsWith("*");
+      if (specifier.startsWith(wildcard ? match.slice(0, -1) : match)) {
+        if (!curMatch || match.length > curMatch.length) curMatch = match;
+      }
+    }
+    this.results.set(specifier, curMatch);
+    return curMatch;
+  }
   let curMatch;
   for (const match of Object.keys(map)) {
     const wildcard = match.endsWith("*");

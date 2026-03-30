@@ -1,0 +1,1 @@
+{"version":3,"sources":["../src/native.ts"],"names":[],"mappings":"AAAA,OAAO,MAAM,QAAQ,WAAW,KAAK,CAAC;AAEtC,OAAO,MAAM,aAAa,KAAO,EAAE","file":"native.js","sourcesContent":["export const fetch = globalThis.fetch;\n\nexport const clearCache = () => {};\n"]}

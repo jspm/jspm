@@ -1,0 +1,55 @@
+{
+  "name": "@jspm/fetch",
+  "description": "Fetch with two-tier caching for JSPM",
+  "license": "MIT",
+  "version": "1.0.0",
+  "types": "lib/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "source": "./lib/index.js",
+      "default": "./dist/index.js"
+    },
+    "./native": {
+      "source": "./lib/native.js",
+      "default": "./dist/native.js"
+    },
+    "./deno": {
+      "source": "./lib/deno.js",
+      "default": "./dist/deno.js"
+    },
+    "./vscode": {
+      "source": "./lib/vscode.js",
+      "default": "./dist/vscode.js"
+    }
+  },
+  "files": [
+    "src",
+    "lib",
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jspm/jspm.git"
+  },
+  "author": "Guy Bedford",
+  "bugs": {
+    "url": "https://github.com/jspm/jspm/issues"
+  },
+  "scripts": {
+    "build": "chomp build",
+    "test": "chomp test"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11"
+  },
+  "devDependencies": {
+    "@swc/cli": "^0.1.65",
+    "@swc/core": "^1.11.18",
+    "@types/better-sqlite3": "^7",
+    "@types/node": "^22.14.0",
+    "rollup": "^2.79.1",
+    "typescript": "^4.9.5"
+  }
+}

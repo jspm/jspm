@@ -80,12 +80,14 @@ export function getResolution(
   return scope?.[name] ?? null;
 }
 
-export function getFlattenedResolution(
+export async function getFlattenedResolution(
   resolutions: LockResolutions,
   name: string,
   pkgScope: `${string}/`,
-  flattenedSubpath: `.${string}`
-): InstalledResolution | null {
+  flattenedSubpath: `.${string}`,
+  semverCompatible = false,
+  inRange: ((installUrl: string) => Promise<boolean>) | null = null
+): Promise<InstalledResolution | null> {
   // no current scope -> check the flattened scopes
   const parentScopes = enumerateParentScopes(pkgScope);
   for (const scopeUrl of parentScopes) {
@@ -97,6 +99,9 @@ export function getFlattenedResolution(
         flatResolution.export === flattenedSubpath ||
         (flatResolution.export.endsWith('/') && flattenedSubpath.startsWith(flatResolution.export))
       ) {
+        if (semverCompatible && inRange && !(await inRange(flatResolution.resolution.installUrl))) {
+          continue;
+        }
         return flatResolution.resolution;
       }
     }

@@ -85,6 +85,7 @@ export interface InstallerOptions {
   defaultProvider?: string;
   defaultRegistry?: string;
   providers?: Record<string, string>;
+  inputMapFallbacks?: boolean | 'semver-compatible';
 }
 
 export class Installer {
@@ -456,19 +457,24 @@ export class Installer {
     // Pick up resolutions from flattened scopes like 'https://ga.jspm.io/"
     // for secondary installs, if they're in range for the current pjson, or
     // if we're in a freeze install:
-    if (!isTopLevel) {
-      const flattenedResolution = getFlattenedResolution(
+    if (!isTopLevel && this.opts.inputMapFallbacks !== false) {
+      const semverCompatible = this.opts.inputMapFallbacks === 'semver-compatible';
+      const flattenedResolution = await getFlattenedResolution(
         this.installs,
         pkgName,
         pkgScope,
-        traceSubpath
+        traceSubpath,
+        semverCompatible,
+        semverCompatible && pjsonTarget
+          ? async (installUrl: string) => this.inRange(installUrl, pjsonTarget.pkgTarget)
+          : null
       );
 
       if (
         !useLatestPjsonTarget &&
         flattenedResolution &&
-        (mode === 'freeze' ||
-          (await this.inRange(flattenedResolution.installUrl, pjsonTarget.pkgTarget)))
+        (mode === 'freeze' && !semverCompatible ||
+          pjsonTarget && (await this.inRange(flattenedResolution.installUrl, pjsonTarget.pkgTarget)))
       ) {
         this.newInstalls = this.setResolution(pkgName, flattenedResolution.installUrl, pkgScope);
         return flattenedResolution;

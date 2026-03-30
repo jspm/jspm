@@ -553,6 +553,23 @@ export interface GeneratorOptions {
    * ```
    */
   traceCache?: GeneratorCache | true;
+
+  /**
+   * Controls how flattened scopes from the inputMap are used as fallback
+   * resolutions during dependency installation.
+   *
+   * When the inputMap has a flattened scope (e.g. "https://ga.jspm.io/") with
+   * a mapping for a package, child scopes may inherit that mapping via URL
+   * prefix matching even when the version is incompatible with what they need.
+   *
+   * - `true` (default): All flattened scope resolutions are trusted as locks.
+   * - `false`: Flattened scope resolutions from the inputMap are ignored entirely.
+   *   Dependencies are resolved fresh from package.json ranges.
+   * - `'semver-compatible'`: Flattened scope resolutions are only used when they
+   *   satisfy the dependent package's declared semver range. To be made the
+   *   default in the next major.
+   */
+  inputMapFallbacks?: boolean | 'semver-compatible';
 }
 
 /**
@@ -712,7 +729,8 @@ export class Generator {
     combineSubpaths = true,
     expandWildcards = false,
     scopedLink = false,
-    traceCache = undefined
+    traceCache = undefined,
+    inputMapFallbacks = true
   }: GeneratorOptions = {}) {
     this.cacheEnabled = !!traceCache;
     if (typeof preserveSymlinks !== 'boolean') preserveSymlinks = isNode;
@@ -801,7 +819,8 @@ export class Generator {
         resolutions,
         commonJS,
         customResolver,
-        noPins: scopedLink
+        noPins: scopedLink,
+        inputMapFallbacks
       },
       log,
       resolver

@@ -100,7 +100,7 @@ export class Installer {
   defaultRegistry = 'npm';
   providers: Record<string, string>;
   resolutions: Record<string, string>;
-  log: Log;
+  log: Log | undefined;
   resolver: Resolver;
   // Cached set of package URLs - maintained incrementally for performance
   private _pkgUrls: Set<string> | null = null;
@@ -109,7 +109,12 @@ export class Installer {
   // Index of constraints by registry:name for fast lookup
   private _constraintsByKey: Map<string, PackageConstraint[]> | null = null;
 
-  constructor(baseUrl: `${string}/`, opts: InstallerOptions, log: Log, resolver: Resolver) {
+  constructor(
+    baseUrl: `${string}/`,
+    opts: InstallerOptions,
+    log: Log | undefined,
+    resolver: Resolver
+  ) {
     this.log = log;
     this.resolver = resolver;
     this.resolver.installer = this;
@@ -202,7 +207,7 @@ export class Installer {
       const installHref = pkgTarget.href;
       const installUrl = (installHref + (installHref.endsWith('/') ? '' : '/')) as `${string}/`;
 
-      this.log('installer/installTarget', `${pkgName} ${pkgScope} -> ${installHref} (URL)`);
+      this.log?.('installer/installTarget', `${pkgName} ${pkgScope} -> ${installHref} (URL)`);
 
       this.newInstalls = this.setResolution(pkgName, installUrl, pkgScope);
       return { installUrl };
@@ -216,7 +221,7 @@ export class Installer {
     if (pkgScope !== null && this.installs.primary[pkgName]) {
       const primaryUrl = this.installs.primary[pkgName].installUrl;
       if (await this.inRange(primaryUrl, pkgTarget)) {
-        this.log(
+        this.log?.(
           'installer/installTarget',
           `${pkgName} ${pkgScope} -> ${primaryUrl} (primary consolidation)`
         );
@@ -231,7 +236,7 @@ export class Installer {
     if (mode === 'default' || mode === 'freeze' || !useLatest) {
       const pkg = await this.getBestExistingMatch(pkgTarget);
       if (pkg) {
-        this.log(
+        this.log?.(
           'installer/installTarget',
           `${pkgName} ${pkgScope} -> ${JSON.stringify(pkg)} (existing match)`
         );
@@ -264,7 +269,7 @@ export class Installer {
         } else {
           // No - can we consolidate with the primary instead?
           if (await this.inRange(primaryUrl, pkgTarget)) {
-            this.log(
+            this.log?.(
               'installer/installTarget',
               `${pkgName} ${pkgScope} -> ${primaryUrl} (primary consolidation)`
             );
@@ -276,7 +281,7 @@ export class Installer {
           if (!isTopLevel) {
             const pkg = await this.getBestExistingMatch(pkgTarget);
             if (pkg) {
-              this.log(
+              this.log?.(
                 'installer/installTarget',
                 `${pkgName} ${pkgScope} -> ${JSON.stringify(latestPkg)} (existing match not latest)`
               );
@@ -303,7 +308,7 @@ export class Installer {
       // Secondary install with no primary: try best existing match
       const pkg = await this.getBestExistingMatch(pkgTarget);
       if (pkg) {
-        this.log(
+        this.log?.(
           'installer/installTarget',
           `${pkgName} ${pkgScope} -> ${JSON.stringify(latestPkg)} (existing match not latest)`
         );
@@ -316,7 +321,7 @@ export class Installer {
 
     // Otherwise we install latest and make an attempt to upgrade any existing
     // locks that are compatible to the latest version:
-    this.log('installer/installTarget', `${pkgName} ${pkgScope} -> ${pkgUrl} (latest)`);
+    this.log?.('installer/installTarget', `${pkgName} ${pkgScope} -> ${pkgUrl} (latest)`);
     this.newInstalls = this.setResolution(pkgName, pkgUrl, pkgScope);
     this.setConstraint(pkgName, pkgTarget, pkgScope);
     if (mode !== 'freeze') this.upgradeSupportedTo(latestPkg, pkgUrl, installed);
@@ -329,7 +334,7 @@ export class Installer {
     mode: InstallMode,
     parentUrl: string
   ): Promise<InstalledResolution> {
-    this.log('installer/install', `installing builtin ${specifier} from ${parentUrl}`);
+    this.log?.('installer/install', `installing builtin ${specifier} from ${parentUrl}`);
 
     if (this.resolutions[install.name])
       return this.installTarget(
@@ -351,7 +356,7 @@ export class Installer {
     // locks are always in-range for their parent scope pjsons:
     const existingResolution = getResolution(this.installs, install.name, null);
     if (!useLatestPjsonTarget && existingResolution) {
-      this.log(
+      this.log?.(
         'installer/install',
         `existing lock for ${install.name} from ${parentUrl} is ${JSON.stringify(
           existingResolution
@@ -395,7 +400,7 @@ export class Installer {
     traceSubpath: `./${string}` | '.',
     parentUrl: string
   ): Promise<InstalledResolution> {
-    this.log('installer/install', `installing ${pkgName} from ${parentUrl} in scope ${pkgScope}`);
+    this.log?.('installer/install', `installing ${pkgName} from ${parentUrl} in scope ${pkgScope}`);
 
     // Anything installed in the scope of the installer's base URL is treated
     // as top-level, and hits the primary locks. Anything else is treated as
@@ -445,7 +450,7 @@ export class Installer {
         mode === 'freeze' ||
         (await this.inRange(existingResolution.installUrl, pjsonTarget.pkgTarget)))
     ) {
-      this.log(
+      this.log?.(
         'installer/install',
         `existing lock for ${pkgName} from ${parentUrl} in scope ${pkgScope} is ${JSON.stringify(
           existingResolution
@@ -473,8 +478,9 @@ export class Installer {
       if (
         !useLatestPjsonTarget &&
         flattenedResolution &&
-        (mode === 'freeze' && !semverCompatible ||
-          pjsonTarget && (await this.inRange(flattenedResolution.installUrl, pjsonTarget.pkgTarget)))
+        ((mode === 'freeze' && !semverCompatible) ||
+          (pjsonTarget &&
+            (await this.inRange(flattenedResolution.installUrl, pjsonTarget.pkgTarget))))
       ) {
         this.newInstalls = this.setResolution(pkgName, flattenedResolution.installUrl, pkgScope);
         return flattenedResolution;

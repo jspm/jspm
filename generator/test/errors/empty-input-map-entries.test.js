@@ -14,9 +14,9 @@ import assert from 'assert';
     scopedLink: true,
     inputMap: {
       imports: {
-        'missing-pkg': 'https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.js',
-      },
-    },
+        'missing-pkg': 'https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.js'
+      }
+    }
   });
 
   await generator.install('es-module-lexer');
@@ -36,15 +36,15 @@ import assert from 'assert';
     scopedLink: true,
     inputMap: {
       imports: {
-        'es-module-lexer': 'https://ga.jspm.io/npm:es-module-lexer@1.4.1/dist/lexer.js',
+        'es-module-lexer': 'https://ga.jspm.io/npm:es-module-lexer@1.4.1/dist/lexer.js'
       },
       scopes: {
         'https://ga.jspm.io/': {
           '#some-internal': 'https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.js',
-          'scoped-empty': 'https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.js',
-        },
-      },
-    },
+          'scoped-empty': 'https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.js'
+        }
+      }
+    }
   });
 
   await generator.install('es-module-lexer');
@@ -63,14 +63,14 @@ import assert from 'assert';
     scopedLink: true,
     inputMap: {
       imports: {
-        'missing-cjs': 'https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.dew.js',
+        'missing-cjs': 'https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.dew.js'
       },
       scopes: {
         'https://ga.jspm.io/': {
-          'scoped-cjs-empty': 'https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.dew.js',
-        },
-      },
-    },
+          'scoped-cjs-empty': 'https://ga.jspm.io/npm:@jspm/core@2.0.1/nodelibs/@empty.dew.js'
+        }
+      }
+    }
   });
 
   await generator.install('es-module-lexer');

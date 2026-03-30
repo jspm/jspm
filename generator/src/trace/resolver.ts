@@ -26,6 +26,32 @@ export function setPathFns(_realpath, _pathToFileURL) {
   (realpath = _realpath), (pathToFileURL = _pathToFileURL);
 }
 
+export function serializeCacheError(error: any) {
+  return {
+    code: typeof error?.code === 'string' ? error.code : undefined,
+    message: error instanceof Error ? error.message : String(error),
+    name: error instanceof Error ? error.name : 'Error'
+  };
+}
+
+export function deserializeCacheError(cached: any) {
+  const error = cached.code
+    ? new JspmError(cached.message, cached.code)
+    : new Error(cached.message);
+  error.name = cached.name || error.name;
+  return error;
+}
+
+function isResponseImmutable(headers: any): boolean {
+  if (!headers?.get) return false;
+  const cc = headers.get('cache-control');
+  if (!cc) return false;
+  if (cc.includes('immutable')) return true;
+  const maxAgeMatch = cc.match(/max-age=(\d+)/);
+  if (maxAgeMatch && parseInt(maxAgeMatch[1]) >= 31536000) return true;
+  return false;
+}
+
 export function isBuiltinScheme(specifier: string): specifier is `${string}:${string}` {
   if (specifier.indexOf(':') === -1) return false;
   return builtinSchemes.has(specifier.slice(0, specifier.indexOf(':')));
@@ -69,6 +95,7 @@ export class Resolver {
   pcfgPromises: Record<string, Promise<PackageConfig | null>> = Object.create(null);
   analysisPromises: Record<string, Promise<void>> = Object.create(null);
   pcfgs: Record<string, PackageConfig | null> = Object.create(null);
+  packageBaseCache: Record<string, `${string}/` | Promise<`${string}/`>> = Object.create(null);
   fileLists: Record<string, Set<string> | undefined> = Object.create(null);
   fetchOpts: any;
   preserveSymlinks;
@@ -86,6 +113,13 @@ export class Resolver {
   // Track visited URLs during final extraction for cache pruning
   // Populated by extractMap's visitor, cleared on each extractMap call
   visitedUrls: Set<string> = new Set();
+  touchedPackageConfigUrls: Set<string> = new Set();
+  touchedAnalysisUrls: Set<string> = new Set();
+  immutableUrls: Set<string> = new Set();
+  // Lazy restoration from trace cache
+  restoredAnalysis: Record<string, any> = Object.create(null);
+  restoredAnalysisFailures: Record<string, any> = Object.create(null);
+  packageConfigFailures: Record<string, any> = Object.create(null);
   constructor({
     env,
     fetchOpts,
@@ -125,24 +159,43 @@ export class Resolver {
   }
 
   getPackageBase(url: string): `${string}/` | Promise<`${string}/`> {
+    const cached = this.packageBaseCache[url];
+    if (cached !== undefined) return cached;
+
     const pkg = this.pm.parseUrlPkg(url);
-    if (pkg) return this.pm.pkgToUrl(pkg.pkg, pkg.source.provider, pkg.source.layer);
+    if (pkg) {
+      const result = this.pm.pkgToUrl(pkg.pkg, pkg.source.provider, pkg.source.layer);
+      if (typeof result === 'string') {
+        return (this.packageBaseCache[url] = result);
+      }
+      return result.then(r => (this.packageBaseCache[url] = r));
+    }
 
     let testUrl: URL;
     try {
       testUrl = new URL('./', url);
     } catch {
-      return url as `${string}/`;
+      return (this.packageBaseCache[url] = url as `${string}/`);
     }
-    return (async () => {
+    const packageBasePromise = (async () => {
       const rootUrl = new URL('/', testUrl).href as `${string}/`;
       do {
         let testUrlHref: `${string}/` = testUrl.href as `${string}/`;
         if (await this.checkPjson(testUrlHref)) return testUrlHref;
-        // No package base -> use directory itself
         if (testUrl.href === rootUrl) return new URL('./', url).href as `${string}/`;
       } while ((testUrl = new URL('../', testUrl)));
-    })();
+    })() as Promise<`${string}/`>;
+    this.packageBaseCache[url] = packageBasePromise;
+    return packageBasePromise.then(
+      packageBase => {
+        this.packageBaseCache[url] = packageBase;
+        return packageBase;
+      },
+      error => {
+        delete this.packageBaseCache[url];
+        throw error;
+      }
+    );
   }
 
   // TODO: there are actually two different kinds of "package" in the codebase.
@@ -158,13 +211,27 @@ export class Resolver {
     if (!isFetchProtocol(protocol)) return null;
     if (!pkgUrl.endsWith('/'))
       throw new Error(`Internal Error: Package URL must end in "/". Got ${pkgUrl}`);
+    this.touchedPackageConfigUrls.add(pkgUrl);
+    const cachedFailure = this.packageConfigFailures[pkgUrl];
+    if (cachedFailure) throw deserializeCacheError(cachedFailure);
     let cached = this.pcfgs[pkgUrl];
     // TODO: fix timing bug that requires this return to be a promise
     if (cached === null) return Promise.resolve(null);
     if (cached) return cached;
     if (!this.pcfgPromises[pkgUrl])
       this.pcfgPromises[pkgUrl] = (async () => {
-        const pcfg = await this.pm.getPackageConfig(pkgUrl);
+        let pcfg;
+        try {
+          pcfg = await this.pm.getPackageConfig(pkgUrl);
+        } catch (error) {
+          if (
+            this.immutableUrls.has(pkgUrl) &&
+            (error instanceof JspmError || error instanceof SyntaxError)
+          ) {
+            this.packageConfigFailures[pkgUrl] = serializeCacheError(error);
+          }
+          throw error;
+        }
         if (typeof pcfg === 'object') {
           if (pcfg !== null) {
             return (this.pcfgs[pkgUrl] = pcfg);
@@ -195,6 +262,7 @@ export class Resolver {
               `Invalid status code ${res.status} reading package config for ${pkgUrl}. ${res.statusText}`
             );
         }
+        if (isResponseImmutable(res.headers)) this.immutableUrls.add(pkgUrl);
         if (res.headers && !res.headers.get('Content-Type')?.match(/^application\/json(;|$)/)) {
           return (this.pcfgs[pkgUrl] = null);
         } else {
@@ -762,12 +830,50 @@ export class Resolver {
   }
 
   getAnalysis(resolvedUrl: string): TraceEntry | null | undefined {
-    const traceEntry = this.traceEntries[resolvedUrl];
+    let traceEntry = this.traceEntries[resolvedUrl];
+    if (traceEntry === undefined) {
+      const restoredAnalysis = this.restoredAnalysis[resolvedUrl];
+      if (restoredAnalysis) {
+        traceEntry = this.traceEntries[resolvedUrl] = {
+          ...restoredAnalysis,
+          hasStaticParent: true,
+          usesCjs: false,
+          cjsLazyDeps: null,
+          parseError: null
+        };
+      } else {
+        const restoredFailure = this.restoredAnalysisFailures[resolvedUrl];
+        if (restoredFailure) {
+          traceEntry = this.traceEntries[resolvedUrl] =
+            restoredFailure.kind === 'not-found'
+              ? null
+              : {
+                  parseError: deserializeCacheError(restoredFailure),
+                  wasCjs: false,
+                  usesCjs: false,
+                  deps: null,
+                  dynamicDeps: null,
+                  cjsLazyDeps: null,
+                  hasStaticParent: true,
+                  size: NaN,
+                  integrity: '',
+                  format: undefined
+                };
+        }
+      }
+    }
     if (traceEntry?.parseError) throw traceEntry.parseError;
     return traceEntry;
   }
 
-  async analyze(resolvedUrl: string): Promise<TraceEntry | null> {
+  analyze(resolvedUrl: string): TraceEntry | null | Promise<TraceEntry | null> {
+    this.touchedAnalysisUrls.add(resolvedUrl);
+    const restoredTraceEntry = this.getAnalysis(resolvedUrl);
+    if (restoredTraceEntry !== undefined) return restoredTraceEntry;
+    return this._analyzeAsync(resolvedUrl);
+  }
+
+  private async _analyzeAsync(resolvedUrl: string): Promise<TraceEntry | null> {
     if (!this.traceEntryPromises[resolvedUrl])
       this.traceEntryPromises[resolvedUrl] = (async () => {
         let traceEntry: TraceEntry | null = null;
@@ -796,8 +902,6 @@ export class Resolver {
             traceEntry.dynamicDeps = dynamicDeps.sort();
             traceEntry.cjsLazyDeps = cjsLazyDeps ? cjsLazyDeps.sort() : cjsLazyDeps;
 
-            // wasCJS distinct from CJS because it applies to CJS transformed into ESM
-            // from the resolver perspective
             const wasCJS = format === 'commonjs' || (await this.wasCommonJS(resolvedUrl));
             if (wasCJS) traceEntry.wasCjs = true;
           }
@@ -805,7 +909,7 @@ export class Resolver {
         this.traceEntries[resolvedUrl] = traceEntry;
       })();
     await this.traceEntryPromises[resolvedUrl];
-    const traceEntry = this.traceEntries[resolvedUrl];
+    const traceEntry = this.getAnalysis(resolvedUrl);
     if (traceEntry?.parseError) throw traceEntry.parseError;
     return traceEntry;
   }
@@ -921,6 +1025,7 @@ async function legacyMainResolve(
 async function getAnalysis(resolver: Resolver, resolvedUrl: string): Promise<Analysis | null> {
   const parentIsRequire = false;
   const res = await fetch(resolvedUrl, resolver.fetchOpts);
+  if (isResponseImmutable(res.headers)) resolver.immutableUrls.add(resolvedUrl);
   let source;
   switch (res.status) {
     case 200:

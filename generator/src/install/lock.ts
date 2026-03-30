@@ -321,7 +321,7 @@ export function getConstraintFor(
 }
 
 export async function extractLockConstraintsAndMap(
-  log: Log,
+  log: Log | undefined,
   map: IImportMap,
   preloadUrls: string[],
   mapUrl: URL,
@@ -370,7 +370,11 @@ export async function extractLockConstraintsAndMap(
 
           // Skip @empty.js stub entries produced by link() for missing modules —
           // these resolve to @jspm/core but cannot be traced as real dependencies.
-          if (parsedTarget?.pkg.name === '@jspm/core' && (targetUrl.endsWith('/@empty.js') || targetUrl.endsWith('/@empty.dew.js'))) return;
+          if (
+            parsedTarget?.pkg.name === '@jspm/core' &&
+            (targetUrl.endsWith('/@empty.js') || targetUrl.endsWith('/@empty.dew.js'))
+          )
+            return;
 
           pkgUrls.add(pkgUrl);
 
@@ -428,7 +432,11 @@ export async function extractLockConstraintsAndMap(
             let { parsedTarget, pkgUrl } = await resolveTargetPkg(targetUrl, resolver);
 
             // Skip @empty.js stub entries produced by link() for missing modules.
-            if (parsedTarget?.pkg.name === '@jspm/core' && (targetUrl.endsWith('/@empty.js') || targetUrl.endsWith('/@empty.dew.js'))) return;
+            if (
+              parsedTarget?.pkg.name === '@jspm/core' &&
+              (targetUrl.endsWith('/@empty.js') || targetUrl.endsWith('/@empty.dew.js'))
+            )
+              return;
 
             pkgUrls.add(pkgUrl);
 
@@ -470,7 +478,7 @@ export async function extractLockConstraintsAndMap(
 
   // for every package we resolved, add their package constraints into the list of constraints
   // this step requires fetching package configuration for all packages, therefore takes a little time, but caches
-  log('generator/processInputMap', `Extracting constraints`);
+  log?.('generator/processInputMap', `Extracting constraints`);
   await Promise.all(promises);
   return {
     maps,

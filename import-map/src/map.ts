@@ -53,6 +53,7 @@ export class ImportMap implements IImportMap {
   #scopeCandidates: [string, string][];
   #scopeMatchCache: Map<string, [string, string][]>;
   #resolveCache: Map<string, string>;
+  #dirty = false;
 
   /**
    * Create a new import map instance
@@ -171,7 +172,7 @@ export class ImportMap implements IImportMap {
       this.scopes[parent] = this.scopes[parent] || Object.create(null);
       this.scopes[parent][name] = target;
     }
-    this.#refreshCaches();
+    this.#dirty = true;
     return this;
   }
   /**
@@ -240,7 +241,7 @@ export class ImportMap implements IImportMap {
       this.integrity[newRelPkgUrl] = this.integrity[url];
       delete this.integrity[url];
     }
-    this.#refreshCaches();
+    this.#dirty = true;
     return this;
   }
 
@@ -286,7 +287,7 @@ export class ImportMap implements IImportMap {
         if (this.scopes[scope])
           condenseMappings(this.scopes[scope], prefixes.scopes[scope]);
 
-    this.#refreshCaches();
+    this.#dirty = true;
     return this;
   }
 
@@ -391,7 +392,7 @@ export class ImportMap implements IImportMap {
       }
     }
 
-    this.#refreshCaches();
+    this.#dirty = true;
     return this;
   }
 
@@ -408,10 +409,25 @@ export class ImportMap implements IImportMap {
    * @returns ImportMap for chaining
    */
   flatten() {
+    // Ensure resolve cache is fresh before we use it
+    if (this.#dirty) {
+      this.#refreshCaches();
+      this.#dirty = false;
+    }
+
+    const urlCache = new Map<string, string>();
+    const cachedResolve = (url: string): string => {
+      let resolved = urlCache.get(url);
+      if (resolved !== undefined) return resolved;
+      resolved = resolve(url, this.mapUrl, this.rootUrl);
+      urlCache.set(url, resolved);
+      return resolved;
+    };
+
     // First, determine the common base for the local mappings if any
     let localScopemapUrl: string | null = null;
     for (const scope of Object.keys(this.scopes)) {
-      const resolvedScope = resolve(scope, this.mapUrl, this.rootUrl);
+      const resolvedScope = cachedResolve(scope);
       if (isURL(resolvedScope)) {
         const scopeUrl = new URL(resolvedScope);
         if (sameOrigin(scopeUrl, this.mapUrl)) {
@@ -433,7 +449,7 @@ export class ImportMap implements IImportMap {
       const scopeImports = this.scopes[scope];
 
       let scopemapUrl: string;
-      const resolvedScope = resolve(scope, this.mapUrl, this.rootUrl);
+      const resolvedScope = cachedResolve(scope);
       if (isURL(resolvedScope)) {
         const scopeUrl = new URL(resolvedScope);
         if (sameOrigin(scopeUrl, this.mapUrl)) {
@@ -459,15 +475,13 @@ export class ImportMap implements IImportMap {
         const target = scopeImports[name];
         if (
           this.imports[name] &&
-          resolve(this.imports[name], this.mapUrl, this.rootUrl) ===
-            resolve(target, this.mapUrl, this.rootUrl)
+          cachedResolve(this.imports[name]) === cachedResolve(target)
         ) {
           delete scopeImports[name];
         } else if (
           scopeBase &&
           (!scopeBase[name] ||
-            resolve(scopeBase[name], this.mapUrl, this.rootUrl) ===
-              resolve(target, this.mapUrl, this.rootUrl))
+            cachedResolve(scopeBase[name]) === cachedResolve(target))
         ) {
           scopeBase[name] = rebase(target, this.mapUrl, this.rootUrl);
           delete scopeImports[name];
@@ -478,7 +492,7 @@ export class ImportMap implements IImportMap {
       }
       if (flattenedAll) delete this.scopes[scope];
     }
-    this.#refreshCaches();
+    this.#dirty = true;
     return this;
   }
 
@@ -598,7 +612,7 @@ export class ImportMap implements IImportMap {
     if (changedIntegrityProps) this.integrity = alphabetize(this.integrity);
     this.mapUrl = mapUrl;
     this.rootUrl = rootUrl;
-    this.#refreshCaches();
+    this.#dirty = true;
     return this;
   }
 
@@ -610,6 +624,10 @@ export class ImportMap implements IImportMap {
    * @returns Resolved URL string
    */
   resolve(specifier: string, parentUrl: string | URL = this.mapUrl): string {
+    if (this.#dirty) {
+      this.#refreshCaches();
+      this.#dirty = false;
+    }
     if (typeof parentUrl !== "string") parentUrl = parentUrl.toString();
     parentUrl = resolve(parentUrl, this.mapUrl, this.rootUrl);
     const cacheKey = `${parentUrl}\0${specifier}`;

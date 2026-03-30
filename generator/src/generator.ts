@@ -59,7 +59,7 @@ import {
   type Provider
 } from './providers/index.js';
 import * as nodemodules from './providers/nodemodules.js';
-import { Resolver } from './trace/resolver.js';
+import { Resolver, serializeCacheError } from './trace/resolver.js';
 import { getMaybeWrapperUrl } from './common/wrapper.js';
 import { expandExportsResolutions } from './common/package.js';
 import { isNode } from './common/env.js';
@@ -87,6 +87,12 @@ export interface GeneratorCache {
   packageConfigs: Record<string, PackageConfig | null>;
   /** Module analysis data keyed by full module URL */
   analysis: Record<string, CachedAnalysis>;
+  /** Negative or parse-error analysis outcomes keyed by full module URL */
+  analysisFailures?: Record<string, any>;
+  /** Deterministic package-config failures keyed by full package URL */
+  packageConfigFailures?: Record<string, any>;
+  /** Cached package-base lookups keyed by full module URL */
+  packageBases?: Record<string, string>;
 }
 
 /**
@@ -771,6 +777,7 @@ export class Generator {
     const { log, logStream } = createLogger();
     this.logStream = logStream;
     this.log = log;
+    const tracelog = globalThis.process?.env?.JSPM_GENERATOR_LOG ? log : undefined;
 
     // The node_modules provider is special, because it needs to be rooted to
     // perform resolutions against the local node_modules directory:
@@ -822,29 +829,21 @@ export class Generator {
         noPins: scopedLink,
         inputMapFallbacks
       },
-      log,
+      tracelog,
       resolver
     );
 
     // Populate resolver caches from input cache if provided
     if (traceCache && traceCache !== true) {
       Object.assign(resolver.pcfgs, traceCache.packageConfigs);
-      // Also mark pcfgPromises as resolved so getPackageConfig doesn't re-fetch
-      for (const url of Object.keys(traceCache.packageConfigs)) {
-        resolver.pcfgPromises[url] = Promise.resolve(traceCache.packageConfigs[url]);
-      }
-
-      for (const [url, cached] of Object.entries(traceCache.analysis)) {
-        resolver.traceEntries[url] = {
-          ...cached,
-          hasStaticParent: true,
-          usesCjs: false,
-          cjsLazyDeps: null,
-          parseError: null
-        };
-        // Mark as already analyzed so analyze() doesn't re-fetch
-        resolver.traceEntryPromises[url] = Promise.resolve();
-      }
+      resolver.restoredAnalysis = traceCache.analysis || {};
+      resolver.restoredAnalysisFailures = (traceCache as any).analysisFailures || {};
+      if ((traceCache as any).packageConfigFailures)
+        Object.assign(resolver.packageConfigFailures, (traceCache as any).packageConfigFailures);
+      // packageBases restored to speed up getPackageBase lookups
+      if ((traceCache as any).packageBases)
+        Object.assign(resolver.packageBaseCache, (traceCache as any).packageBases);
+      // resolveCache and resolveFailures are in-memory only — rebuilt each run
     }
 
     // Reconstruct constraints and locks from the input map:
@@ -963,7 +962,8 @@ export class Generator {
       const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
         this.traceMap.pins || pins || [],
         this.integrity,
-        !this.scopedLink
+        !this.scopedLink,
+        parentUrl
       );
       this.map = map;
       if (!error) return { staticDeps, dynamicDeps };
@@ -1896,20 +1896,51 @@ export class Generator {
    * ```
    */
   getCache(): GeneratorCache {
-    const visited = this.traceMap.resolver.visitedUrls;
-    const cache: GeneratorCache = { packageConfigs: {}, analysis: {} };
+    const resolver = this.traceMap.resolver;
+    const traceMap = this.traceMap;
+    const packageConfigUrls = new Set([
+      ...resolver.visitedUrls,
+      ...resolver.touchedPackageConfigUrls
+    ]);
+    const analysisUrls = new Set([...resolver.visitedUrls, ...resolver.touchedAnalysisUrls]);
 
-    // Only include visited package configs
-    for (const url of visited) {
-      const pcfg = this.traceMap.resolver.pcfgs[url];
+    const cache: GeneratorCache = {
+      packageConfigs: {},
+      analysis: {},
+      analysisFailures: {},
+      packageConfigFailures: {},
+      packageBases: {}
+    };
+
+    for (const url of packageConfigUrls) {
+      const pcfg = resolver.pcfgs[url];
       if (pcfg !== undefined) {
         cache.packageConfigs[url] = pcfg;
       }
+      if (resolver.packageConfigFailures[url] && resolver.immutableUrls.has(url)) {
+        cache.packageConfigFailures[url] = resolver.packageConfigFailures[url];
+      }
     }
 
-    // Only include visited analysis entries (cacheable formats, no parse errors)
-    for (const url of visited) {
-      const entry = this.traceMap.resolver.traceEntries[url];
+    for (const url of analysisUrls) {
+      const entry = resolver.traceEntries[url];
+      const packageBase = resolver.packageBaseCache[url];
+      if (typeof packageBase === 'string') {
+        cache.packageBases[url] = packageBase;
+      }
+
+      if (entry === null) {
+        if (resolver.immutableUrls.has(url)) {
+          cache.analysisFailures[url] = { kind: 'not-found' };
+        }
+        continue;
+      }
+      if (entry?.parseError) {
+        if (resolver.immutableUrls.has(url)) {
+          cache.analysisFailures[url] = { kind: 'error', ...serializeCacheError(entry.parseError) };
+        }
+        continue;
+      }
       if (entry && !entry.parseError && ['json', 'esm', 'css', 'wasm'].includes(entry.format)) {
         cache.analysis[url] = {
           deps: entry.deps,
@@ -1921,6 +1952,11 @@ export class Generator {
         };
       }
     }
+
+    // Clean up empty sections
+    if (!Object.keys(cache.analysisFailures).length) delete cache.analysisFailures;
+    if (!Object.keys(cache.packageConfigFailures).length) delete cache.packageConfigFailures;
+    if (!Object.keys(cache.packageBases).length) delete cache.packageBases;
 
     return cache;
   }
@@ -1936,14 +1972,39 @@ export class Generator {
       const resolver = this.traceMap.resolver;
       const condensePrefixes: { imports?: Set<string>; scopes?: Record<string, Set<string>> } = {};
 
-      const collectPrefixes = (entries: Record<string, string>, scopeUrl?: string) => {
+      const resolveTarget = (target: string): string => {
+        if (isURL(target)) return target;
+        if (map.rootUrl && target.startsWith('/')) return new URL(target, map.rootUrl).href;
+        return new URL(target, map.mapUrl).href;
+      };
+
+      const packageBaseCache = new Map<string, string | null>();
+      const getPackageBase = (target: string): string | null => {
+        let cached = packageBaseCache.get(target);
+        if (cached !== undefined) return cached;
+        const pkgUrl = resolver.getPackageBaseCached(resolveTarget(target));
+        cached = pkgUrl || null;
+        packageBaseCache.set(target, cached);
+        return cached;
+      };
+
+      const wildcardPrefixCache = new Map<string, string[]>();
+
+      const collectPrefixes = (entries: Record<string, string>) => {
         const prefixes = new Set<string>();
         const seen = new Set<string>();
-        for (const key of Object.keys(entries)) {
-          const resolved = scopeUrl ? map.resolve(key, scopeUrl) : map.resolve(key);
-          const pkgUrl = resolver.getPackageBaseCached(resolved);
+        for (const [key, target] of Object.entries(entries)) {
+          const pkgUrl = getPackageBase(target);
           if (!pkgUrl || seen.has(pkgUrl)) continue;
           seen.add(pkgUrl);
+
+          let wildcardPrefixes = wildcardPrefixCache.get(pkgUrl);
+          if (!wildcardPrefixes) {
+            wildcardPrefixes = [...resolver.getWildcardPrefixes(pkgUrl)];
+            wildcardPrefixCache.set(pkgUrl, wildcardPrefixes);
+          }
+          if (!wildcardPrefixes.length) continue;
+
           const firstSlash = key.indexOf('/');
           const pkgName =
             firstSlash === -1
@@ -1951,8 +2012,7 @@ export class Generator {
               : key[0] === '@'
               ? key.slice(0, key.indexOf('/', firstSlash + 1))
               : key.slice(0, firstSlash);
-          for (const prefix of resolver.getWildcardPrefixes(pkgUrl))
-            prefixes.add(pkgName + prefix.slice(1));
+          for (const prefix of wildcardPrefixes) prefixes.add(pkgName + prefix.slice(1));
         }
         return prefixes.size ? prefixes : undefined;
       };
@@ -1961,7 +2021,7 @@ export class Generator {
       if (importPrefixes) condensePrefixes.imports = importPrefixes;
 
       for (const scopeUrl of Object.keys(map.scopes)) {
-        const scopePrefixes = collectPrefixes(map.scopes[scopeUrl], scopeUrl);
+        const scopePrefixes = collectPrefixes(map.scopes[scopeUrl]);
         if (scopePrefixes) {
           condensePrefixes.scopes = condensePrefixes.scopes || {};
           condensePrefixes.scopes[scopeUrl] = scopePrefixes;

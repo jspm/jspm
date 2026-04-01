@@ -435,6 +435,19 @@ export default class TraceMap {
     };
 
     for (const module of modules) {
+      const key = `${module}##${baseUrl}`;
+      if (!this.visitedEdges.has(key)) {
+        // Edge was never visited — fall back to async path which will trace it
+        return this._extractMapAsync(
+          modules,
+          map,
+          integrity,
+          toplevel,
+          staticList,
+          dynamicList,
+          parentUrl
+        );
+      }
       walk(module, baseUrl, toplevel, false);
     }
 

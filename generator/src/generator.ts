@@ -59,7 +59,7 @@ import {
   type Provider
 } from './providers/index.js';
 import * as nodemodules from './providers/nodemodules.js';
-import { Resolver, serializeCacheError } from './trace/resolver.js';
+import { Resolver } from './trace/resolver.js';
 import { getMaybeWrapperUrl } from './common/wrapper.js';
 import { expandExportsResolutions } from './common/package.js';
 import { isNode } from './common/env.js';
@@ -87,10 +87,6 @@ export interface GeneratorCache {
   packageConfigs: Record<string, PackageConfig | null>;
   /** Module analysis data keyed by full module URL */
   analysis: Record<string, CachedAnalysis>;
-  /** Negative or parse-error analysis outcomes keyed by full module URL */
-  analysisFailures?: Record<string, any>;
-  /** Deterministic package-config failures keyed by full package URL */
-  packageConfigFailures?: Record<string, any>;
   /** Cached package-base lookups keyed by full module URL */
   packageBases?: Record<string, string>;
 }
@@ -837,9 +833,6 @@ export class Generator {
     if (traceCache && traceCache !== true) {
       Object.assign(resolver.pcfgs, traceCache.packageConfigs);
       resolver.restoredAnalysis = traceCache.analysis || {};
-      resolver.restoredAnalysisFailures = (traceCache as any).analysisFailures || {};
-      if ((traceCache as any).packageConfigFailures)
-        Object.assign(resolver.packageConfigFailures, (traceCache as any).packageConfigFailures);
       // packageBases restored to speed up getPackageBase lookups
       if ((traceCache as any).packageBases)
         Object.assign(resolver.packageBaseCache, (traceCache as any).packageBases);
@@ -1912,8 +1905,6 @@ export class Generator {
     const cache: GeneratorCache = {
       packageConfigs: {},
       analysis: {},
-      analysisFailures: {},
-      packageConfigFailures: {},
       packageBases: {}
     };
 
@@ -1921,9 +1912,6 @@ export class Generator {
       const pcfg = resolver.pcfgs[url];
       if (pcfg !== undefined) {
         cache.packageConfigs[url] = pcfg;
-      }
-      if (resolver.packageConfigFailures[url] && resolver.immutableUrls.has(url)) {
-        cache.packageConfigFailures[url] = resolver.packageConfigFailures[url];
       }
     }
 
@@ -1934,19 +1922,21 @@ export class Generator {
         cache.packageBases[url] = packageBase;
       }
 
-      if (entry === null) {
+      if (!entry) continue;
+      if (entry.parseError) {
         if (resolver.immutableUrls.has(url)) {
-          cache.analysisFailures[url] = { kind: 'not-found' };
+          cache.analysis[url] = {
+            deps: [],
+            dynamicDeps: [],
+            size: 0,
+            integrity: '',
+            format: 'esm',
+            wasCjs: false
+          };
         }
         continue;
       }
-      if (entry?.parseError) {
-        if (resolver.immutableUrls.has(url)) {
-          cache.analysisFailures[url] = { kind: 'error', ...serializeCacheError(entry.parseError) };
-        }
-        continue;
-      }
-      if (entry && !entry.parseError && ['json', 'esm', 'css', 'wasm'].includes(entry.format)) {
+      if (['json', 'esm', 'css', 'wasm'].includes(entry.format)) {
         cache.analysis[url] = {
           deps: entry.deps,
           dynamicDeps: entry.dynamicDeps,
@@ -1959,8 +1949,6 @@ export class Generator {
     }
 
     // Clean up empty sections
-    if (!Object.keys(cache.analysisFailures).length) delete cache.analysisFailures;
-    if (!Object.keys(cache.packageConfigFailures).length) delete cache.packageConfigFailures;
     if (!Object.keys(cache.packageBases).length) delete cache.packageBases;
 
     return cache;

@@ -438,6 +438,7 @@ export default class TraceMap {
       const key = `${module}##${baseUrl}`;
       if (!this.visitedEdges.has(key)) {
         // Edge was never visited — fall back to async path which will trace it
+        this.log?.('tracemap/extractMap', `Missing edge for ${module} from ${baseUrl}, falling back to async path`);
         return this._extractMapAsync(
           modules,
           map,

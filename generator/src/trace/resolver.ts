@@ -26,21 +26,6 @@ export function setPathFns(_realpath, _pathToFileURL) {
   (realpath = _realpath), (pathToFileURL = _pathToFileURL);
 }
 
-export function serializeCacheError(error: any) {
-  return {
-    code: typeof error?.code === 'string' ? error.code : undefined,
-    message: error instanceof Error ? error.message : String(error),
-    name: error instanceof Error ? error.name : 'Error'
-  };
-}
-
-export function deserializeCacheError(cached: any) {
-  const error = cached.code
-    ? new JspmError(cached.message, cached.code)
-    : new Error(cached.message);
-  error.name = cached.name || error.name;
-  return error;
-}
 
 function isResponseImmutable(headers: any): boolean {
   if (!headers?.get) return false;
@@ -118,8 +103,6 @@ export class Resolver {
   immutableUrls: Set<string> = new Set();
   // Lazy restoration from trace cache
   restoredAnalysis: Record<string, any> = Object.create(null);
-  restoredAnalysisFailures: Record<string, any> = Object.create(null);
-  packageConfigFailures: Record<string, any> = Object.create(null);
   constructor({
     env,
     fetchOpts,
@@ -212,26 +195,13 @@ export class Resolver {
     if (!pkgUrl.endsWith('/'))
       throw new Error(`Internal Error: Package URL must end in "/". Got ${pkgUrl}`);
     this.touchedPackageConfigUrls.add(pkgUrl);
-    const cachedFailure = this.packageConfigFailures[pkgUrl];
-    if (cachedFailure) throw deserializeCacheError(cachedFailure);
     let cached = this.pcfgs[pkgUrl];
     // TODO: fix timing bug that requires this return to be a promise
     if (cached === null) return Promise.resolve(null);
     if (cached) return cached;
     if (!this.pcfgPromises[pkgUrl])
       this.pcfgPromises[pkgUrl] = (async () => {
-        let pcfg;
-        try {
-          pcfg = await this.pm.getPackageConfig(pkgUrl);
-        } catch (error) {
-          if (
-            this.immutableUrls.has(pkgUrl) &&
-            (error instanceof JspmError || error instanceof SyntaxError)
-          ) {
-            this.packageConfigFailures[pkgUrl] = serializeCacheError(error);
-          }
-          throw error;
-        }
+        const pcfg = await this.pm.getPackageConfig(pkgUrl);
         if (typeof pcfg === 'object') {
           if (pcfg !== null) {
             return (this.pcfgs[pkgUrl] = pcfg);
@@ -841,25 +811,6 @@ export class Resolver {
           cjsLazyDeps: null,
           parseError: null
         };
-      } else {
-        const restoredFailure = this.restoredAnalysisFailures[resolvedUrl];
-        if (restoredFailure) {
-          traceEntry = this.traceEntries[resolvedUrl] =
-            restoredFailure.kind === 'not-found'
-              ? null
-              : {
-                  parseError: deserializeCacheError(restoredFailure),
-                  wasCjs: false,
-                  usesCjs: false,
-                  deps: null,
-                  dynamicDeps: null,
-                  cjsLazyDeps: null,
-                  hasStaticParent: true,
-                  size: NaN,
-                  integrity: '',
-                  format: undefined
-                };
-        }
       }
     }
     if (traceEntry?.parseError) throw traceEntry.parseError;

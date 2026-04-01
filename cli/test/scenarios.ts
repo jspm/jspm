@@ -83,9 +83,11 @@ export async function run(scenario: Scenario) {
       process.exitCode = 0;
       return;
     }
-    throw new Error(`Scenario "${scenario.commands}" failed.`, {
-      cause: err
-    });
+    const cause = err instanceof Error ? err : new Error(String(err));
+    throw new Error(
+      `Scenario "${scenario.commands}" failed.\n\nCause: ${cause.message}${cause.stack ? `\n${cause.stack}` : ''}`,
+      { cause }
+    );
   } finally {
     // Restore original environment
     process.chdir(originalCwd);

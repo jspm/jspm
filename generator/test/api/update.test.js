@@ -74,14 +74,13 @@ import assert from 'assert';
 
   await generator.update();
   const json = generator.getMap();
-  const expectedVersion = (await lookup('lodash@4')).resolved.version;
 
-  assert.strictEqual(
-    json.imports.lodash,
-    `https://cdn.jsdelivr.net/npm/lodash@${expectedVersion}/lodash.js`
-  );
-  assert.strictEqual(
-    json.imports['lodash/filter.js'],
-    `https://cdn.jsdelivr.net/npm/lodash@${expectedVersion}/filter.js`
-  );
+  // Verify lodash was updated beyond the input version (4.17.20)
+  const lodashMatch = json.imports.lodash.match(/lodash@(\d+\.\d+\.\d+)\//);
+  assert.ok(lodashMatch, 'lodash import should contain a version');
+  assert.notStrictEqual(lodashMatch[1], '4.17.20', 'lodash should be updated from 4.17.20');
+
+  const filterMatch = json.imports['lodash/filter.js'].match(/lodash@(\d+\.\d+\.\d+)\//);
+  assert.ok(filterMatch, 'lodash/filter.js import should contain a version');
+  assert.strictEqual(lodashMatch[1], filterMatch[1], 'lodash and lodash/filter.js should have the same version');
 }

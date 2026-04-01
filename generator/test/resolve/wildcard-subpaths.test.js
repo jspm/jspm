@@ -24,10 +24,7 @@ const isBrowser = typeof process === 'undefined' || !process.versions?.node;
   if (isBrowser) {
     // In the browser there is no file listing, so wildcard exports
     // cannot be expanded — only the main export is mapped.
-    assert.ok(
-      json.imports['wildcard-subpaths-test'],
-      'Should have main entry in browser'
-    );
+    assert.ok(json.imports['wildcard-subpaths-test'], 'Should have main entry in browser');
   } else {
     // Should have a trailing-slash entry instead of individual entries
     assert.ok(

@@ -144,8 +144,14 @@ deps = [
     'test/##.test.js',
     'lib',
 ]
-run = 'node -C source --enable-source-maps $DEP'
+run = 'node --test --test-force-exit -C source --enable-source-maps $DEP'
 
+
+[[task]]
+name = 'test:perf'
+deps = ['test/perf/perf.bench.js', 'lib']
+args = ['FILTER']
+run = 'node --test --test-force-exit ${FILTER:+--test-name-pattern="$FILTER"} -C source --enable-source-maps test/perf/perf.bench.js'
 
 [[task]]
 name = 'test:browser'

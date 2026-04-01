@@ -1361,7 +1361,12 @@ export class Generator {
       })
     );
 
-    const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(pins, this.integrity);
+    const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
+      pins,
+      this.integrity,
+      true,
+      this.mapUrl.href
+    );
     this.map = map;
     return { staticDeps, dynamicDeps };
   }

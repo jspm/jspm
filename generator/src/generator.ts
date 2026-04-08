@@ -357,8 +357,16 @@ export interface GeneratorOptions {
    * // so the mapping provided in `inputMap` will end up in the resulting import map.
    * await generator.install("@react-three/fiber@7")
    * ```
+   *
+   * Alternatively, a function may be provided which receives the specifier and
+   * parent URL and returns `true` to ignore the resolution:
+   * ```js
+   * const generator = new Generator({
+   *   ignore: (specifier, parentUrl) => specifier.startsWith("node:")
+   * });
+   * ```
    */
-  ignore?: string[];
+  ignore?: string[] | ((specifier: string, parentUrl: string) => boolean);
 
   /**
    * Lockfile data to use for resolutions

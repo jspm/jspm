@@ -33,9 +33,10 @@ export interface TraceMapOptions extends InstallerOptions {
   fullMap?: boolean;
 
   /**
-   * List of module specifiers to ignore during tracing.
+   * List of module specifiers to ignore during tracing, or a function which
+   * receives the specifier and parent URL and returns `true` to ignore.
    */
-  ignore?: string[];
+  ignore?: string[] | ((specifier: string, parentUrl: string) => boolean);
 
   /**
    * Whether or not to enable CommonJS tracing for local dependencies.
@@ -217,7 +218,14 @@ export default class TraceMap {
     seen: Set<string>
   ): Generator<any, string | null | undefined, any> {
     if (!parentUrl) throw new Error('Internal error: expected parentUrl');
-    if (this.opts.ignore?.includes(specifier)) return;
+    const ignore = this.opts.ignore;
+    if (ignore) {
+      if (typeof ignore === 'function') {
+        if (ignore(specifier, parentUrl)) return;
+      } else if (ignore.includes(specifier)) {
+        return;
+      }
+    }
 
     const seenKey = `${specifier}##${parentUrl}`;
     if (seen.has(seenKey)) return;

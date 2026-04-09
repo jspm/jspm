@@ -1,0 +1,6 @@
+{
+  "name": "wildcard-double-test",
+  "exports": {
+    "./*": "./src/*/*.js"
+  }
+}

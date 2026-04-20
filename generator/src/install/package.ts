@@ -52,6 +52,35 @@ export interface PackageConfig {
   devDependencies?: Record<string, string>;
 }
 
+// Fields of package.json actually consumed by the generator. Anything
+// else (scripts, description, keywords, repository, bugs, engines,
+// workspaces, license, readme, ...) is dropped to keep cached entries
+// small.
+const PCFG_USED_FIELDS: (keyof PackageConfig)[] = [
+  'name',
+  'version',
+  'main',
+  'files',
+  'module',
+  'browser',
+  'imports',
+  'exports',
+  'type',
+  'dependencies',
+  'peerDependencies',
+  'optionalDependencies',
+  'devDependencies'
+];
+
+export function trimPackageConfig(pcfg: PackageConfig): PackageConfig {
+  const trimmed: PackageConfig = {};
+  for (const field of PCFG_USED_FIELDS) {
+    const value = pcfg[field];
+    if (value !== undefined) (trimmed as any)[field] = value;
+  }
+  return trimmed;
+}
+
 /**
  * ExactPackage pins down an exact version of a package on an external registry,
  * such as npm or deno.

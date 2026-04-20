@@ -1,6 +1,10 @@
 import { Generator } from '@jspm/generator';
 import assert from 'assert';
 
+// Skypack CDN does not support CORS, so skip in browser
+const isBrowser = typeof process === 'undefined' || !process.versions?.node;
+if (!isBrowser) {
+
 const generator = new Generator({
   mapUrl: import.meta.url,
   inputMap: {
@@ -27,3 +31,5 @@ assert.deepEqual(json, {
     }
   }
 });
+
+}

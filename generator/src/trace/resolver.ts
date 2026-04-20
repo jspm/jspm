@@ -1,4 +1,4 @@
-import { PackageConfig, ExportsTarget } from '../install/package.js';
+import { PackageConfig, ExportsTarget, trimPackageConfig } from '../install/package.js';
 import { JspmError } from '../common/err.js';
 // @ts-ignore
 import { fetch, isVirtualUrl } from '../common/fetch.js';
@@ -204,7 +204,7 @@ export class Resolver {
         const pcfg = await this.pm.getPackageConfig(pkgUrl);
         if (typeof pcfg === 'object') {
           if (pcfg !== null) {
-            return (this.pcfgs[pkgUrl] = pcfg);
+            return (this.pcfgs[pkgUrl] = trimPackageConfig(pcfg));
           }
         }
 
@@ -237,7 +237,7 @@ export class Resolver {
           return (this.pcfgs[pkgUrl] = null);
         } else {
           try {
-            return (this.pcfgs[pkgUrl] = await res.json());
+            return (this.pcfgs[pkgUrl] = trimPackageConfig(await res.json()));
           } catch (e) {
             return (this.pcfgs[pkgUrl] = null);
           }

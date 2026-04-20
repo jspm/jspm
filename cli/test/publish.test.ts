@@ -18,6 +18,11 @@ import { test } from 'node:test';
 import assert from 'assert';
 import { mapDirectory, run } from './scenarios.ts';
 
+if (!process.env.JSPM_TOKEN) {
+  console.log('Skipping publish tests — JSPM_TOKEN not set');
+  process.exit(0);
+}
+
 function randomVersion() {
   const major = Math.round(Math.random() * 1000);
   const minor = Math.round(Math.random() * 1000);

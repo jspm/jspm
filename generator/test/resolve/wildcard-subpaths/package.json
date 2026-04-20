@@ -2,6 +2,9 @@
   "name": "wildcard-subpaths-test",
   "exports": {
     ".": "./index.js",
-    "./modules/*": "./modules/*"
+    "./modules/*": {
+      "types": "./types/modules/*",
+      "default": "./modules/*"
+    }
   }
 }

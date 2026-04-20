@@ -215,7 +215,7 @@ function expandTargetResolutions(
           return true;
         }
       }
-      if (envExclusions.includes(condition)) continue;
+      if (envExclusions.includes(condition) || condition === 'types') continue;
       const maybeNewExclusion = conditionMutualExclusions[condition];
       const newExclusions =
         maybeNewExclusion && !envExclusions.includes(maybeNewExclusion)

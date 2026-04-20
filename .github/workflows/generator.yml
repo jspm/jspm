@@ -87,3 +87,4 @@ jobs:
     - run: chomp -c generator test
       env:
         SKIP_BROWSER: 1
+        SKIP_ESMSH: 1

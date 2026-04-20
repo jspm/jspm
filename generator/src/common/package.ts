@@ -260,24 +260,25 @@ function expandExportsTarget(
   }
   if (!files) return;
 
-  // First determine the list of files that could match the target glob
-  const lhs = target.slice(2, target.indexOf('*'));
-  const rhs = target.slice(target.indexOf('*') + 1);
+  // Build a regex from the target where the first * becomes a capturing group
+  // and any subsequent *s become backreferences, enforcing that all wildcards
+  // match the same value (per Node.js exports semantics).
+  // See https://nodejs.org/api/packages.html#subpath-patterns
+  const regexPattern = target.slice(2)
+    .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+    .replace('*', '(.+)')
+    .replaceAll('*', '\\1');
+  const targetRegex = new RegExp(`^${regexPattern}$`);
 
-  const fileMatches = new Set<string>();
+  // For each file that matches the target pattern, extract the wildcard value,
+  // re-resolve the subpath to verify it isn't shadowed by a more specific export.
   for (const file of files) {
-    if (file.startsWith(lhs) && file.endsWith(rhs) && file.length > lhs.length + rhs.length) {
-      fileMatches.add(file);
-    }
-  }
+    const match = file.match(targetRegex);
+    if (!match) continue;
+    const pattern = match[1];
 
-  // Backtrack to determine their original subpaths and
-  // re-resolve those subpaths to verify they do indeed resolve to our target glob
-  // since they could be shadowed by other subpath resolutions
-  for (const fileMatch of fileMatches) {
-    const pattern = fileMatch.slice(lhs.length, fileMatch.length - rhs.length);
     const originalSubpath = subpath.replace('*', pattern);
     const matchedSubpath = getMapMatch(originalSubpath, exports);
-    if (matchedSubpath === subpath) entriesMap.set(originalSubpath, fileMatch);
+    if (matchedSubpath === subpath) entriesMap.set(originalSubpath, file);
   }
 }

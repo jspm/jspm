@@ -1,6 +1,11 @@
 import { Generator } from '@jspm/generator';
 import assert from 'assert';
 
+if (!process.env.JSPM_AUTH_TOKEN) {
+  console.log('Skipping publish tests — JSPM_AUTH_TOKEN not set');
+  process.exit(0);
+}
+
 // Test publishing a package with importMap enabled
 // First we need to create a generator and install a package
 // Then publish with importMap: true

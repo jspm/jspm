@@ -1,6 +1,11 @@
 import { Generator } from '@jspm/generator';
 import assert from 'assert';
 
+if (process.env.SKIP_ESMSH) {
+  console.log('Skipping esm.sh test — SKIP_ESMSH set');
+  process.exit(0);
+}
+
 const inputMap = {
   imports: {
     'react-intl': 'https://esm.sh/*react-intl@6.4.4/lib/index.js'

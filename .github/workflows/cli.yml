@@ -35,7 +35,7 @@ jobs:
       - run: npm install
       - run: chomp -c cli lint
       - run: npm run -ws build
-      - run: node cli/dist/jspm.js config set -p jspm.io authToken "$JSPM_TOKEN"
+      - run: node cli/dist/jspm.js config set -p jspm.io authToken ${{ secrets.JSPM_TOKEN }}
         if: env.JSPM_TOKEN != ''
       - run: chomp -c cli test
   deno-test:
@@ -58,6 +58,6 @@ jobs:
       - run: npm install
       - run: npm run -ws build
       - run: deno test --no-check --allow-all cli/test/deno_test.ts
-      - run: node cli/dist/jspm.js config set -p jspm.io authToken "$JSPM_TOKEN"
+      - run: node cli/dist/jspm.js config set -p jspm.io authToken ${{ secrets.JSPM_TOKEN }}
         if: env.JSPM_TOKEN != ''
       - run: chomp -c cli deno:test

@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: main
 
+env:
+  JSPM_TOKEN: ${{ secrets.JSPM_TOKEN }}
+
 jobs:
   test:
     name: Node.js Tests
@@ -33,6 +36,7 @@ jobs:
       - run: chomp -c cli lint
       - run: npm run -ws build
       - run: node cli/dist/jspm.js config set -p jspm.io authToken ${{ secrets.JSPM_TOKEN }}
+        if: env.JSPM_TOKEN != ''
       - run: chomp -c cli test
   deno-test:
     name: Deno Tests
@@ -55,4 +59,5 @@ jobs:
       - run: npm run -ws build
       - run: deno test --no-check --allow-all cli/test/deno_test.ts
       - run: node cli/dist/jspm.js config set -p jspm.io authToken ${{ secrets.JSPM_TOKEN }}
+        if: env.JSPM_TOKEN != ''
       - run: chomp -c cli deno:test

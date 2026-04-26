@@ -177,6 +177,11 @@ export default class TraceMap {
   /**
    * Resolves, analyses and recursively visits the given module specifier and all of its dependencies.
    *
+   * Per-module dependencies are walked in parallel via `Promise.all`, so a wide
+   * dependency tree's wall-clock time scales with depth × RTT rather than the
+   * total module count × RTT. The `seen` set is mutated synchronously before any
+   * await, which preserves cross-branch deduplication under the parallel fan-out.
+   *
    * @param {string} specifier Module specifier to visit.
    * @param {VisitOpts} opts Visitor configuration.
    * @param {} parentUrl URL of the parent context for the specifier.
@@ -187,36 +192,7 @@ export default class TraceMap {
     opts: VisitOpts,
     parentUrl = this.baseUrl.href,
     seen = new Set<string>()
-  ): Promise<string> {
-    const gen = this._visit(specifier, opts, parentUrl, seen);
-    let step = gen.next();
-    while (!step.done) {
-      const req = step.value;
-      if (req.type === 'resolve') {
-        step = gen.next(
-          await this.resolve(req.specifier, req.parentUrl, req.installMode, req.toplevel)
-        );
-      } else if (req.type === 'analyze') {
-        try {
-          step = gen.next(await this.resolver.analyze(req.resolved));
-        } catch (e) {
-          step = gen.throw(e);
-        }
-      } else if (req.type === 'visitor') {
-        step = gen.next(
-          await req.visitor(req.specifier, req.parentUrl, req.resolved, req.toplevel, req.entry)
-        );
-      }
-    }
-    return step.value;
-  }
-
-  private *_visit(
-    specifier: string,
-    opts: VisitOpts,
-    parentUrl: string,
-    seen: Set<string>
-  ): Generator<any, string | null | undefined, any> {
+  ): Promise<string | null | undefined> {
     if (!parentUrl) throw new Error('Internal error: expected parentUrl');
     const ignore = this.opts.ignore;
     if (ignore) {
@@ -239,7 +215,8 @@ export default class TraceMap {
     // Try sync resolve for non-plain, non-CJS specifiers via analysis cache
     let resolved: string | undefined;
     const parentAnalysis = this.resolver.getAnalysis(parentUrl);
-    const parentIsCjs = parentAnalysis?.format === 'commonjs' || (!parentAnalysis && this.opts.commonJS);
+    const parentIsCjs =
+      parentAnalysis?.format === 'commonjs' || (!parentAnalysis && this.opts.commonJS);
     if (!parentIsCjs && (!isPlain(specifier) || specifier === '..') && !isMappableScheme(specifier)) {
       try {
         const url = new URL(specifier, parentUrl);
@@ -249,13 +226,7 @@ export default class TraceMap {
       } catch {}
     }
     if (!resolved) {
-      resolved = yield {
-        type: 'resolve',
-        specifier,
-        parentUrl,
-        installMode: opts.installMode,
-        toplevel: opts.toplevel
-      };
+      resolved = await this.resolve(specifier, parentUrl, opts.installMode, opts.toplevel);
     }
 
     if (isBuiltinScheme(resolved)) return null;
@@ -272,7 +243,7 @@ export default class TraceMap {
       entry = cachedEntry;
     } else {
       try {
-        entry = yield { type: 'analyze', resolved };
+        entry = await this.resolver.analyze(resolved);
       } catch (e) {
         if (e instanceof JspmError)
           throw new Error(`Unable to analyze ${resolved} imported from ${parentUrl}: ${e.message}`);
@@ -294,15 +265,7 @@ export default class TraceMap {
     this.visitedEdges.set(seenKey, { resolved, entry });
 
     if (opts.visitor) {
-      const stop = yield {
-        type: 'visitor',
-        visitor: opts.visitor,
-        specifier,
-        parentUrl,
-        resolved,
-        toplevel: opts.toplevel,
-        entry
-      };
+      const stop = await opts.visitor(specifier, parentUrl, resolved, opts.toplevel, entry);
       if (stop) return;
     }
 
@@ -324,13 +287,15 @@ export default class TraceMap {
       opts = { ...opts, toplevel: false };
     }
 
-    for (const dep of allDeps) {
-      if (dep.indexOf('\x10') !== -1) {
-        this.log?.('todo', 'Handle wildcard trace ' + dep + ' in ' + resolved);
-        continue;
-      }
-      yield* this._visit(dep, opts, resolved, seen);
-    }
+    await Promise.all(
+      allDeps.map(dep => {
+        if (dep.indexOf('\x10') !== -1) {
+          this.log?.('todo', 'Handle wildcard trace ' + dep + ' in ' + resolved);
+          return;
+        }
+        return this.visit(dep, opts, resolved, seen);
+      })
+    );
 
     return resolved;
   }

@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
+import { readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { CachedResponseImpl, type CachedResponse } from './response.js';
-
-let _readdir: typeof import('node:fs/promises').readdir | null = null;
 
 const emptyHeaders = new Headers();
 const jsonHeaders = new Headers([['content-type', 'application/json']]);
@@ -26,26 +25,13 @@ function dirResponse(path: string): CachedResponse {
     headers: emptyHeaders,
     text() { return ''; },
     json() {
-      // Lazy-load readdir to avoid top-level await
-      if (!_readdir) {
-        // Dynamic import handled synchronously via cache after first call
-        throw new Error('Call ensureReaddir() before using directory responses');
-      }
-      // This is used synchronously in the generator's convention
-      // but the actual listing needs to be async — return a promise
-      // that the caller awaits (generator already does `await res.json()`)
-      return _readdir(path) as any;
+      return readdir(path) as any;
     },
     arrayBuffer() { return new ArrayBuffer(0); }
   };
 }
 
-export async function ensureReaddir() {
-  if (!_readdir) {
-    const fs = await import('node:fs/promises');
-    _readdir = fs.readdir;
-  }
-}
+export async function ensureReaddir() {}
 
 export function handleFileUrl(url: string): CachedResponse {
   const path = fileURLToPath(url);

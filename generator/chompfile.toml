@@ -22,10 +22,6 @@ targets = [
     'dist',
     'dist/generator-deno.js',
     'dist/generator.js',
-    'dist/fetch-vscode.js',
-    'dist/fetch-deno.js',
-    'dist/fetch-node.js',
-    'dist/fetch-native.js',
 ]
 deps = [
     'lib',
@@ -33,10 +29,6 @@ deps = [
     'build:dec',
     'lib/generator-deno.js',
     'lib/generator.js',
-    'lib/common/fetch-vscode.js',
-    'lib/common/fetch-deno.js',
-    'lib/common/fetch-node.js',
-    'lib/common/fetch-native.js',
     'npm:install',
 ]
 engine = 'node'
@@ -49,11 +41,7 @@ run = '''
   const bundle = await rollup({
     input: [
       "lib/generator-deno.js",
-      "lib/generator.js",
-      "lib/common/fetch-vscode.js",
-      "lib/common/fetch-deno.js",
-      "lib/common/fetch-node.js",
-      "lib/common/fetch-native.js"
+      "lib/generator.js"
     ],
     onwarn () {},
   });

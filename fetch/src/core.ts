@@ -226,7 +226,9 @@ export function createCore(opts: CoreOptions = {}) {
             const cc = parseCacheControl(response.headers);
             response.cachedAt = Date.now();
             response.immutable = fetchOpts?.immutable === true || cc.immutable;
-            response.maxAge = cc.maxAge;
+            // 404s get a short 2 min freshness — helps api.jspm.io
+            // negative-lookups recover quickly when a package gets published.
+            response.maxAge = response.status === 404 ? 120 : cc.maxAge;
 
             // Server-side no-store overrides caching even if caller didn't ask.
             if (!noStore && !cc.noStore) {

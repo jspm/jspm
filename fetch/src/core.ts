@@ -20,6 +20,14 @@ interface CacheControl {
   noStore: boolean;
 }
 
+/**
+ * Default freshness floor (1 hour) for responses that arrive with neither
+ * `max-age` nor `immutable`. Avoids "cache forever" for non-versioned URLs
+ * (e.g. latest-tag package.json lookups). Versioned CDN responses
+ * normally set their own much longer max-age and override this.
+ */
+const DEFAULT_MAX_AGE_SECONDS = 3600;
+
 function parseCacheControl(headers: Headers): CacheControl {
   const cc = headers.get('cache-control') || '';
   let immutable = false;
@@ -28,7 +36,9 @@ function parseCacheControl(headers: Headers): CacheControl {
   for (const part of cc.split(',')) {
     const directive = part.trim().toLowerCase();
     if (directive === 'immutable') immutable = true;
-    else if (directive === 'no-store') noStore = true;
+    // `no-cache` requires revalidation; without ETag/If-Modified-Since
+    // plumbing the safe mapping is "don't cache".
+    else if (directive === 'no-store' || directive === 'no-cache') noStore = true;
     else if (directive.startsWith('max-age=')) {
       const n = parseInt(directive.slice(8), 10);
       if (Number.isFinite(n)) maxAge = n;
@@ -39,9 +49,9 @@ function parseCacheControl(headers: Headers): CacheControl {
 
 function isStale(response: CachedResponseImpl): boolean {
   if (response.immutable) return false;
-  if (response.maxAge == null) return false; // no max-age → never stale
+  const maxAge = response.maxAge ?? DEFAULT_MAX_AGE_SECONDS;
   const ageSeconds = (Date.now() - response.cachedAt) / 1000;
-  return ageSeconds > response.maxAge;
+  return ageSeconds > maxAge;
 }
 
 export type NetworkFetch = (url: string, init: RequestInit) => Promise<Response>;
@@ -250,6 +260,9 @@ export function createCore(opts: CoreOptions = {}) {
     fetch: fetchUrl,
     clearCache() {
       memory.clear();
+      // Drop in-flight too — otherwise a request mid-flight when the user
+      // clears would land in the freshly-emptied caches.
+      inflight.clear();
       persistent?.clear();
     },
     dispose() {

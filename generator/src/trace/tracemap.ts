@@ -177,46 +177,24 @@ export default class TraceMap {
   /**
    * Resolves, analyses and recursively visits the given module specifier and all of its dependencies.
    *
+   * Returns synchronously when the entire subtree resolves from analysis caches; returns a
+   * Promise only when an actual fetch (resolve/analyze) or async visitor is required. Sibling
+   * deps with pending Promises are awaited together via `Promise.all`, so cold sub-trees
+   * scale with depth × RTT rather than total module count × RTT, while warm sub-trees walk
+   * with no microtask overhead. The `seen` set is mutated synchronously before any await,
+   * which preserves cross-branch deduplication under the parallel fan-out.
+   *
    * @param {string} specifier Module specifier to visit.
    * @param {VisitOpts} opts Visitor configuration.
    * @param {} parentUrl URL of the parent context for the specifier.
    * @param {} seen Cache for optimisation.
    */
-  async visit(
+  visit(
     specifier: string,
     opts: VisitOpts,
     parentUrl = this.baseUrl.href,
     seen = new Set<string>()
-  ): Promise<string> {
-    const gen = this._visit(specifier, opts, parentUrl, seen);
-    let step = gen.next();
-    while (!step.done) {
-      const req = step.value;
-      if (req.type === 'resolve') {
-        step = gen.next(
-          await this.resolve(req.specifier, req.parentUrl, req.installMode, req.toplevel)
-        );
-      } else if (req.type === 'analyze') {
-        try {
-          step = gen.next(await this.resolver.analyze(req.resolved));
-        } catch (e) {
-          step = gen.throw(e);
-        }
-      } else if (req.type === 'visitor') {
-        step = gen.next(
-          await req.visitor(req.specifier, req.parentUrl, req.resolved, req.toplevel, req.entry)
-        );
-      }
-    }
-    return step.value;
-  }
-
-  private *_visit(
-    specifier: string,
-    opts: VisitOpts,
-    parentUrl: string,
-    seen: Set<string>
-  ): Generator<any, string | null | undefined, any> {
+  ): string | null | undefined | Promise<string | null | undefined> {
     if (!parentUrl) throw new Error('Internal error: expected parentUrl');
     const ignore = this.opts.ignore;
     if (ignore) {
@@ -239,7 +217,8 @@ export default class TraceMap {
     // Try sync resolve for non-plain, non-CJS specifiers via analysis cache
     let resolved: string | undefined;
     const parentAnalysis = this.resolver.getAnalysis(parentUrl);
-    const parentIsCjs = parentAnalysis?.format === 'commonjs' || (!parentAnalysis && this.opts.commonJS);
+    const parentIsCjs =
+      parentAnalysis?.format === 'commonjs' || (!parentAnalysis && this.opts.commonJS);
     if (!parentIsCjs && (!isPlain(specifier) || specifier === '..') && !isMappableScheme(specifier)) {
       try {
         const url = new URL(specifier, parentUrl);
@@ -248,16 +227,32 @@ export default class TraceMap {
         }
       } catch {}
     }
-    if (!resolved) {
-      resolved = yield {
-        type: 'resolve',
-        specifier,
-        parentUrl,
-        installMode: opts.installMode,
-        toplevel: opts.toplevel
-      };
-    }
 
+    if (resolved === undefined) {
+      return this._visitFromResolve(specifier, opts, parentUrl, seen, seenKey);
+    }
+    return this._afterResolve(specifier, opts, parentUrl, seen, seenKey, resolved);
+  }
+
+  private async _visitFromResolve(
+    specifier: string,
+    opts: VisitOpts,
+    parentUrl: string,
+    seen: Set<string>,
+    seenKey: string
+  ): Promise<string | null | undefined> {
+    const resolved = await this.resolve(specifier, parentUrl, opts.installMode, opts.toplevel);
+    return this._afterResolve(specifier, opts, parentUrl, seen, seenKey, resolved);
+  }
+
+  private _afterResolve(
+    specifier: string,
+    opts: VisitOpts,
+    parentUrl: string,
+    seen: Set<string>,
+    seenKey: string,
+    resolved: string
+  ): string | null | undefined | Promise<string | null | undefined> {
     if (isBuiltinScheme(resolved)) return null;
 
     if (resolved.endsWith('/'))
@@ -265,26 +260,46 @@ export default class TraceMap {
         `Trailing "/" installs not supported installing ${resolved} for ${parentUrl}`
       );
 
-    // Try sync analysis, fall back to async
-    let entry: TraceEntry | null;
     const cachedEntry = this.resolver.getAnalysis(resolved);
     if (cachedEntry !== undefined) {
-      entry = cachedEntry;
-    } else {
-      try {
-        entry = yield { type: 'analyze', resolved };
-      } catch (e) {
-        if (e instanceof JspmError)
-          throw new Error(`Unable to analyze ${resolved} imported from ${parentUrl}: ${e.message}`);
-        else
-          throw new Error(`Unable to analyze ${resolved} imported from ${parentUrl}`, { cause: e });
-      }
+      return this._afterAnalyze(specifier, opts, parentUrl, seen, seenKey, resolved, cachedEntry);
     }
+    return this._visitFromAnalyze(specifier, opts, parentUrl, seen, seenKey, resolved);
+  }
 
+  private async _visitFromAnalyze(
+    specifier: string,
+    opts: VisitOpts,
+    parentUrl: string,
+    seen: Set<string>,
+    seenKey: string,
+    resolved: string
+  ): Promise<string | null | undefined> {
+    let entry: TraceEntry | null;
+    try {
+      entry = await this.resolver.analyze(resolved);
+    } catch (e) {
+      if (e instanceof JspmError)
+        throw new Error(`Unable to analyze ${resolved} imported from ${parentUrl}: ${e.message}`);
+      else
+        throw new Error(`Unable to analyze ${resolved} imported from ${parentUrl}`, { cause: e });
+    }
+    return this._afterAnalyze(specifier, opts, parentUrl, seen, seenKey, resolved, entry);
+  }
+
+  private _afterAnalyze(
+    specifier: string,
+    opts: VisitOpts,
+    parentUrl: string,
+    seen: Set<string>,
+    seenKey: string,
+    resolved: string,
+    entry: TraceEntry | null
+  ): string | null | undefined | Promise<string | null | undefined> {
     if (entry === null) {
       throw new Error(`Module not found ${resolved} imported from ${parentUrl}`);
     }
-    if (entry?.format === 'commonjs' && entry.usesCjs && !this.opts.commonJS) {
+    if (entry.format === 'commonjs' && entry.usesCjs && !this.opts.commonJS) {
       throw new JspmError(
         `Unable to trace ${resolved}, as it is a CommonJS module. Either enable CommonJS tracing explicitly by setting "GeneratorOptions.commonJS" to true, or use a provider that performs ESM transpiling like jspm.io via defaultProvider: 'jspm.io'.`
       );
@@ -294,20 +309,31 @@ export default class TraceMap {
     this.visitedEdges.set(seenKey, { resolved, entry });
 
     if (opts.visitor) {
-      const stop = yield {
-        type: 'visitor',
-        visitor: opts.visitor,
-        specifier,
-        parentUrl,
-        resolved,
-        toplevel: opts.toplevel,
-        entry
-      };
-      if (stop) return;
+      return this._visitFromVisitor(specifier, opts, parentUrl, seen, resolved, entry);
     }
+    return this._fanout(specifier, opts, resolved, seen, entry);
+  }
 
-    if (!entry) return;
+  private async _visitFromVisitor(
+    specifier: string,
+    opts: VisitOpts,
+    parentUrl: string,
+    seen: Set<string>,
+    resolved: string,
+    entry: TraceEntry
+  ): Promise<string | null | undefined> {
+    const stop = await opts.visitor(specifier, parentUrl, resolved, opts.toplevel, entry);
+    if (stop) return;
+    return this._fanout(specifier, opts, resolved, seen, entry);
+  }
 
+  private _fanout(
+    specifier: string,
+    opts: VisitOpts,
+    resolved: string,
+    seen: Set<string>,
+    entry: TraceEntry
+  ): string | Promise<string> {
     let allDeps: string[] = [...entry.deps];
     if (entry.dynamicDeps.length && !opts.static) {
       for (const dep of entry.dynamicDeps) {
@@ -324,15 +350,20 @@ export default class TraceMap {
       opts = { ...opts, toplevel: false };
     }
 
+    let pending: Promise<unknown>[] | undefined;
     for (const dep of allDeps) {
       if (dep.indexOf('\x10') !== -1) {
         this.log?.('todo', 'Handle wildcard trace ' + dep + ' in ' + resolved);
         continue;
       }
-      yield* this._visit(dep, opts, resolved, seen);
+      const r = this.visit(dep, opts, resolved, seen);
+      if (r && typeof (r as Promise<unknown>).then === 'function') {
+        (pending ??= []).push(r as Promise<unknown>);
+      }
     }
 
-    return resolved;
+    if (!pending) return resolved;
+    return Promise.all(pending).then(() => resolved);
   }
 
   async extractMap(

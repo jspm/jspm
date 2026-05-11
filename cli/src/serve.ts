@@ -1,7 +1,8 @@
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { type ServerResponse, createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import c from 'picocolors';
 import mime from 'mime';
 import { analyzeHtml } from '@jspm/generator';
@@ -59,10 +60,31 @@ export default async function serve(flags: ServeFlags = {}) {
 
   const serverUrl = `http://localhost:${port}/`;
 
+  // Chrome DevTools workspace folder UUID. Persisted under node_modules/.cache
+  // so the browser doesn't re-prompt for workspace permission every restart.
+  const devtoolsUuid = await getOrCreateDevToolsUuid(resolvedDir);
+
   const server = createServer(async (req, res) => {
     try {
       const reqUrl = new URL(req.url || '', `http://${req.headers.host}`);
       let reqPath = decodeURIComponent(reqUrl.pathname);
+
+      // Chrome DevTools workspace folder auto-detection
+      // https://developer.chrome.com/blog/devtools-workspace
+      if (reqPath === '/.well-known/appspecific/com.chrome.devtools.json') {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(
+          JSON.stringify(
+            { workspace: { root: resolvedDir, uuid: devtoolsUuid } },
+            null,
+            2
+          )
+        );
+        return;
+      }
 
       // Serve the JSPM logo
       if (reqPath === '/jspm.png') {
@@ -617,6 +639,24 @@ function notifyClients(clients: Set<ServerResponse>, data: any) {
       // Client might have disconnected
     }
   });
+}
+
+async function getOrCreateDevToolsUuid(projectDir: string): Promise<string> {
+  const cacheDir = join(projectDir, 'node_modules', '.cache', 'jspm');
+  const uuidPath = join(cacheDir, 'devtools-uuid');
+  try {
+    const cached = (await readFile(uuidPath, 'utf8')).trim();
+    // Sanity check the cached value before trusting it.
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cached)) {
+      return cached;
+    }
+  } catch {}
+  const uuid = randomUUID();
+  try {
+    await mkdir(cacheDir, { recursive: true });
+    await writeFile(uuidPath, uuid);
+  } catch {}
+  return uuid;
 }
 
 function exportsCodeSnippetForEntry(entry: string, exports?: ProjectConfig['exports']): string {

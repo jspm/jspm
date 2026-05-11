@@ -17,6 +17,10 @@ export class CachedResponseImpl implements CachedResponse {
   readonly statusText: string;
   readonly ok: boolean;
   readonly headers: Headers;
+  // Cache layer metadata. Default values mean "uncached".
+  cachedAt: number = 0;
+  immutable: boolean = false;
+  maxAge: number | null = null;
   #body: Uint8Array;
   #text: string | null = null;
 

@@ -44,6 +44,9 @@ interface CacheMeta {
   status: number;
   statusText: string;
   headers: Record<string, string>;
+  cachedAt: number;
+  immutable: boolean;
+  maxAge: number | null;
 }
 
 /** Persistent FS-backed cache. Memory tier is handled in core.ts. */
@@ -66,13 +69,17 @@ export class Cache {
       const headerLen = raw.readUInt32LE(0);
       const meta = JSON.parse(raw.subarray(4, 4 + headerLen).toString()) as CacheMeta;
       const body = decompress(raw.subarray(4 + headerLen));
-      return new CachedResponseImpl(
+      const response = new CachedResponseImpl(
         meta.url,
         meta.status,
         meta.statusText,
         new Headers(meta.headers),
         body
       );
+      response.cachedAt = meta.cachedAt;
+      response.immutable = meta.immutable;
+      response.maxAge = meta.maxAge;
+      return response;
     } catch {
       // Corrupt cache entry (truncated, bad header, decompress failure).
       // Drop it so the next fetch refills it.
@@ -90,7 +97,10 @@ export class Cache {
       url: response.url,
       status: response.status,
       statusText: response.statusText,
-      headers
+      headers,
+      cachedAt: response.cachedAt,
+      immutable: response.immutable,
+      maxAge: response.maxAge
     };
     const metaBuf = Buffer.from(JSON.stringify(meta));
     const headerLen = Buffer.alloc(4);

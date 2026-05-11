@@ -2,10 +2,46 @@ import { Pool } from './pool.js';
 import { CachedResponseImpl, type CachedResponse } from './response.js';
 
 export interface FetchOptions {
-  cache?: 'default' | 'no-store';
+  cache?: 'default' | 'no-store' | 'no-cache' | 'force-cache';
   headers?: Record<string, string>;
   /** Per-request timeout in ms. Translates to AbortSignal.timeout. */
   timeout?: number;
+  /**
+   * Mark the response as immutable on cache write. Skips revalidation
+   * even when `Cache-Control` doesn't carry the `immutable` directive.
+   * Useful for callers that know a URL is versioned (e.g. CDN paths).
+   */
+  immutable?: boolean;
+}
+
+interface CacheControl {
+  immutable: boolean;
+  maxAge: number | null;
+  noStore: boolean;
+}
+
+function parseCacheControl(headers: Headers): CacheControl {
+  const cc = headers.get('cache-control') || '';
+  let immutable = false;
+  let maxAge: number | null = null;
+  let noStore = false;
+  for (const part of cc.split(',')) {
+    const directive = part.trim().toLowerCase();
+    if (directive === 'immutable') immutable = true;
+    else if (directive === 'no-store') noStore = true;
+    else if (directive.startsWith('max-age=')) {
+      const n = parseInt(directive.slice(8), 10);
+      if (Number.isFinite(n)) maxAge = n;
+    }
+  }
+  return { immutable, maxAge, noStore };
+}
+
+function isStale(response: CachedResponseImpl): boolean {
+  if (response.immutable) return false;
+  if (response.maxAge == null) return false; // no max-age → never stale
+  const ageSeconds = (Date.now() - response.cachedAt) / 1000;
+  return ageSeconds > response.maxAge;
 }
 
 export type NetworkFetch = (url: string, init: RequestInit) => Promise<Response>;
@@ -133,15 +169,17 @@ export function createCore(opts: CoreOptions = {}) {
       if (localRes) return localRes;
     }
 
-    const noStore = fetchOpts?.cache === 'no-store';
+    const mode = fetchOpts?.cache ?? 'default';
+    const noStore = mode === 'no-store';
+    const forceCache = mode === 'force-cache';
+    const skipCacheRead = noStore || mode === 'no-cache';
 
-    // Check cache (unless no-store)
-    if (!noStore) {
+    if (!skipCacheRead) {
       const mem = memory.get(urlStr);
-      if (mem) return mem;
+      if (mem && (forceCache || !isStale(mem))) return mem;
       if (persistent) {
         const cached = persistent.get(urlStr);
-        if (cached) {
+        if (cached && (forceCache || !isStale(cached))) {
           memory.set(urlStr, cached);
           return cached;
         }
@@ -175,7 +213,13 @@ export function createCore(opts: CoreOptions = {}) {
               buf
             );
 
-            if (!noStore) {
+            const cc = parseCacheControl(response.headers);
+            response.cachedAt = Date.now();
+            response.immutable = fetchOpts?.immutable === true || cc.immutable;
+            response.maxAge = cc.maxAge;
+
+            // Server-side no-store overrides caching even if caller didn't ask.
+            if (!noStore && !cc.noStore) {
               if (response.ok) {
                 memory.set(urlStr, response);
                 persistent?.set(urlStr, response);

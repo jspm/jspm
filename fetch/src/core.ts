@@ -104,18 +104,26 @@ export function createCore(opts: CoreOptions = {}) {
   const defaultTimeout = opts.defaultTimeout ?? 60_000;
   const inflight = new Map<string, Promise<CachedResponse>>();
   const virtualSources: Record<string, SourceData> = {};
+  // Mirror of Object.keys(virtualSources) — kept so resolveVirtual /
+  // isVirtualUrl don't allocate an array on every URL.
+  const virtualBases: string[] = [];
 
   function setVirtualSourceData(urlBase: string, sourceData: SourceData) {
-    virtualSources[urlBase.endsWith('/') ? urlBase : urlBase + '/'] = sourceData;
+    const base = urlBase.endsWith('/') ? urlBase : urlBase + '/';
+    if (!(base in virtualSources)) virtualBases.push(base);
+    virtualSources[base] = sourceData;
   }
 
   function isVirtualUrl(url: string): boolean {
-    return Object.keys(virtualSources).some(base => url.startsWith(base));
+    for (let i = 0; i < virtualBases.length; i++)
+      if (url.startsWith(virtualBases[i])) return true;
+    return false;
   }
 
   function resolveVirtual(urlStr: string): CachedResponse | null {
+    if (virtualBases.length === 0) return null;
     let matchedVirtual = false;
-    for (const virtualBase of Object.keys(virtualSources)) {
+    for (const virtualBase of virtualBases) {
       if (!urlStr.startsWith(virtualBase)) continue;
 
       const virtualFileData = virtualSources[virtualBase];
@@ -176,23 +184,36 @@ export function createCore(opts: CoreOptions = {}) {
     return null;
   }
 
-  async function fetchUrl(
+  // Non-async on purpose: memory/persistent cache hits return the response
+  // synchronously — no Promise allocation, no microtask. Callers using
+  // `await fetch(...)` keep working since await on a non-Promise is a no-op.
+  function fetchUrl(
     url: string | URL,
     fetchOpts?: FetchOptions
-  ): Promise<CachedResponse> {
-    const urlStr = url.toString();
+  ): CachedResponse | Promise<CachedResponse> {
+    const urlStr = typeof url === 'string' ? url : url.toString();
 
-    // Virtual sources — highest priority
+    // Virtual sources — sync, highest priority
     const virtual = resolveVirtual(urlStr);
     if (virtual) return virtual;
 
-    // Local protocols — no caching
+    // Local protocols. Sync resolvers (node/deno/browser) return here without
+    // an await microtask. Only vscode (async) returns a Promise.
     if (opts.resolveProtocol) {
-      const localRes = await opts.resolveProtocol(urlStr);
+      const localRes = opts.resolveProtocol(urlStr);
+      if (localRes instanceof Promise)
+        return localRes.then(r => r ?? fetchHttp(urlStr, fetchOpts));
       if (localRes) return localRes;
     }
 
-    const mode = fetchOpts?.cache ?? 'default';
+    return fetchHttp(urlStr, fetchOpts);
+  }
+
+  function fetchHttp(
+    urlStr: string,
+    fetchOpts?: FetchOptions
+  ): CachedResponse | Promise<CachedResponse> {
+    const mode = fetchOpts?.cache;
     const noStore = mode === 'no-store';
     const forceCache = mode === 'force-cache';
     const skipCacheRead = noStore || mode === 'no-cache';
@@ -209,66 +230,71 @@ export function createCore(opts: CoreOptions = {}) {
       }
     }
 
-    // Deduplicate in-flight requests
+    // Dedup in-flight requests
     const existing = inflight.get(urlStr);
     if (existing) return existing;
 
-    const promise = (async () => {
-      try {
-        await pool.acquire();
-
-        let lastError: Error | undefined;
-        const timeout = fetchOpts?.timeout ?? defaultTimeout;
-        for (let attempt = 0; attempt <= retryCount; attempt++) {
-          try {
-            const res = await networkFetch(urlStr, {
-              headers: fetchOpts?.headers,
-              redirect: 'follow',
-              signal: AbortSignal.timeout(timeout)
-            });
-
-            const buf = new Uint8Array(await res.arrayBuffer());
-            const response = new CachedResponseImpl(
-              res.url || urlStr,
-              res.status,
-              res.statusText,
-              res.headers as any as Headers,
-              buf
-            );
-
-            const cc = parseCacheControl(response.headers);
-            response.cachedAt = Date.now();
-            response.immutable = fetchOpts?.immutable === true || cc.immutable;
-            // 404s get a short 2 min freshness — helps api.jspm.io
-            // negative-lookups recover quickly when a package gets published.
-            response.maxAge = response.status === 404 ? 120 : cc.maxAge;
-
-            // Server-side no-store overrides caching even if caller didn't ask.
-            if (!noStore && !cc.noStore) {
-              if (response.ok) {
-                memory.set(urlStr, response);
-                persistent?.set(urlStr, response);
-              } else if (response.status === 404) {
-                // 404s memory-only (not persisted)
-                memory.set(urlStr, response);
-              }
-            }
-
-            return response;
-          } catch (e) {
-            lastError = e as Error;
-            if (attempt >= retryCount) break;
-          }
-        }
-        throw lastError;
-      } finally {
-        inflight.delete(urlStr);
-        pool.release();
-      }
-    })();
-
+    const promise = networkFetchWithRetry(urlStr, fetchOpts, noStore);
     inflight.set(urlStr, promise);
     return promise;
+  }
+
+  async function networkFetchWithRetry(
+    urlStr: string,
+    fetchOpts: FetchOptions | undefined,
+    noStore: boolean
+  ): Promise<CachedResponse> {
+    try {
+      await pool.acquire();
+
+      let lastError: Error | undefined;
+      const timeout = fetchOpts?.timeout ?? defaultTimeout;
+      for (let attempt = 0; attempt <= retryCount; attempt++) {
+        try {
+          const res = await networkFetch(urlStr, {
+            headers: fetchOpts?.headers,
+            redirect: 'follow',
+            signal: AbortSignal.timeout(timeout)
+          });
+
+          const buf = new Uint8Array(await res.arrayBuffer());
+          const response = new CachedResponseImpl(
+            res.url || urlStr,
+            res.status,
+            res.statusText,
+            res.headers as any as Headers,
+            buf
+          );
+
+          const cc = parseCacheControl(response.headers);
+          response.cachedAt = Date.now();
+          response.immutable = fetchOpts?.immutable === true || cc.immutable;
+          // 404s get a short 2 min freshness — helps api.jspm.io
+          // negative-lookups recover quickly when a package gets published.
+          response.maxAge = response.status === 404 ? 120 : cc.maxAge;
+
+          // Server-side no-store overrides caching even if caller didn't ask.
+          if (!noStore && !cc.noStore) {
+            if (response.ok) {
+              memory.set(urlStr, response);
+              persistent?.set(urlStr, response);
+            } else if (response.status === 404) {
+              // 404s memory-only (not persisted)
+              memory.set(urlStr, response);
+            }
+          }
+
+          return response;
+        } catch (e) {
+          lastError = e as Error;
+          if (attempt >= retryCount) break;
+        }
+      }
+      throw lastError;
+    } finally {
+      inflight.delete(urlStr);
+      pool.release();
+    }
   }
 
   return {

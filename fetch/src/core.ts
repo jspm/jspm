@@ -2,19 +2,20 @@ import { Pool } from './pool.js';
 import { CachedResponseImpl, type CachedResponse } from './response.js';
 
 export interface FetchOptions {
-  immutable?: boolean;
-  cache?: 'default' | 'no-store' | 'no-cache' | 'force-cache';
+  cache?: 'default' | 'no-store';
   headers?: Record<string, string>;
+  /** Per-request timeout in ms. Translates to AbortSignal.timeout. */
+  timeout?: number;
 }
+
+export type NetworkFetch = (url: string, init: RequestInit) => Promise<Response>;
 
 export type SourceData = Record<string, string | ArrayBuffer>;
 
 export interface PersistentCache {
   get(url: string): CachedResponseImpl | undefined;
-  set(url: string, response: CachedResponseImpl, immutable?: boolean): void;
-  setMemoryOnly?(url: string, response: CachedResponseImpl): void;
+  set(url: string, response: CachedResponseImpl): void;
   clear(): void;
-  dispose?(): void;
 }
 
 export interface CoreOptions {
@@ -22,8 +23,12 @@ export interface CoreOptions {
   cache?: PersistentCache;
   /** Resolve non-HTTP protocols (file:/data:/node:); return null to fall through to HTTP fetch. */
   resolveProtocol?: (url: string) => CachedResponse | null;
+  /** Custom network fetch (defaults to globalThis.fetch). */
+  networkFetch?: NetworkFetch;
   poolSize?: number;
   retryCount?: number;
+  /** Default per-request timeout in ms. Overridden by fetchOpts.timeout. */
+  defaultTimeout?: number;
 }
 
 const emptyHeaders = new Headers();
@@ -35,6 +40,9 @@ export function createCore(opts: CoreOptions = {}) {
   const persistent = opts.cache;
   const pool = new Pool(opts.poolSize ?? 100);
   let retryCount = opts.retryCount ?? 5;
+  let networkFetch: NetworkFetch = opts.networkFetch ?? globalThis.fetch.bind(globalThis);
+  // Every request gets a timeout — no hangs on stuck mirrors.
+  const defaultTimeout = opts.defaultTimeout ?? 60_000;
   const inflight = new Map<string, Promise<CachedResponse>>();
   const virtualSources: Record<string, SourceData> = {};
 
@@ -149,11 +157,13 @@ export function createCore(opts: CoreOptions = {}) {
         await pool.acquire();
 
         let lastError: Error | undefined;
+        const timeout = fetchOpts?.timeout ?? defaultTimeout;
         for (let attempt = 0; attempt <= retryCount; attempt++) {
           try {
-            const res = await globalThis.fetch(urlStr, {
+            const res = await networkFetch(urlStr, {
               headers: fetchOpts?.headers,
-              redirect: 'follow'
+              redirect: 'follow',
+              signal: AbortSignal.timeout(timeout)
             });
 
             const buf = new Uint8Array(await res.arrayBuffer());
@@ -168,7 +178,7 @@ export function createCore(opts: CoreOptions = {}) {
             if (!noStore) {
               if (response.ok) {
                 memory.set(urlStr, response);
-                persistent?.set(urlStr, response, fetchOpts?.immutable);
+                persistent?.set(urlStr, response);
               } else if (response.status === 404) {
                 // 404s memory-only (not persisted)
                 memory.set(urlStr, response);
@@ -200,11 +210,15 @@ export function createCore(opts: CoreOptions = {}) {
     },
     dispose() {
       memory.clear();
-      persistent?.dispose?.();
     },
     setVirtualSourceData,
     isVirtualUrl,
     setRetryCount(count: number) { retryCount = count; },
-    setPoolSize(size: number) { pool.setSize(size); }
+    setPoolSize(size: number) { pool.setSize(size); },
+    /**
+     * Replace the network fetch implementation. Virtual sources, protocol
+     * handlers, cache, pool, retry, and in-flight dedup continue to wrap it.
+     */
+    setNetworkFetch(fn: NetworkFetch) { networkFetch = fn; }
   };
 }

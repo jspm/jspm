@@ -42,3 +42,4 @@ export const setVirtualSourceData = _default.setVirtualSourceData;
 export const isVirtualUrl = _default.isVirtualUrl;
 export const setRetryCount = _default.setRetryCount;
 export const setPoolSize = _default.setPoolSize;
+export const setNetworkFetch = _default.setNetworkFetch;

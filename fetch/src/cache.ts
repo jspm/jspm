@@ -44,7 +44,6 @@ interface CacheMeta {
   status: number;
   statusText: string;
   headers: Record<string, string>;
-  immutable: boolean;
 }
 
 /** Persistent FS-backed cache. Memory tier is handled in core.ts. */
@@ -56,26 +55,33 @@ export class Cache {
   }
 
   get(url: string): CachedResponseImpl | undefined {
+    const path = urlPath(this.#cacheDir, url);
     let raw: Buffer;
     try {
-      raw = readFileSync(urlPath(this.#cacheDir, url));
+      raw = readFileSync(path);
     } catch {
       return undefined;
     }
-
-    const headerLen = raw.readUInt32LE(0);
-    const meta = JSON.parse(raw.subarray(4, 4 + headerLen).toString()) as CacheMeta;
-    const body = decompress(raw.subarray(4 + headerLen));
-    return new CachedResponseImpl(
-      meta.url,
-      meta.status,
-      meta.statusText,
-      new Headers(meta.headers),
-      body
-    );
+    try {
+      const headerLen = raw.readUInt32LE(0);
+      const meta = JSON.parse(raw.subarray(4, 4 + headerLen).toString()) as CacheMeta;
+      const body = decompress(raw.subarray(4 + headerLen));
+      return new CachedResponseImpl(
+        meta.url,
+        meta.status,
+        meta.statusText,
+        new Headers(meta.headers),
+        body
+      );
+    } catch {
+      // Corrupt cache entry (truncated, bad header, decompress failure).
+      // Drop it so the next fetch refills it.
+      try { unlinkSync(path); } catch {}
+      return undefined;
+    }
   }
 
-  set(url: string, response: CachedResponseImpl, immutable = false): void {
+  set(url: string, response: CachedResponseImpl): void {
     const headers: Record<string, string> = {};
     response.headers.forEach((value, key) => {
       headers[key] = value;
@@ -84,8 +90,7 @@ export class Cache {
       url: response.url,
       status: response.status,
       statusText: response.statusText,
-      headers,
-      immutable
+      headers
     };
     const metaBuf = Buffer.from(JSON.stringify(meta));
     const headerLen = Buffer.alloc(4);
@@ -93,10 +98,11 @@ export class Cache {
     const out = Buffer.concat([headerLen, metaBuf, compress(response.bodyBuffer)]);
 
     const path = urlPath(this.#cacheDir, url);
-    mkdirSync(dirname(path), { recursive: true });
-    // Atomic write: temp file then rename
+    // Atomic write: temp file then rename. Swallow write failures (disk full,
+    // EACCES, EROFS) — degrades to memory-only.
     const tmpPath = `${path}.${process.pid}.${Math.random().toString(36).slice(2, 8)}.tmp`;
     try {
+      mkdirSync(dirname(path), { recursive: true });
       writeFileSync(tmpPath, out);
       renameSync(tmpPath, path);
     } catch {
@@ -104,17 +110,9 @@ export class Cache {
     }
   }
 
-  delete(url: string): void {
-    try {
-      unlinkSync(urlPath(this.#cacheDir, url));
-    } catch {}
-  }
-
   clear(): void {
     try {
       rmSync(this.#cacheDir, { recursive: true, force: true });
     } catch {}
   }
-
-  dispose(): void {}
 }

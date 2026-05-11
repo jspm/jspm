@@ -1,13 +1,14 @@
 import {
-  fetch as _fetchImpl,
+  fetch,
   clearCache,
   setVirtualSourceData,
   isVirtualUrl,
   setRetryCount,
   setPoolSize as setFetchPoolSize,
+  setNetworkFetch,
 } from '@jspm/fetch';
 export type { CachedResponse, FetchOptions, SourceData } from '@jspm/fetch';
-export { clearCache, setVirtualSourceData, isVirtualUrl, setRetryCount, setFetchPoolSize };
+export { fetch, clearCache, setVirtualSourceData, isVirtualUrl, setRetryCount, setFetchPoolSize };
 
 export type WrappedResponse = {
   url: string;
@@ -27,10 +28,10 @@ export type FetchFn = (
 
 export type WrappedFetch = FetchFn;
 
-let _fetch: FetchFn = _fetchImpl;
-
-export function setFetch(fetch: FetchFn) {
-  _fetch = fetch;
+/**
+ * Replace the underlying network fetch. Virtual sources, protocol handlers,
+ * pool, retry, in-flight dedup, and caching continue to wrap it.
+ */
+export function setFetch(fn: (url: string, init: RequestInit) => Promise<Response>) {
+  setNetworkFetch(fn);
 }
-
-export { _fetch as fetch };

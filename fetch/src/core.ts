@@ -2,6 +2,16 @@ import { Pool } from './pool.js';
 import { CachedResponseImpl, type CachedResponse } from './response.js';
 
 export interface FetchOptions {
+  /**
+   * Caller-side cache mode.
+   *   - 'default': use cache if not stale
+   *   - 'no-store': don't read or write the cache
+   *   - 'no-cache': skip the cache read, but write the fresh response
+   *   - 'force-cache': use cache regardless of staleness, otherwise fetch + store
+   * Note: server-side `Cache-Control: no-cache` is mapped to no-store at the
+   * cache layer (no ETag/If-Modified-Since plumbing here), so the two senses
+   * of "no-cache" do not match.
+   */
   cache?: 'default' | 'no-store' | 'no-cache' | 'force-cache';
   headers?: Record<string, string>;
   /** Per-request timeout in ms. Translates to AbortSignal.timeout. */
@@ -67,8 +77,11 @@ export interface PersistentCache {
 export interface CoreOptions {
   /** Persistent cache layer (FS-backed for Node, omit for memory-only / browser). */
   cache?: PersistentCache;
-  /** Resolve non-HTTP protocols (file:/data:/node:); return null to fall through to HTTP fetch. */
-  resolveProtocol?: (url: string) => CachedResponse | null;
+  /**
+   * Resolve non-HTTP protocols (file:/data:/node:); return null to fall through
+   * to HTTP fetch. May return a Promise — vscode.workspace.fs is async-only.
+   */
+  resolveProtocol?: (url: string) => CachedResponse | Promise<CachedResponse | null> | null;
   /** Custom network fetch (defaults to globalThis.fetch). */
   networkFetch?: NetworkFetch;
   poolSize?: number;
@@ -175,7 +188,7 @@ export function createCore(opts: CoreOptions = {}) {
 
     // Local protocols — no caching
     if (opts.resolveProtocol) {
-      const localRes = opts.resolveProtocol(urlStr);
+      const localRes = await opts.resolveProtocol(urlStr);
       if (localRes) return localRes;
     }
 
@@ -262,8 +275,11 @@ export function createCore(opts: CoreOptions = {}) {
     fetch: fetchUrl,
     clearCache() {
       memory.clear();
-      // Drop in-flight too — otherwise a request mid-flight when the user
-      // clears would land in the freshly-emptied caches.
+      // Drop the dedup map too, so a fresh request for a URL that was
+      // in flight at clear time doesn't latch onto the soon-to-resolve
+      // pre-clear promise. NOTE: this does not abort or invalidate the
+      // in-flight network requests themselves — those will still write
+      // their results into the freshly-emptied tiers when they resolve.
       inflight.clear();
       persistent?.clear();
     },

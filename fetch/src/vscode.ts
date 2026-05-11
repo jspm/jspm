@@ -12,7 +12,9 @@ const emptyHeaders = new Headers();
 const jsonHeaders = new Headers([['content-type', 'application/json']]);
 const textEncoder = new TextEncoder();
 
-function dirResponse(url: string): CachedResponse {
+async function dirResponse(url: string, uri: any): Promise<CachedResponse> {
+  const entries = (await vscode.workspace.fs.readDirectory(uri)) as Array<[string, number]>;
+  const listing = entries.map(([name]) => name);
   return {
     url,
     status: 204,
@@ -20,17 +22,12 @@ function dirResponse(url: string): CachedResponse {
     ok: true,
     headers: emptyHeaders,
     async text() { return ''; },
-    async json() {
-      const entries = (await vscode.workspace.fs.readDirectory(
-        vscode.Uri.parse(url)
-      )) as Array<[string, number]>;
-      return entries.map(([name]) => name);
-    },
+    async json() { return listing; },
     async arrayBuffer() { return new ArrayBuffer(0); }
   };
 }
 
-function resolveProtocol(urlStr: string): CachedResponse | null {
+async function resolveProtocol(urlStr: string): Promise<CachedResponse | null> {
   const protocol = urlStr.slice(0, urlStr.indexOf(':') + 1);
   if (protocol === 'data:') {
     const body = decodeURIComponent(urlStr.slice(urlStr.indexOf(',') + 1));
@@ -42,45 +39,20 @@ function resolveProtocol(urlStr: string): CachedResponse | null {
   if (protocol === 'file:') {
     const uri = vscode.Uri.parse(urlStr);
     try {
-      const data = vscode.workspace.fs.readFileSync
-        ? (vscode.workspace.fs.readFileSync(uri) as Uint8Array)
-        : null;
-      if (data) {
-        return new CachedResponseImpl(
-          urlStr,
-          200,
-          'OK',
-          urlStr.endsWith('.json') ? jsonHeaders : emptyHeaders,
-          data
-        );
-      }
-      // vscode.workspace.fs only exposes async readFile; fall through to async.
+      const data = (await vscode.workspace.fs.readFile(uri)) as Uint8Array;
+      return new CachedResponseImpl(
+        urlStr,
+        200,
+        'OK',
+        urlStr.endsWith('.json') ? jsonHeaders : emptyHeaders,
+        data
+      );
     } catch (e: any) {
-      if (e.code === 'FileIsADirectory') return dirResponse(urlStr);
-      if (e.code === 'EntryNotFound' || e.code === 'FileNotFound')
+      if (e.code === 'FileIsADirectory') return dirResponse(urlStr, uri);
+      if (e.code === 'Unavailable' || e.code === 'EntryNotFound' || e.code === 'FileNotFound')
         return new CachedResponseImpl(urlStr, 404, e.toString(), emptyHeaders, new Uint8Array(0));
       return new CachedResponseImpl(urlStr, 500, e.toString(), emptyHeaders, new Uint8Array(0));
     }
-    // Async path returns a stand-in 204 that lazily reads on body access.
-    return {
-      url: urlStr,
-      status: 200,
-      statusText: 'OK',
-      ok: true,
-      headers: urlStr.endsWith('.json') ? jsonHeaders : emptyHeaders,
-      async text() {
-        const buf = (await vscode.workspace.fs.readFile(uri)) as Uint8Array;
-        return new TextDecoder().decode(buf);
-      },
-      async json() {
-        const buf = (await vscode.workspace.fs.readFile(uri)) as Uint8Array;
-        return JSON.parse(new TextDecoder().decode(buf));
-      },
-      async arrayBuffer() {
-        const buf = (await vscode.workspace.fs.readFile(uri)) as Uint8Array;
-        return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-      }
-    };
   }
   return null;
 }

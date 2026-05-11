@@ -2,7 +2,7 @@
   "name": "@jspm/fetch",
   "description": "Fetch with two-tier caching for JSPM",
   "license": "MIT",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "types": "lib/index.d.ts",
   "type": "module",
   "exports": {

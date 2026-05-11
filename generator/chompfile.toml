@@ -13,6 +13,10 @@ display = 'init-only'
 run = 'npm install'
 
 [[task]]
+name = 'fetch'
+run = 'chomp -c ../fetch build'
+
+[[task]]
 target = 'lib'
 deps = ['lib/**/*.js']
 
@@ -26,6 +30,7 @@ targets = [
 deps = [
     'lib',
     'npm:install',
+    'fetch',
     'build:dec',
     'lib/generator-deno.js',
     'lib/generator.js',
@@ -56,13 +61,14 @@ targets = ['lib/##.js']
 deps = [
     'src/##.ts',
     'npm:install',
+    'fetch',
 ]
 stdio = 'stderr-only'
 run = 'node ../node_modules/@swc/cli/bin/swc.js $DEP -o $TARGET --no-swcrc --source-maps -C inlineSourcesContent=false -C jsc.target=es2019 -C jsc.parser.syntax=typescript -C jsc.parser.importAttributes=true -C jsc.parser.topLevelAwait=true -C jsc.parser.importMeta=true -C jsc.parser.privateMethod=true -C jsc.parser.dynamicImport=true -C jsc.experimental.keepImportAssertions=true'
 
 [[task]]
 name = 'build:dec'
-deps = ['src/**/*.ts']
+deps = ['src/**/*.ts', 'fetch']
 run = 'tsc --emitDeclarationOnly'
 
 [[task]]
@@ -81,6 +87,7 @@ targets = ['lib/##.js']
 deps = [
     'src/##.ts',
     'npm:install',
+    'fetch',
 ]
 stdio = 'stderr-only'
 run = 'node ../node_modules/@swc/cli/bin/swc.js $DEP -o $TARGET --no-swcrc --source-maps -C inlineSourcesContent=false -C jsc.target=es2019 -C jsc.parser.syntax=typescript -C jsc.parser.importAttributes=true -C jsc.parser.topLevelAwait=true -C jsc.parser.importMeta=true -C jsc.parser.privateMethod=true -C jsc.parser.dynamicImport=true -C jsc.experimental.keepImportAssertions=true'
@@ -208,6 +215,7 @@ name = 'typecheck'
 deps = [
     'src/**/*.ts',
     'src/*.ts',
+    'fetch',
 ]
 run = '''
     tsc --noEmit

@@ -1,0 +1,71 @@
+version = 0.1
+default-task = 'build'
+
+[[task]]
+name = 'npm:install'
+targets = [
+    '../node_modules',
+    '../package-lock.json',
+]
+deps = ['package.json', '../package.json']
+validation = 'ok-only'
+display = 'init-only'
+run = 'npm install'
+
+[[task]]
+targets = ['lib/##.js']
+deps = [
+    'src/##.ts',
+    'npm:install',
+]
+stdio = 'stderr-only'
+run = 'node ../node_modules/@swc/cli/bin/swc.js $DEP -o $TARGET --no-swcrc --source-maps -C jsc.parser.syntax=typescript -C jsc.parser.importAttributes=true -C jsc.parser.topLevelAwait=true -C jsc.parser.importMeta=true -C jsc.parser.privateMethod=true -C jsc.parser.dynamicImport=true -C jsc.target=es2016 -C jsc.experimental.keepImportAssertions=true'
+
+[[task]]
+name = 'build'
+targets = [
+    'dist/index.js',
+    'dist/native.js',
+    'dist/deno.js',
+    'dist/vscode.js',
+]
+deps = [
+    'lib/**/*.js',
+    'build:dec',
+    'npm:install',
+]
+engine = 'node'
+run = '''
+  import { rollup } from 'rollup';
+
+  const bundle = await rollup({
+    input: {
+      index: 'lib/index.js',
+      native: 'lib/native.js',
+      deno: 'lib/deno.js',
+      vscode: 'lib/vscode.js',
+    },
+    external: [/^node:/, 'vscode'],
+  });
+  await bundle.write({
+    "dir": "dist",
+    "sourcemap": true
+  });
+'''
+
+[[task]]
+name = 'build:dec'
+deps = ['lib/**/*.js']
+run = 'npx tsc --emitDeclarationOnly'
+
+[[task]]
+name = 'test'
+dep = 'test:'
+
+[[task]]
+name = 'test:#'
+deps = [
+    'lib/**/*.js',
+    'test/#.js',
+]
+run = 'node --test -C source $DEP'

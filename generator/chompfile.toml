@@ -22,10 +22,6 @@ targets = [
     'dist',
     'dist/generator-deno.js',
     'dist/generator.js',
-    'dist/fetch-vscode.js',
-    'dist/fetch-deno.js',
-    'dist/fetch-node.js',
-    'dist/fetch-native.js',
 ]
 deps = [
     'lib',
@@ -33,10 +29,6 @@ deps = [
     'build:dec',
     'lib/generator-deno.js',
     'lib/generator.js',
-    'lib/common/fetch-vscode.js',
-    'lib/common/fetch-deno.js',
-    'lib/common/fetch-node.js',
-    'lib/common/fetch-native.js',
     'npm:install',
 ]
 engine = 'node'
@@ -49,11 +41,7 @@ run = '''
   const bundle = await rollup({
     input: [
       "lib/generator-deno.js",
-      "lib/generator.js",
-      "lib/common/fetch-vscode.js",
-      "lib/common/fetch-deno.js",
-      "lib/common/fetch-node.js",
-      "lib/common/fetch-native.js"
+      "lib/generator.js"
     ],
     onwarn () {},
   });
@@ -123,7 +111,7 @@ deps = [
     'lib/##.test.js',
     'lib',
 ]
-run = 'node -C source --enable-source-maps $DEP'
+run = 'node --test -C source --enable-source-maps $DEP'
 
 [[task]]
 name = 'test:integration'
@@ -135,7 +123,7 @@ deps = [
     'test/##.test.js',
     'lib',
 ]
-run = 'node -C source --enable-source-maps $DEP'
+run = 'node --test -C source --enable-source-maps $DEP'
 
 [[task]]
 name = 'integration-debug:#'
@@ -144,14 +132,13 @@ deps = [
     'test/##.test.js',
     'lib',
 ]
-run = 'node --test --test-force-exit -C source --enable-source-maps $DEP'
-
+run = 'node --test -C source --enable-source-maps $DEP'
 
 [[task]]
 name = 'test:perf'
 deps = ['test/perf/perf.bench.js', 'lib']
 args = ['FILTER']
-run = 'node --test --test-force-exit ${FILTER:+--test-name-pattern="$FILTER"} -C source --enable-source-maps test/perf/perf.bench.js'
+run = 'node --test ${FILTER:+--test-name-pattern="$FILTER"} -C source --enable-source-maps test/perf/perf.bench.js'
 
 [[task]]
 name = 'test:browser'
@@ -191,7 +178,8 @@ run = '''
     const generator = new Generator({
         mapUrl: new URL('./test/test.html', import.meta.url.replace('//[', '/[')),
         env: ['browser', 'module', 'production'],
-        ignore: ['tar-stream', 'pako']
+        ignore: ['tar-stream', 'pako'],
+        providers: { '@jspm/fetch': 'nodemodules' }
     });
 
     await generator.link('@jspm/generator');

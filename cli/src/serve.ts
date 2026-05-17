@@ -177,7 +177,7 @@ export default async function serve(flags: ServeFlags = {}) {
             sources: [sourceName],
             sourcesContent: [content],
             names: [],
-            mappings: 'AAAA' + ';AACA'.repeat(Math.max(0, lines - 1))
+            mappings: `AAAA${';AACA'.repeat(Math.max(0, lines - 1))}`
           };
           res.writeHead(200, {
             'Content-Type': 'application/json',
@@ -245,9 +245,9 @@ ${error.snippet}`
             const exportNames = extractExportNames(tsContent);
             const exportPrefix =
               exportNames.length > 0
-                ? exportNames
+                ? `${exportNames
                     .map(n => (n === 'default' ? 'export default undefined' : `export let ${n}`))
-                    .join(';') + ';\n'
+                    .join(';')};\n`
                 : '';
             const linePad = '\n'.repeat(Math.max(0, startLine - (exportPrefix ? 2 : 1)));
             const colPad = ' '.repeat(startCol);

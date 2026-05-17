@@ -39,6 +39,12 @@ for (const provider of availableProviders) {
     */
     continue;
   }
+  if (provider === 'jspm.io#system') {
+    // The ga.system.jspm.io CDN is deprecated and no longer receives new
+    // package builds, so any test depending on a package published after
+    // the deprecation will 404 the package config fetch.
+    continue;
+  }
 
   test(`Using provider: ${provider}`, async () => {
     let name = 'lit';
@@ -56,9 +62,7 @@ for (const provider of availableProviders) {
     if (!pjson.name) pjson.name = 'test-project';
     if (!pjson.exports) pjson.exports = { './index.js': './index.js' };
     if (!pjson.dependencies) pjson.dependencies = {};
-    // Pin lit to a version we know is mirrored across all providers (jspm.io
-    // can lag npm by a few minutes for newly published versions).
-    pjson.dependencies[name] = name === 'lit' ? '3.3.2' : '*';
+    pjson.dependencies[name] = '*';
     files.set('package.json', JSON.stringify(pjson, null, 2));
 
     // Add a test file that imports the module

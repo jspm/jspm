@@ -49,7 +49,7 @@ test('Local install', async () => {
     validationFn: async (files: Map<string, string>) => {
       const map: IImportMap = JSON.parse(files.get('pkg2/importmap.json')!);
       assert.ok(map.scopes?.['https://cdn.jsdelivr.net/npm/lit-element@4.2.2/']);
-      assert.ok(map.scopes?.['https://cdn.jsdelivr.net/npm/lit@3.3.2/']);
+      assert.ok(map.scopes?.['https://cdn.jsdelivr.net/npm/lit@3.3.3/']);
     }
   });
 });

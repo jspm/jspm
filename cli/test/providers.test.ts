@@ -39,6 +39,12 @@ for (const provider of availableProviders) {
     */
     continue;
   }
+  if (provider === 'jspm.io#system') {
+    // The ga.system.jspm.io CDN is deprecated and no longer receives new
+    // package builds, so any test depending on a package published after
+    // the deprecation will 404 the package config fetch.
+    continue;
+  }
 
   test(`Using provider: ${provider}`, async () => {
     let name = 'lit';

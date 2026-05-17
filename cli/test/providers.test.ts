@@ -56,7 +56,9 @@ for (const provider of availableProviders) {
     if (!pjson.name) pjson.name = 'test-project';
     if (!pjson.exports) pjson.exports = { './index.js': './index.js' };
     if (!pjson.dependencies) pjson.dependencies = {};
-    pjson.dependencies[name] = '*';
+    // Pin lit to a version we know is mirrored across all providers (jspm.io
+    // can lag npm by a few minutes for newly published versions).
+    pjson.dependencies[name] = name === 'lit' ? '3.3.2' : '*';
     files.set('package.json', JSON.stringify(pjson, null, 2));
 
     // Add a test file that imports the module

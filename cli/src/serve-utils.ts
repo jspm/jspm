@@ -9,6 +9,80 @@ import {
   getLatestEsms
 } from './utils.ts';
 
+// Best-effort extraction of top-level export names from a TS source that
+// may contain syntax errors. Used only as a fallback when amaro's parser
+// fails — we need to keep importers linkable so the SyntaxError stub from
+// serve.ts reaches the browser console instead of being masked by an earlier
+// "does not provide an export named X" link error.
+//
+// Strategy: blank out comments and string/template literals (preserving
+// newlines so positions stay sensible) so `export` can't match inside them,
+// then walk every `export ...` occurrence and pattern-match the common forms.
+// Type-only exports (interface, type) emit no runtime binding and are skipped.
+export function extractExportNames(source: string): string[] {
+  const blank = (m: string) => m.replace(/[^\n]/g, ' ');
+  const stripped = source
+    .replace(/\/\*[\s\S]*?\*\//g, blank)
+    .replace(/\/\/[^\n]*/g, blank)
+    .replace(/(['"])(?:\\.|(?!\1).)*?\1/g, blank)
+    .replace(/`(?:\\[\s\S]|\$\{[^}]*\}|(?!`)[\s\S])*?`/g, blank);
+
+  const names = new Set<string>();
+  const ID = '[A-Za-z_$][\\w$]*';
+  const re = /\bexport\s+/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(stripped))) {
+    const rest = stripped.slice(m.index + m[0].length);
+
+    if (/^default\b/.test(rest)) {
+      names.add('default');
+      continue;
+    }
+    if (/^(?:type|interface)\b/.test(rest)) continue;
+
+    let sub = rest.match(new RegExp(`^\\*\\s+as\\s+(${ID})`));
+    if (sub) {
+      names.add(sub[1]);
+      continue;
+    }
+    if (/^\*/.test(rest)) continue; // export * from — names not recoverable
+
+    sub = rest.match(new RegExp(`^(?:async\\s+)?function\\s*\\*?\\s*(${ID})`));
+    if (sub) {
+      names.add(sub[1]);
+      continue;
+    }
+    sub = rest.match(new RegExp(`^(?:class|enum|namespace)\\s+(${ID})`));
+    if (sub) {
+      names.add(sub[1]);
+      continue;
+    }
+    sub = rest.match(new RegExp(`^(?:const|let|var)\\s+(${ID})`));
+    if (sub) {
+      names.add(sub[1]);
+      continue;
+    }
+
+    if (rest[0] === '{') {
+      const close = rest.indexOf('}');
+      if (close > 0) {
+        for (const spec of rest.slice(1, close).split(',')) {
+          const t = spec.trim();
+          if (!t) continue;
+          const asMatch = t.match(new RegExp(`\\sas\\s+(${ID})\\s*$`));
+          if (asMatch) {
+            names.add(asMatch[1]);
+          } else {
+            const idMatch = t.match(new RegExp(`^(${ID})`));
+            if (idMatch) names.add(idMatch[1]);
+          }
+        }
+      }
+    }
+  }
+  return [...names];
+}
+
 // Function to display keyboard shortcuts
 let showingShortcuts = false;
 let showingShortcutsWatch = false;

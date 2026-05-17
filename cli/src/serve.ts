@@ -27,6 +27,7 @@ import notFoundPage from './views/not-found.ts';
 import createHotMap from './views/hot-map.ts';
 import {
   esmsCodeSnippet,
+  extractExportNames,
   getFileMtimes,
   hideShortcuts,
   lintMessage,
@@ -123,8 +124,8 @@ export default async function serve(flags: ServeFlags = {}) {
 
       // Rlve to the actual file system path
       let filePath = join(resolvedDir, reqPath);
-      const tsOriginal = filePath.endsWith('.ts.original') || filePath.endsWith('.mts.original');
-      if (tsOriginal) filePath = filePath.slice(0, -9);
+      const tsMap = filePath.endsWith('.ts.map') || filePath.endsWith('.mts.map');
+      if (tsMap) filePath = filePath.slice(0, -4);
       const relativePath = relative(resolvedDir, filePath).replace(/\\/g, '/');
 
       // Basic security check to prevent directory traversal
@@ -163,11 +164,26 @@ export default async function serve(flags: ServeFlags = {}) {
           const map = readInputMap(outputMapPath);
           res.writeHead(200, { 'Content-Type': 'text/javascript' });
           res.end(createHotMap(map));
-        } else if (tsOriginal) {
-          // Serve the original TypeScript file without transformation
+        } else if (tsMap) {
+          // Identity source map for type-stripped TS. amaro's strip-only mode
+          // preserves line and column positions, so each generated line maps
+          // 1:1 to the same line in the original source.
           const content = await readFile(filePath, 'utf8');
-          res.writeHead(200, { 'Content-Type': 'application/typescript' });
-          res.end(content);
+          const lines = content.split('\n').length;
+          const sourceName = basename(filePath);
+          const map = {
+            version: 3,
+            file: sourceName,
+            sources: [sourceName],
+            sourcesContent: [content],
+            names: [],
+            mappings: 'AAAA' + ';AACA'.repeat(Math.max(0, lines - 1))
+          };
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end(JSON.stringify(map));
         } else if (filePath.endsWith('.jsx') || filePath.endsWith('.tsx')) {
           lintMessage({
             file: relativePath,
@@ -195,8 +211,11 @@ export default async function serve(flags: ServeFlags = {}) {
             const strippedCode = transformSync(tsContent, {
               transform: { mode: 'strip-only', noEmptyExport: true }
             }).code;
-            // Add sourceURL comment to preserve original filename in devtools
-            const jsCode = `${strippedCode}\n//# sourceURL=${basename(filePath)}.original`;
+            // Reference an external identity source map so DevTools (when open)
+            // resolves the original TypeScript by its canonical URL — the URL
+            // that the workspace folder integration binds to the on-disk file,
+            // enabling edit-from-debugger writeback.
+            const jsCode = `${strippedCode}\n//# sourceMappingURL=${basename(filePath)}.map`;
             res.writeHead(200, { 'Content-Type': 'text/javascript' });
             res.end(jsCode);
           } catch (error) {
@@ -210,9 +229,31 @@ ${c.bold(
 )}
 ${error.snippet}`
             );
-            res.writeHead(500);
+            // Emit a JS module that throws a SyntaxError at the same line as
+            // the original parse error so DevTools maps the stack frame back
+            // to the offending TS location via the .ts.map identity map.
+            // Must be 2xx — module scripts only execute on success.
+            // Re-declare export names so importers can still link; otherwise
+            // the link error ("does not provide an export named X") would
+            // mask the actual SyntaxError this stub raises at evaluation.
+            const startLine = error.startLine || 1;
+            const startCol = error.startColumn || 0;
+            // Strip ANSI escapes from snippet so terminal colours don't leak
+            // into the browser console as raw control sequences.
+            const snippet = String(error.snippet || '').replace(/\[[\d;]*m/g, '');
+            const msg = snippet ? `${error.message}\n${snippet}` : error.message;
+            const exportNames = extractExportNames(tsContent);
+            const exportPrefix =
+              exportNames.length > 0
+                ? exportNames
+                    .map(n => (n === 'default' ? 'export default undefined' : `export let ${n}`))
+                    .join(';') + ';\n'
+                : '';
+            const linePad = '\n'.repeat(Math.max(0, startLine - (exportPrefix ? 2 : 1)));
+            const colPad = ' '.repeat(startCol);
+            res.writeHead(200, { 'Content-Type': 'text/javascript' });
             res.end(
-              `throw new Error(\`JSPM Server: Error transforming TypeScript file: ${error.message}\`);`
+              `${exportPrefix}${linePad}${colPad}throw new SyntaxError(${JSON.stringify(msg)});\n//# sourceMappingURL=${basename(filePath)}.map`
             );
             showShortcuts(serverUrl, !flags.static);
           }
@@ -476,7 +517,10 @@ ${error.snippet}`
         console.log('');
       } catch (e) {
         stopSpinner();
-        console.error(`${c.red('Install Error:')} `, e instanceof JspmError ? e.message : e);
+        console.error(
+          `${c.red('Install Error:')} `,
+          e instanceof Error ? e.message : e
+        );
         return null;
       }
       if (!result) return null;

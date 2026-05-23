@@ -2,10 +2,11 @@
   "compilerOptions": {
     "typeRoots": ["node_modules/@types"],
     "allowSyntheticDefaultImports": true,
-    "moduleResolution": "node",
-    "module": "esnext",
+    "moduleResolution": "nodenext",
+    "module": "nodenext",
     "target": "es2019",
     "sourceMap": true,
+    "rootDir": "src",
     "outDir": "lib",
     "declaration": true,
     "declarationDir": "lib",

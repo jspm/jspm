@@ -7,7 +7,7 @@ import { Generator } from '@jspm/generator';
 import { encodeBase64 } from '@jspm/generator/common/b64.js';
 import { strictEqual } from 'assert';
 
-const rootUrl = new URL('../../', import.meta.url);
+const rootUrl = new URL('../../../', import.meta.url);
 const g = new Generator({
   mapUrl: rootUrl.href
 });
@@ -32,17 +32,17 @@ const r = g.traceMap.resolver;
     if (isNull) {
       strictEqual(res, null);
     } else {
-      strictEqual(res.pkg.name, 'chalk');
+      strictEqual(res.pkg.name, 'sver');
       strictEqual(res.pkg.registry, 'npm');
-      strictEqual(res.pkg.version, '5.6.2');
+      strictEqual(res.pkg.version, '2.0.1');
     }
   }
 
-  // Must match the version of "chalk" installed locally!
-  await testForRegistry('npm', 'chalk', '5.6.2');
+  // Must match the version of "sver" installed locally!
+  await testForRegistry('npm', 'sver', '2.0.1');
   await testForRegistry(
     'node_modules',
-    'chalk',
-    encodeBase64(new URL('./node_modules/chalk/', rootUrl).href)
+    'sver',
+    encodeBase64(new URL('./node_modules/sver/', rootUrl).href)
   );
 }

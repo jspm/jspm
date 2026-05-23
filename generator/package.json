@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@jspm/core": "^2.0.1",
-    "@swc/cli": "^0.1.65",
+    "@swc/cli": "^0.8.1",
     "@swc/core": "^1.11.18",
     "@types/node": "^22.14.0",
     "@types/vscode": "^1.75.1",

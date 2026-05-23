@@ -59,6 +59,17 @@ export interface FlatInstalledResolution {
   resolution: InstalledResolution;
 }
 
+export function resolveScopeGroup(
+  scopeUrl: `${string}/`,
+  linkedScopes: Record<string, string[]> | undefined
+): `${string}/` {
+  if (!linkedScopes) return scopeUrl;
+  for (const [primary, secondaries] of Object.entries(linkedScopes)) {
+    if (secondaries.includes(scopeUrl)) return primary as `${string}/`;
+  }
+  return scopeUrl;
+}
+
 function enumerateParentScopes(url: `${string}/`): `${string}/`[] {
   const parentScopes: `${string}/`[] = [];
   let separatorIndex = url.lastIndexOf('/');
@@ -328,7 +339,8 @@ export async function extractLockConstraintsAndMap(
   rootUrl: URL | null,
   defaultRegistry: string,
   resolver: Resolver,
-  provider: PackageProvider
+  provider: PackageProvider,
+  linkedScopes?: Record<string, string[]>
 ): Promise<{
   locks: LockResolutions;
   constraints: VersionConstraints;
@@ -418,6 +430,7 @@ export async function extractLockConstraintsAndMap(
       promises.push(
         (async () => {
           const scopePkgUrl = await resolver.getPackageBase(resolvedScopeUrl);
+          const versionScope = resolveScopeGroup(scopePkgUrl, linkedScopes);
           const flattenedScope = new URL(scopePkgUrl).pathname === '/';
           pkgUrls.add(scopePkgUrl);
 
@@ -453,15 +466,15 @@ export async function extractLockConstraintsAndMap(
                   : new URL(pkgUrl);
               }
               if (flattenedScope) {
-                const flattened = (locks.flattened[scopePkgUrl] =
-                  locks.flattened[scopePkgUrl] || {});
+                const flattened = (locks.flattened[versionScope] =
+                  locks.flattened[versionScope] || {});
                 flattened[parsedKey.pkgName] = flattened[parsedKey.pkgName] || [];
                 flattened[parsedKey.pkgName].push({
                   export: parsedKey.subpath,
                   resolution: { installUrl: pkgUrl }
                 });
               } else {
-                setResolution(locks, parsedKey.pkgName, pkgUrl, scopePkgUrl);
+                setResolution(locks, parsedKey.pkgName, pkgUrl, versionScope);
               }
               return;
             }

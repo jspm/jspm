@@ -1,0 +1,8 @@
+{
+  "name": "linked-version-primary",
+  "type": "module",
+  "exports": "./index.js",
+  "dependencies": {
+    "semver": "6"
+  }
+}

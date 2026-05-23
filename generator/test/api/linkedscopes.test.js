@@ -115,3 +115,59 @@ test('linkedScopes - inputMap resolutions use primary scope key', async () => {
   assert.ok(secondaryDep, 'secondary should resolve dep via primary inputMap lock');
   assert.ok(secondaryDep.includes('dep/main.js'), 'should use the primary lock resolution');
 });
+
+// linked-version-primary has semver@6, linked-version-secondary has semver@7.
+// With linkedScopes, secondary should use primary's range (6), not its own (7).
+
+test('linkedScopes - normal install uses primary version range over secondary', async () => {
+  const generator = new Generator({
+    baseUrl: new URL('../', import.meta.url),
+    mapUrl: import.meta.url,
+    env: ['production', 'browser'],
+    flattenScopes: false,
+    linkedScopes: {
+      './api/local/linked-version-primary/': ['./api/local/linked-version-secondary/']
+    }
+  });
+
+  await generator.install({ target: './api/local/linked-version-primary' });
+  await generator.install({ target: './api/local/linked-version-secondary' });
+  const json = generator.getMap();
+
+  const primarySemver = json.scopes['./local/linked-version-primary/']?.semver;
+  const secondarySemver = json.scopes['./local/linked-version-secondary/']?.semver;
+  assert.ok(primarySemver, 'primary scope should have semver');
+  assert.ok(secondarySemver, 'secondary scope should have semver');
+  assert.ok(primarySemver.includes('semver@6.'), `primary should resolve semver@6, got: ${primarySemver}`);
+  assert.ok(secondarySemver.includes('semver@6.'), `secondary should resolve semver@6 via primary range, got: ${secondarySemver}`);
+  assert.strictEqual(primarySemver, secondarySemver, 'both scopes should share the same resolution');
+});
+
+test('linkedScopes freeze - preserves primary inputMap resolution despite secondary range conflict', async () => {
+  const generator = new Generator({
+    baseUrl: new URL('../', import.meta.url),
+    mapUrl: import.meta.url,
+    env: ['production', 'browser'],
+    flattenScopes: false,
+    inputMap: {
+      scopes: {
+        './local/linked-version-primary/': {
+          semver: 'https://ga.jspm.io/npm:semver@6.3.0/semver.js'
+        }
+      }
+    },
+    linkedScopes: {
+      './api/local/linked-version-primary/': ['./api/local/linked-version-secondary/']
+    }
+  });
+
+  await generator.install({ target: './api/local/linked-version-secondary' }, 'freeze');
+  const json = generator.getMap();
+
+  const secondarySemver = json.scopes['./local/linked-version-secondary/']?.semver;
+  assert.ok(secondarySemver, 'secondary scope should have semver');
+  assert.ok(
+    secondarySemver.includes('semver@6.3.0'),
+    `freeze should preserve primary inputMap resolution (6.3.0), got: ${secondarySemver}`
+  );
+});

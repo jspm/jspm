@@ -34,12 +34,12 @@ const r = g.traceMap.resolver;
     } else {
       strictEqual(res.pkg.name, 'chalk');
       strictEqual(res.pkg.registry, 'npm');
-      strictEqual(res.pkg.version, '4.1.2');
+      strictEqual(res.pkg.version, '5.6.2');
     }
   }
 
   // Must match the version of "chalk" installed locally!
-  await testForRegistry('npm', 'chalk', '4.1.2');
+  await testForRegistry('npm', 'chalk', '5.6.2');
   await testForRegistry(
     'node_modules',
     'chalk',

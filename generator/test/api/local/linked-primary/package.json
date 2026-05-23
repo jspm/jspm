@@ -1,0 +1,8 @@
+{
+  "name": "linked-primary",
+  "type": "module",
+  "exports": "./index.js",
+  "dependencies": {
+    "dep": "file:../dep"
+  }
+}

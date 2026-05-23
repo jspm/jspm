@@ -1,0 +1,8 @@
+{
+  "name": "linked-secondary",
+  "type": "module",
+  "exports": "./index.js",
+  "dependencies": {
+    "dep": "file:../dep-alt"
+  }
+}

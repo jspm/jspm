@@ -8,6 +8,7 @@ import {
   InstalledResolution,
   LockResolutions,
   PackageConstraint,
+  resolveScopeGroup,
   VersionConstraints
 } from './lock.js';
 import { ExactPackage, newPackageTarget, PackageTarget } from './package.js';
@@ -81,6 +82,9 @@ export interface InstallerOptions {
 
   // dependency resolutions overrides
   resolutions?: Record<string, string>;
+
+  // scope groups: maps primary scope URL to secondary scope URLs that share its resolutions
+  linkedScopes?: Record<string, string[]>;
 
   defaultProvider?: string;
   defaultRegistry?: string;
@@ -407,6 +411,9 @@ export class Installer {
     // a secondary dependency:
     // TODO: wire this concept through the whole codebase.
     const isTopLevel = !pkgScope || pkgScope == this.installBaseUrl;
+    const versionScope = !isTopLevel && pkgScope
+      ? resolveScopeGroup(pkgScope, this.opts.linkedScopes)
+      : pkgScope;
 
     if (this.resolutions[pkgName])
       return this.installTarget(
@@ -418,13 +425,13 @@ export class Installer {
           pkgName
         ),
         mode,
-        isTopLevel ? null : pkgScope,
+        isTopLevel ? null : versionScope,
         parentUrl
       );
 
-    // Fetch the current scope's pjson:
-    const definitelyPkgScope = pkgScope || (await this.resolver.getPackageBase(parentUrl));
-    const pcfg = (await this.resolver.getPackageConfig(definitelyPkgScope)) || {};
+    // Fetch the version scope's pjson for dependency ranges:
+    const definitelyVersionScope = versionScope || (await this.resolver.getPackageBase(parentUrl));
+    const pcfg = (await this.resolver.getPackageConfig(definitelyVersionScope)) || {};
 
     // By default, we take an install target from the current scope's pjson:
     const pjsonTargetStr =
@@ -434,15 +441,15 @@ export class Installer {
       (isTopLevel && pcfg.devDependencies?.[pkgName]);
     const pjsonTarget =
       pjsonTargetStr &&
-      newPackageTarget(pjsonTargetStr, new URL(definitelyPkgScope), this.defaultRegistry, pkgName);
+      newPackageTarget(pjsonTargetStr, new URL(definitelyVersionScope), this.defaultRegistry, pkgName);
 
     const useLatestPjsonTarget =
       !!pjsonTarget &&
       ((isTopLevel && mode.includes('latest')) || (!isTopLevel && mode === 'latest-all'));
 
-    // Find any existing locks in the current package scope, making sure
+    // Find any existing locks in the version scope, making sure
     // locks are always in-range for their parent scope pjsons:
-    const existingResolution = getResolution(this.installs, pkgName, isTopLevel ? null : pkgScope);
+    const existingResolution = getResolution(this.installs, pkgName, isTopLevel ? null : versionScope);
     if (
       !useLatestPjsonTarget &&
       existingResolution &&
@@ -467,7 +474,7 @@ export class Installer {
       const flattenedResolution = await getFlattenedResolution(
         this.installs,
         pkgName,
-        pkgScope,
+        versionScope,
         traceSubpath,
         semverCompatible,
         semverCompatible && pjsonTarget
@@ -482,7 +489,7 @@ export class Installer {
           (pjsonTarget &&
             (await this.inRange(flattenedResolution.installUrl, pjsonTarget.pkgTarget))))
       ) {
-        this.newInstalls = this.setResolution(pkgName, flattenedResolution.installUrl, pkgScope);
+        this.newInstalls = this.setResolution(pkgName, flattenedResolution.installUrl, versionScope);
         return flattenedResolution;
       }
     }
@@ -493,7 +500,7 @@ export class Installer {
         pkgName,
         pjsonTarget,
         mode,
-        isTopLevel ? null : pkgScope,
+        isTopLevel ? null : versionScope,
         parentUrl
       );
     }
@@ -507,7 +514,7 @@ export class Installer {
     // global install fallback
     const target = newPackageTarget(
       '*',
-      new URL(definitelyPkgScope),
+      new URL(definitelyVersionScope),
       this.defaultRegistry,
       pkgName
     );
@@ -515,7 +522,7 @@ export class Installer {
       pkgName,
       target,
       mode,
-      isTopLevel ? null : pkgScope,
+      isTopLevel ? null : versionScope,
       parentUrl
     );
     return { installUrl };

@@ -580,6 +580,28 @@ export interface GeneratorOptions {
    *   default in the next major.
    */
   inputMapFallbacks?: boolean | 'semver-compatible';
+
+  /**
+   * Groups of scope URLs that share dependency resolution behavior.
+   *
+   * Each key is a primary scope URL whose package.json dependency ranges
+   * and resolution locks are used for all scopes in its group. The value
+   * is an array of secondary scope URLs that delegate to the primary.
+   *
+   * URLs can be absolute or relative to `baseUrl`.
+   *
+   * @example
+   * ```js
+   * linkedScopes: {
+   *   'https://site.com/foo/': ['https://site.com/bar/']
+   * }
+   * ```
+   *
+   * Modules in `https://site.com/bar/` will use the dependency ranges
+   * and resolution locks from `https://site.com/foo/`, while their
+   * scope boundaries remain unchanged.
+   */
+  linkedScopes?: Record<string, string[]>;
 }
 
 /**
@@ -740,7 +762,8 @@ export class Generator {
     expandWildcards = false,
     scopedLink = false,
     traceCache = undefined,
-    inputMapFallbacks = true
+    inputMapFallbacks = true,
+    linkedScopes = undefined
   }: GeneratorOptions = {}) {
     this.cacheEnabled = !!traceCache;
     if (typeof preserveSymlinks !== 'boolean') preserveSymlinks = isNode;
@@ -817,6 +840,21 @@ export class Generator {
       )
     });
 
+    // Normalize linkedScopes URLs against baseUrl
+    let normalizedLinkedScopes: Record<string, string[]> | undefined;
+    if (linkedScopes) {
+      normalizedLinkedScopes = {};
+      for (const [primary, secondaries] of Object.entries(linkedScopes)) {
+        let resolvedPrimary = new URL(primary, this.baseUrl).href;
+        if (!resolvedPrimary.endsWith('/')) resolvedPrimary += '/';
+        normalizedLinkedScopes[resolvedPrimary] = secondaries.map(s => {
+          let resolved = new URL(s, this.baseUrl).href;
+          if (!resolved.endsWith('/')) resolved += '/';
+          return resolved;
+        });
+      }
+    }
+
     // Initialise the tracer:
     this.traceMap = new TraceMap(
       {
@@ -831,7 +869,8 @@ export class Generator {
         commonJS,
         customResolver,
         noPins: scopedLink,
-        inputMapFallbacks
+        inputMapFallbacks,
+        linkedScopes: normalizedLinkedScopes
       },
       tracelog,
       resolver

@@ -1,0 +1,5 @@
+{
+  "name": "dep-alt",
+  "type": "module",
+  "exports": "./main.js"
+}

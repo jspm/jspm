@@ -2,8 +2,8 @@
   "compilerOptions": {
     "typeRoots": ["node_modules/@types"],
     "allowSyntheticDefaultImports": true,
-    "moduleResolution": "nodenext",
-    "module": "nodenext",
+    "moduleResolution": "bundler",
+    "module": "esnext",
     "target": "es2022",
     "sourceMap": true,
     "rootDir": "src",

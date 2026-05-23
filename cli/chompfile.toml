@@ -44,11 +44,14 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const input = readFileSync(process.env.DEP, 'utf8')
 
-const output = `import $__util from 'node:util';
-import $__buffer from 'node:buffer';
+const output = `import { createRequire } from 'node:module';
+import { fileURLToPath as __fileURLToPath } from 'node:url';
+import { dirname as __dirname_ } from 'node:path';
+var __require = createRequire(import.meta.url);
+var __filename = __fileURLToPath(import.meta.url);
+var __dirname = __dirname_(__filename);
 ` + input
-    .replace('__require("util")', '$__util')
-    .replace('__require("node:buffer")', '$__buffer')
+    .replace(/var __require = .*?\n\}\);/s, '')
 writeFileSync(process.env.TARGET, output);
 '''
 

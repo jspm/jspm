@@ -1,4 +1,4 @@
-import { LitElement, html } from "lit";
+import { html, LitElement } from "lit";
 import "@spectrum-web-components/icons-workflow/icons/sp-icon-email.js";
 
 class EmailIconElement extends LitElement {

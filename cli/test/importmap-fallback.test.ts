@@ -1,8 +1,8 @@
-import { test } from 'node:test';
-import assert from 'assert';
+import assert from 'node:assert';
+import { it } from 'vitest';
 import { run } from './scenarios.ts';
 
-test('Support importmap.json when both exist', async () => {
+it('support importmap.json when both exist', async () => {
   await run({
     files: new Map([
       [

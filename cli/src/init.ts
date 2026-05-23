@@ -1,17 +1,17 @@
+import type { BaseFlags } from './cli.ts';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import c from 'picocolors';
+import { getOption } from './terminal-utils.ts';
 import {
-  JspmError,
   exists,
   getGenerator,
   getLatestEsms,
   getPackageJson,
-  isDirectory
+  isDirectory,
+  JspmError
 } from './utils.ts';
-import type { BaseFlags } from './cli.ts';
-import { getOption } from './terminal-utils.ts';
 
 /**
  * ProjectConfig interface representing validated package.json contents
@@ -86,7 +86,7 @@ export async function initCreate(
     // Set default values based on existing package.json or directory name
     // Use basename to extract just the directory name, not the full path
     const defaultName =
-      existingPackageJson?.name || basename(projectDir).replace(/[^a-zA-Z0-9-_]/g, '-');
+      existingPackageJson?.name || basename(projectDir).replace(/[^\w-]/g, '-');
     const defaultVersion = existingPackageJson?.version || 'dev';
     const defaultDescription = existingPackageJson?.description || '';
 
@@ -237,7 +237,8 @@ export async function initCreate(
 
     const projectDirRel = relative(process.cwd(), projectDir).replace(/\\/g, '/');
 
-    if (!flags.quiet) console.log('');
+    if (!flags.quiet) 
+console.log('');
 
     // Create tsconfig.json if TypeScript is enabled
     if (useTypeScript) {
@@ -263,10 +264,11 @@ export async function initCreate(
         );
 
         await writeFile(tsconfigPath, tsconfigContent);
-        if (!flags.quiet)
+        if (!flags.quiet) {
           console.log(
             `${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/tsconfig.json`)} created`
           );
+}
       }
     }
 
@@ -308,15 +310,16 @@ export async function initCreate(
             await mkdir(entrypointDir, { recursive: true });
           await writeFile(entrypointPath, exampleEntry());
 
-          if (!flags.quiet)
+          if (!flags.quiet) {
             console.log(
               `${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/${exportsValue}`)} created`
             );
+}
 
           // Also write the example landing component
           await writeFile(join(dirname(entrypointPath), 'landing.js'), exampleLandingJs);
           await writeFile(join(dirname(entrypointPath), 'landing.css'), exampleLandingCss);
-          if (!flags.quiet)
+          if (!flags.quiet) {
             console.log(
               `${c.green('✓')}  ${c.cyan(
                 `${projectDirRel || '.'}/${join(dirname(exportsValue), 'landing.js').replace(
@@ -325,8 +328,9 @@ export async function initCreate(
                 )}`
               )} created`
             );
+}
 
-          if (!flags.quiet)
+          if (!flags.quiet) {
             console.log(
               `${c.green('✓')}  ${c.cyan(
                 `${projectDirRel || '.'}/${join(dirname(exportsValue), 'landing.css').replace(
@@ -335,6 +339,7 @@ export async function initCreate(
                 )}`
               )} created`
             );
+}
         }
       }
     }
@@ -347,7 +352,8 @@ export async function initCreate(
 
         const aiRuleFileRel = relative(process.cwd(), aiRulePath).replace(/\\/g, '/');
 
-        if (!flags.quiet) console.log(`${c.green('✓')}  ${c.cyan(aiRuleFileRel)} created`);
+        if (!flags.quiet) 
+console.log(`${c.green('✓')}  ${c.cyan(aiRuleFileRel)} created`);
       }
     }
 
@@ -382,7 +388,8 @@ export async function initCreate(
 
     return config;
   } finally {
-    if (!closed) readline.close();
+    if (!closed) 
+readline.close();
   }
 }
 
@@ -390,7 +397,7 @@ export async function initCreate(
  * Initializes a project by validating package.json and extracting required fields.
  * Throws errors for missing required fields.
  *
- * @param options Configuration options
+ * @param flags Configuration options
  * @returns ProjectConfig object with validated fields
  */
 export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
@@ -476,7 +483,7 @@ export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
   return config;
 }
 
-const createExampleHtml = async (packageJson, hasEntry: boolean) => {
+async function createExampleHtml (packageJson, hasEntry: boolean) {
   let esmsUrl;
   try {
     esmsUrl = await getLatestEsms(await getGenerator({}), 'jspm.io');
@@ -505,9 +512,10 @@ const createExampleHtml = async (packageJson, hasEntry: boolean) => {
 <body></body>
 </html>
 `;
-};
+}
 
-const aiFile = (tsEnabled: boolean) => `
+function aiFile (tsEnabled: boolean) {
+  return `
 # Claude Configuration
 
 ## JSPM Conventions
@@ -645,12 +653,15 @@ The \`importmap.js\` behaves like a lock file itself in that once installed a de
 - \`jspm install\`: Generate importmap.js from package.json entry points and dependencies.
 - \`jspm serve --watch\`: Run the local dev server
 - \`jspm build -o dist\`: Build the application
-`;
+`
+}
 
-const exampleEntry = () => `import * as landing from './landing.js';
+function exampleEntry () {
+  return `import * as landing from './landing.js';
 document.body.innerHTML = landing.render();
 landing.attach(document.body);
-`;
+`
+}
 
 const exampleLandingCss = `:root {
   --primary-color: #4dabf7;
@@ -922,11 +933,13 @@ export function attach(container) {
 
 /**
  * Creates a minimal JavaScript .gitignore file content
- * @param useTypeScript Whether TypeScript is enabled in the project
+ * @param _useTypeScript Whether TypeScript is enabled in the project
  * @returns The content for the .gitignore file
  */
-const createGitignore = (_useTypeScript: boolean) => `node_modules/
+function createGitignore (_useTypeScript: boolean) {
+  return `node_modules/
 dist/
 .vscode/
 .DS_Store
-`;
+`
+}

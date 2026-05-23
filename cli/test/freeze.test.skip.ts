@@ -1,5 +1,5 @@
+import assert from 'node:assert';
 import { test } from 'node:test';
-import assert from 'assert';
 import { run } from './scenarios.ts';
 
 const importMap = new Map([

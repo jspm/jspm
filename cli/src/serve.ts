@@ -1,30 +1,18 @@
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { basename, dirname, join, relative, resolve } from 'node:path';
-import { type ServerResponse, createServer } from 'node:http';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import type {ServerResponse} from 'node:http';
+import type { ServeFlags } from './cli.ts';
+import type {ProjectConfig} from './init.ts';
+import type { IImportMap } from './types.ts';
 import { randomUUID } from 'node:crypto';
-import c from 'picocolors';
-import mime from 'mime';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { createServer  } from 'node:http';
+import { basename, dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { analyzeHtml } from '@jspm/generator';
 import { transformSync } from 'amaro';
-import {
-  JspmError,
-  getDisabledWarnings,
-  getEnv,
-  getExportsEntries,
-  getFilesRecursively,
-  getOutputPath,
-  isURL,
-  readInputMap,
-  stopSpinner
-} from './utils.ts';
-import { type ProjectConfig, initProject } from './init.ts';
-import type { ServeFlags } from './cli.ts';
+import mime from 'mime';
+import c from 'picocolors';
+import { initProject  } from './init.ts';
 import install from './install.ts';
-import type { IImportMap } from './types.ts';
-import renderDirectoryListing from './views/directory-listing.ts';
-import notFoundPage from './views/not-found.ts';
-import createHotMap from './views/hot-map.ts';
 import {
   esmsCodeSnippet,
   extractExportNames,
@@ -33,6 +21,19 @@ import {
   lintMessage,
   showShortcuts
 } from './serve-utils.ts';
+import {
+  getDisabledWarnings,
+  getEnv,
+  getExportsEntries,
+  getFilesRecursively,
+  getOutputPath,
+  JspmError,
+  readInputMap,
+  stopSpinner
+} from './utils.ts';
+import renderDirectoryListing from './views/directory-listing.ts';
+import createHotMap from './views/hot-map.ts';
+import notFoundPage from './views/not-found.ts';
 
 export default async function serve(flags: ServeFlags = {}) {
   const port = flags.port || 5776;
@@ -125,7 +126,8 @@ export default async function serve(flags: ServeFlags = {}) {
       // Rlve to the actual file system path
       let filePath = join(resolvedDir, reqPath);
       const tsMap = filePath.endsWith('.ts.map') || filePath.endsWith('.mts.map');
-      if (tsMap) filePath = filePath.slice(0, -4);
+      if (tsMap) 
+filePath = filePath.slice(0, -4);
       const relativePath = relative(resolvedDir, filePath).replace(/\\/g, '/');
 
       // Basic security check to prevent directory traversal
@@ -314,7 +316,8 @@ ${error.snippet}`
             for (const module of analyzed.modules) {
               if (module.attrs.type?.value === 'module') {
                 let { start, end, quote } = module.attrs.type!;
-                if (quote) end++;
+                if (quote) 
+end++;
                 content = `${content.slice(0, start + offset)}type="module-shim"${content.slice(
                   end + offset
                 )}`;
@@ -326,7 +329,8 @@ ${error.snippet}`
             for (const inlineModule of analyzed.inlineModules) {
               if (inlineModule.attrs.type?.value === 'module') {
                 let { start, end, quote } = inlineModule.attrs.type!;
-                if (quote) end++;
+                if (quote) 
+end++;
                 content = `${content.slice(0, start + offset)}type="module-shim"${content.slice(
                   end + offset
                 )}`;
@@ -349,7 +353,7 @@ ${error.snippet}`
               module.startsWith('./') ||
               module.startsWith('../') ||
               module.startsWith('/') ||
-              isURL(module)
+              URL.canParse(module)
             ) {
               // Validate local URL specifiers are in our known graph
               const resolved = new URL(module, analyzed.base).href;
@@ -523,14 +527,17 @@ ${error.snippet}`
         );
         return null;
       }
-      if (!result) return null;
+      if (!result) 
+return null;
       const mapDeps = new Set<string>();
       const { staticDeps, dynamicDeps } = result;
       staticDeps.forEach(dep => {
-        if (dep.startsWith('file:')) mapDeps.add(dep);
+        if (dep.startsWith('file:')) 
+mapDeps.add(dep);
       });
       dynamicDeps.forEach(dep => {
-        if (dep.startsWith('file:')) mapDeps.add(dep);
+        if (dep.startsWith('file:')) 
+mapDeps.add(dep);
       });
       return {
         deps: [...mapDeps].map(fileUrl => fileURLToPath(fileUrl)),
@@ -554,7 +561,8 @@ ${error.snippet}`
       // Start the watch interval
       setInterval(async () => {
         // skip if still processing an existing change
-        if (processing) return;
+        if (processing) 
+return;
 
         const changes: string[] = [];
         const currentFileList = await getFilesRecursively(

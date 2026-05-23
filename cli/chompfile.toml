@@ -4,10 +4,13 @@ default-task = 'build'
 [[task]]
 name = 'npm:install'
 targets = [
-    '../node_modules',
-    '../package-lock.json',
+  '../node_modules',
+  '../package-lock.json',
 ]
-deps = ['package.json', '../package.json']
+deps = [
+  'package.json',
+  '../package.json' 
+]
 validation = 'ok-only'
 display = 'init-only'
 run = 'npm install'
@@ -19,10 +22,10 @@ run = 'chomp -c ../generator'
 [[task]]
 name = 'build'
 deps = [
-    'dist/cli.js',
-    'dist/jspm.js',
-    'docs.md',
-    'generator'
+  'dist/cli.js',
+  'dist/jspm.js',
+  'docs.md',
+  'generator'
 ]
 
 [[task]]
@@ -58,8 +61,8 @@ writeFileSync(process.env.TARGET, output);
 [[task]]
 target = 'lib/cli.js'
 deps = [
-    'src/**/*.ts',
-    'npm:install',
+  'src/**/*.ts',
+  'npm:install',
 ]
 run = """
 ../node_modules/.bin/esbuild src/cli.ts --bundle --platform=node --format=esm --outfile=$TARGET \
@@ -71,10 +74,10 @@ run = """
 name = 'docs'
 target = 'docs.md'
 deps = [
-    'src/**/*.ts',
-    'docs/intro.md',
-    'docs/config.md',
-    'dist/cli.js',
+  'src/**/*.ts',
+  'docs/intro.md',
+  'docs/config.md',
+  'dist/cli.js',
 ]
 run = '''
   node docs/generate.js > docs-generated.md
@@ -94,9 +97,9 @@ run = '../node_modules/.bin/eslint . --fix'
 name = 'prettier'
 targets = []
 deps = [
-    'src/**/*.ts',
-    'test/*.ts',
-    'npm:install',
+  'src/**/*.ts',
+  'test/*.ts',
+  'npm:install',
 ]
 watch-invalidation = 'skip-running'
 invalidation = 'always'
@@ -105,8 +108,8 @@ run = '../node_modules/.bin/prettier --cache --cache-strategy metadata --logleve
 [[task]]
 name = 'typecheck'
 deps = [
-    'src/**/*.ts',
-    'test/*.ts',
+  'src/**/*.ts',
+  'test/*.ts',
 ]
 run = 'tsc --noEmit'
 
@@ -126,6 +129,10 @@ dep = 'test:'
 
 [[task]]
 name = 'test:##'
-deps = ['test/##.test.ts', 'dist/cli.js', 'generator']
+deps = [
+  'test/##.test.ts',
+  'dist/cli.js',
+  'generator' 
+]
 serial = true
 run = 'node --no-warnings --experimental-strip-types --test $DEP'

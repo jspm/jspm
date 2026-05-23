@@ -1,12 +1,14 @@
+import type { BuildFlags } from './cli.ts';
+import { readFileSync } from 'node:fs';
+import { copyFile, mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { copyFile, mkdir, writeFile } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
-import { rollup } from 'rollup';
 import jspmRollup from '@jspm/plugin-rollup';
 import c from 'picocolors';
+import { rollup } from 'rollup';
+import { initProject } from './init.ts';
+import install from './install.ts';
 import {
-  JspmError,
   getDisabledWarnings,
   getEnv,
   getExportsEntries,
@@ -14,13 +16,11 @@ import {
   getGenerator,
   getInputPath,
   getOutputPath,
+  JspmError,
   sanitizeTemplateStr,
   startSpinner,
   stopSpinner
 } from './utils.ts';
-import type { BuildFlags } from './cli.ts';
-import { initProject } from './init.ts';
-import install from './install.ts';
 
 export default async function build(flags: BuildFlags) {
   // Try to validate the project configuration
@@ -68,7 +68,8 @@ export default async function build(flags: BuildFlags) {
   const generator = await getGenerator(flags);
 
   try {
-    if (!flags.quiet) startSpinner(`Building package ${c.cyan(projectConfig.name)}...`);
+    if (!flags.quiet) 
+startSpinner(`Building package ${c.cyan(projectConfig.name)}...`);
 
     const baseUrl = pathToFileURL(projectConfig.projectPath).href;
     const externalPackages = Object.keys(projectConfig.dependencies || {});
@@ -100,7 +101,8 @@ export default async function build(flags: BuildFlags) {
         ? chunkInfo => {
             const name = chunkInfo.name;
             const dotIdx = name.lastIndexOf('.');
-            if (dotIdx !== -1) return `${name.slice(0, dotIdx)}-[hash:8]${name.slice(dotIdx)}`;
+            if (dotIdx !== -1) 
+return `${name.slice(0, dotIdx)}-[hash:8]${name.slice(dotIdx)}`;
             return '[name]-[hash:8]';
           }
         : '[name]',
@@ -243,9 +245,9 @@ function cssPlugin({ minify, baseUrl }) {
   const minifyCSS = (content: string) => {
     const calc_functions: string[] = [];
     const calc_regex = /\bcalc\(([^)]+)\)/g;
-    const comments = /("(?:[^"\\]+|\\.)*"|'(?:[^'\\]+|\\.)*')|\/\*[\s\S]*?\*\//g;
+    const comments = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\/\*[\s\S]*?\*\//g;
     const syntax =
-      /("(?:[^"\\]+|\\.)*"|'(?:[^'\\]+|\\.)*')|\s*([{};,>~])\s*|\s*([*$~^|]?=)\s*|\s+([+-])(?=.*\{)|([[(:])\s+|\s+([\])])|\s+(:)(?![^}]*\{)|^\s+|\s+$|(\s)\s+(?![^(]*\))/g;
+      /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\s*([{};,>~])\s*|\s*([*$~^|]?=)\s*|\s+([+-])(?=.*\{)|([[(:])\s+|\s+([\])])|\s+(:)(?![^}]*\{)|^\s+|\s+$|(\s)\s+(?![^(]*\))/g;
 
     return content
       .replace(calc_regex, (_, group) => {
@@ -260,19 +262,22 @@ function cssPlugin({ minify, baseUrl }) {
 
   return {
     async transform(code: string, id: string) {
-      if (!id.endsWith('.css')) return;
+      if (!id.endsWith('.css')) 
+return;
       const moduleInfo = this.getModuleInfo(id);
-      if ((moduleInfo.attributes || moduleInfo.assertions)?.type !== 'css')
+      if ((moduleInfo.attributes || moduleInfo.assertions)?.type !== 'css') {
         throw new Error(
           `CSS file "${id}" imported without 'with { type: "css" }' assertion. Only CSSStyleSheet imports are supported.`
         );
+}
 
       const cssUrlRegEx = /url\(\s*(?:(["'])((?:\\.|[^\n\\"'])+)\1|((?:\\.|[^\s,"'()\\])+))\s*\)/g;
 
       // Rebase all relative URLs in the CSS
       const processedCode = code.replace(cssUrlRegEx, (match, quotes = '', relUrl1, relUrl2) => {
         const resolved = new URL(relUrl1 || relUrl2, id).href;
-        if (!resolved.startsWith('file:')) return match;
+        if (!resolved.startsWith('file:')) 
+return match;
         const fileId = this.emitFile({
           type: 'asset',
           name: relative(basePath, fileURLToPath(resolved)).replace(/\\/g, '/'),

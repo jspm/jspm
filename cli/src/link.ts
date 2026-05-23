@@ -1,21 +1,21 @@
+import type {Generator} from '@jspm/generator';
+import type { GenerateOutputFlags } from './cli.ts';
 import * as fs from 'node:fs/promises';
 import { extname } from 'node:path';
-import { pathToFileURL } from 'url';
+import { pathToFileURL } from 'node:url';
 import c from 'picocolors';
-import { type Generator } from '@jspm/generator';
-import type { GenerateOutputFlags } from './cli.ts';
+import { initProject } from './init.ts';
+import { withType } from './logger.ts';
 import {
-  JspmError,
   getEnv,
   getGenerator,
   getInputMap,
   isJsExtension,
+  JspmError,
   startSpinner,
   stopSpinner,
   writeOutput
 } from './utils.ts';
-import { withType } from './logger.ts';
-import { initProject } from './init.ts';
 
 export default async function link(modules: string[], flags: GenerateOutputFlags) {
   const log = withType('link/link');

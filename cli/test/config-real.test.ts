@@ -1,8 +1,7 @@
-import { test } from 'node:test';
-import assert from 'assert';
-import path from 'path';
-import fs from 'fs/promises';
-import { fileURLToPath } from 'url';
+import assert from 'node:assert';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { run } from './scenarios.ts';
 
 // Get current file directory in ESM
@@ -34,7 +33,7 @@ async function loadFixtures(fixtureDir: string): Promise<Map<string, string>> {
   return files;
 }
 
-test('Real-world - loading configuration from fixtures', async () => {
+it('real-world - loading configuration from fixtures', async () => {
   const fixtureFiles = await loadFixtures('scenario_config');
 
   await run({
@@ -52,7 +51,7 @@ test('Real-world - loading configuration from fixtures', async () => {
   });
 });
 
-test('Real-world - config merging between parent and child directories', async () => {
+it('real-world - config merging between parent and child directories', async () => {
   const fixtureFiles = await loadFixtures('scenario_config');
 
   await run({
@@ -74,7 +73,7 @@ test('Real-world - config merging between parent and child directories', async (
   });
 });
 
-test('Real-world - local config updates', async () => {
+it('real-world - local config updates', async () => {
   const fixtureFiles = await loadFixtures('scenario_config');
 
   await run({
@@ -101,7 +100,7 @@ test('Real-world - local config updates', async () => {
   });
 });
 
-test('Real-world - config value overrides', async () => {
+it('real-world - config value overrides', async () => {
   const fixtureFiles = await loadFixtures('scenario_config');
 
   await run({

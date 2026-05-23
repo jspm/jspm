@@ -25,4 +25,5 @@
       "#dist/modules/src/node.js": "https://ga.jspm.io/npm:@jspm/core@2.1.0/nodelibs/@empty.js"
     }
   }
-});
+}
+);

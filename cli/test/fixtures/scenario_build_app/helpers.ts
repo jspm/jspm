@@ -30,7 +30,8 @@ export class UserManager {
 
   public updateUser(id: number, updates: Partial<User>): boolean {
     const userIndex = this.users.findIndex(user => user.id === id);
-    if (userIndex === -1) return false;
+    if (userIndex === -1) 
+return false;
     
     this.users[userIndex] = { ...this.users[userIndex], ...updates };
     return true;
@@ -43,12 +44,12 @@ export class UserManager {
   }
 }
 
-export const createDemoUsers = (): User[] => {
+export function createDemoUsers (): User[] {
   return [
     { id: 1, name: 'Alice Smith', email: 'alice@example.com', isActive: true },
     { id: 2, name: 'Bob Johnson', email: 'bob@example.com', isActive: false },
     { id: 3, name: 'Charlie Brown', email: 'charlie@example.com', isActive: true }
   ];
-};
+}
 
 export const TYPESCRIPT_VERSION = '5.0.4';

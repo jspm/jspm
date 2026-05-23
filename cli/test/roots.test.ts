@@ -1,10 +1,10 @@
-import { test } from 'node:test';
-import assert from 'assert';
+import assert from 'node:assert';
+import { it } from 'vitest';
 import { mapDirectory, run } from './scenarios.ts';
 
 const filesRoot = await mapDirectory('fixtures/scenario_roots');
 
-test('rootURL = /, mapURL = /importmap.json', async () => {
+it('rootURL = /, mapURL = /importmap.json', async () => {
   await run({
     files: filesRoot,
     commands: ['jspm install roots -o importmap.json'],
@@ -16,7 +16,7 @@ test('rootURL = /, mapURL = /importmap.json', async () => {
   });
 });
 
-test('rootURL = /, mapURL = /a/importmap.json', async () => {
+it('rootURL = /, mapURL = /a/importmap.json', async () => {
   await run({
     files: filesRoot,
     commands: ['jspm install roots -o a/importmap.json --root .'],
@@ -28,7 +28,7 @@ test('rootURL = /, mapURL = /a/importmap.json', async () => {
   });
 });
 
-test('rootURL = /a, mapURL = /a/importmap.json', async () => {
+it('rootURL = /a, mapURL = /a/importmap.json', async () => {
   await run({
     files: filesRoot,
     commands: ['jspm install roots -o a/importmap.json --root a'],
@@ -42,7 +42,7 @@ test('rootURL = /a, mapURL = /a/importmap.json', async () => {
   });
 });
 
-test('rootURL = /a/b, mapURL = /a/importmap.json', async () => {
+it('rootURL = /a/b, mapURL = /a/importmap.json', async () => {
   await run({
     files: filesRoot,
     commands: ['jspm install roots -o a/importmap.json --root a/b'],

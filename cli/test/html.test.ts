@@ -1,10 +1,10 @@
-import { test } from 'node:test';
-import assert from 'assert';
+import assert from 'node:assert';
+import { it } from 'vitest';
 import { mapFile, run } from './scenarios.ts';
 
 const importMap = await mapFile('fixtures/importmap.js');
 
-test('linking inline modules in HTML', async () => {
+it('linking inline modules in HTML', async () => {
   await run({
     files: await mapFile(['fixtures/inlinemodules.html', 'fixtures/a.js', 'fixtures/b.js']),
     commands: ['jspm link inlinemodules.html -o inlinemodules.html'],
@@ -16,7 +16,7 @@ test('linking inline modules in HTML', async () => {
   });
 });
 
-test('linking specific package to HTML', async () => {
+it('linking specific package to HTML', async () => {
   await run({
     files: importMap,
     commands: ['jspm link react -o index.html'],
@@ -32,7 +32,7 @@ test('linking specific package to HTML', async () => {
   });
 });
 
-test('linking all packages to HTML', async () => {
+it('linking all packages to HTML', async () => {
   await run({
     files: importMap,
     commands: ['jspm link -o index.html'],
@@ -49,7 +49,7 @@ test('linking all packages to HTML', async () => {
   });
 });
 
-test('linking with static preload', async () => {
+it('linking with static preload', async () => {
   await run({
     files: importMap,
     commands: ['jspm link react -o index.html --preload static'],
@@ -65,7 +65,7 @@ test('linking with static preload', async () => {
   });
 });
 
-test('install to HTML output should produce non-empty importmap', async () => {
+it('install to HTML output should produce non-empty importmap', async () => {
   await run({
     files: new Map([
       [
@@ -96,7 +96,7 @@ test('install to HTML output should produce non-empty importmap', async () => {
   });
 });
 
-test('installing with preload and integrity', async () => {
+it('installing with preload and integrity', async () => {
   await run({
     files: importMap,
     commands: ['jspm link react -o index.html --preload --integrity -C production'],

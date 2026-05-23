@@ -1,10 +1,10 @@
-import { test } from 'node:test';
-import assert from 'assert';
+import assert from 'node:assert';
+import { it } from 'vitest';
 import { mapDirectory, mapFile, run } from './scenarios.ts';
 
 const importMap = await mapFile('fixtures/importmap.js');
 
-test('Inline importmap should be linked with integrity attribute', async () => {
+it('inline importmap should be linked with integrity attribute', async () => {
   await run({
     files: importMap,
     commands: ['jspm link react -o index.html --integrity'],
@@ -15,7 +15,7 @@ test('Inline importmap should be linked with integrity attribute', async () => {
   });
 });
 
-test('Generated importmap should have integrity attribute', async () => {
+it('generated importmap should have integrity attribute', async () => {
   await run({
     files: importMap,
     commands: ['jspm link --integrity -o importmap.json'],
@@ -38,7 +38,7 @@ test('Generated importmap should have integrity attribute', async () => {
 //   });
 // });
 
-test('Scenario using nodemodules provider should add integrity attribute', async () => {
+it('scenario using nodemodules provider should add integrity attribute', async () => {
   await run({
     files: await mapDirectory('fixtures/scenario_provider_swap'),
     commands: ['jspm link --provider nodemodules --integrity -m importmap.json'],
@@ -62,7 +62,7 @@ test('Scenario using nodemodules provider should add integrity attribute', async
 //   });
 // });
 
-test('Installing package from unpkg with integrity attribute', async () => {
+it('installing package from unpkg with integrity attribute', async () => {
   await run({
     files: new Map(),
     commands: ['jspm link lit --provider unpkg --integrity -o importmap.json'],

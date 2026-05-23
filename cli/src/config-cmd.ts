@@ -1,7 +1,7 @@
+import type { ConfigFlags } from './cli.ts';
 import c from 'picocolors';
 import { loadConfig, saveConfig, updateConfig } from './config.ts';
 import { JspmError } from './utils.ts';
-import type { ConfigFlags } from './cli.ts';
 
 // Define the interface locally to match the one in config.ts
 interface JspmConfig {
@@ -220,7 +220,8 @@ function parseKeyParts(key: string): string[] {
  * Helper to get a nested configuration value using dot notation
  */
 function getConfigValue(config: any, key: string): any {
-  if (key.trim() === '') throw new JspmError(`No key provided to get`);
+  if (key.trim() === '') 
+throw new JspmError(`No key provided to get`);
   const parts = parseKeyParts(key);
   let current = config;
 

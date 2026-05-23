@@ -1,17 +1,17 @@
 {
   "compilerOptions": {
-    "typeRoots": ["node_modules/@types"],
-    "noEmit": true,
-    "allowImportingTsExtensions": true,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "moduleResolution": "NodeNext",
-    "module": "NodeNext",
     "target": "es2022",
-    "sourceMap": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "typeRoots": ["node_modules/@types"],
+    "allowImportingTsExtensions": true,
+    "strictBindCallApply": true,
     "declaration": true,
+    "noEmit": true,
     "removeComments": false,
-    "strictBindCallApply": true
+    "sourceMap": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true
   },
   "include": [
     "jspm/cli/src/**/*.ts"

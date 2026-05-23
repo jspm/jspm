@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cli } from '../src/cli.ts';
 import { loadConfig } from '../src/config.ts';
@@ -119,7 +119,8 @@ export async function mapDirectory(dir: string): Promise<Files> {
 }
 
 export async function mapFile(files: string | string[]): Promise<Files> {
-  if (typeof files === 'string') return mapFile([files]);
+  if (typeof files === 'string') 
+return mapFile([files]);
   files = files.map(file => path.resolve(fileURLToPath(import.meta.url), '..', file));
   const res = new Map<string, string>();
   for (const file of files) {
@@ -132,7 +133,8 @@ export async function mapFile(files: string | string[]): Promise<Files> {
 async function createTmpPkg(scenario: Scenario): Promise<string> {
   // Inject a simple package.json if one doesn't already exist:
   if (!scenario.files?.has('package.json')) {
-    if (!scenario.files) scenario.files = new Map();
+    if (!scenario.files) 
+scenario.files = new Map();
     scenario.files.set('package.json', JSON.stringify(defaultPackageJson));
   }
 
@@ -154,7 +156,8 @@ async function deleteTmpPkg(dir: string) {
         await fs.rm(dir, { recursive: true });
         return;
       } catch (err) {
-        if (err.code === 'EBUSY') await new Promise(resolve => setTimeout(resolve, 10));
+        if (err.code === 'EBUSY') 
+await new Promise(resolve => setTimeout(resolve, 10));
       }
     }
   } else {

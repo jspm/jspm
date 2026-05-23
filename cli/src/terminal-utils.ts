@@ -3,6 +3,7 @@ import c from 'picocolors';
 
 /**
  * Interactive option selection utility with arrow key navigation
+ * @param question Prompt text to display
  * @param options Array of options with name and description
  * @returns Promise resolving to the selected option name
  */
@@ -50,7 +51,8 @@ export async function getOption(
 
     // Handle keypress events
     const handleKeypress = (str, key) => {
-      if (!key) return;
+      if (!key) 
+return;
 
       if (key.name === 'up' && selectedIndex > 0) {
         selectedIndex--;

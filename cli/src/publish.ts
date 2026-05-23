@@ -14,13 +14,15 @@
  *    limitations under the License.
  */
 
+import type { EjectFlags, PublishFlags } from './cli.ts';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import c from 'picocolors';
 import open from 'open';
+import c from 'picocolors';
+import { loadConfig } from './config.ts';
+import { withType } from './logger.ts';
 import {
-  JspmError,
   cliHtmlHighlight,
   copyToClipboard,
   exists,
@@ -28,14 +30,12 @@ import {
   getEnv,
   getFilesRecursively,
   getGenerator,
+  JspmError,
   runPackageScript,
   startSpinner,
   stopSpinner,
   writeOutput
 } from './utils.ts';
-import type { EjectFlags, PublishFlags } from './cli.ts';
-import { withType } from './logger.ts';
-import { loadConfig } from './config.ts';
 
 function showShortcuts(directory?: string) {
   console.log(`${c.magenta(c.bold('\nKeyboard shortcuts:'))}
@@ -60,7 +60,7 @@ function showShortcuts(directory?: string) {
 
 function hideShortcuts() {
   process.stdin.setRawMode?.(false);
-  console.log(`${'\x1b[1A\x1b[2K'.repeat(8)}\x1b[1A\x1b[2K\x1b[1A`);
+  console.log(`${'\x1B[1A\x1B[2K'.repeat(8)}\x1B[1A\x1B[2K\x1B[1A`);
 }
 
 async function readJsonFile(filePath: string, defaultValue: any = {}) {
@@ -102,9 +102,11 @@ export async function eject(flags: EjectFlags) {
   const generator = await getGenerator(flags);
 
   let name = pkg.slice(4);
-  if (name[0] !== '@') name = name.split('/')[0];
+  if (name[0] !== '@') 
+name = name.split('/')[0];
   else name = name.split('/').slice(0, 2).join('/');
-  if (name.includes('@')) name = name.slice(0, name.indexOf('@'));
+  if (name.includes('@')) 
+name = name.slice(0, name.indexOf('@'));
 
   const version = pkg.slice(4 + name.length + 1);
 
@@ -163,10 +165,10 @@ export async function publish(flags: PublishFlags = {}) {
       );
     }
 
-    const semverVersion = version.match(/^\d+\.\d+\.\d+(\-[a-zA-Z0-9_\-\.]+)?$/);
+    const semverVersion = version.match(/^\d+\.\d+\.\d+(-[\w\-.]+)?$/);
 
     if (flags.watch) {
-      if (semverVersion || !version.match(/^[a-zA-Z0-9_\-]+$/)) {
+      if (semverVersion || !/^[\w\-]+$/.test(version)) {
         throw new JspmError(
           `Invalid version "${version}" for publish --watch. Watched publishes must be to mutable versions, which are alphanumeric only with - or _ separators.`
         );
@@ -321,19 +323,22 @@ async function startWatchMode(
         stopWatch();
         break;
       case 'o':
-        if (packageUrl) open(packageUrl.endsWith('/') ? packageUrl.slice(0, -1) : packageUrl);
+        if (packageUrl) 
+open(packageUrl.endsWith('/') ? packageUrl.slice(0, -1) : packageUrl);
         break;
       case 'l':
-        if (packageUrl) open(packageUrl.endsWith('/') ? packageUrl : `${packageUrl}/`);
+        if (packageUrl) 
+open(packageUrl.endsWith('/') ? packageUrl : `${packageUrl}/`);
         break;
       case 'r':
         forcedRepublish = true;
         break;
       case 'c':
-        if (codeSnippet) copyToClipboard(codeSnippet);
+        if (codeSnippet) 
+copyToClipboard(codeSnippet);
         break;
       case 'p':
-        if (codeSnippet)
+        if (codeSnippet) {
           open(
             `data:text/html;base64,${Buffer.from(
               `<!doctype html>\n<body></body>\n${codeSnippet
@@ -344,6 +349,7 @@ async function startWatchMode(
             ).toString('base64')}`,
             { app: { name: 'chrome' } }
           );
+}
     }
   });
 
@@ -388,7 +394,8 @@ async function startWatchMode(
       if (changes.length || forcedRepublish) {
         waiting = false;
         if (!firstRun) {
-          if (lastRunWasError) stopSpinner();
+          if (lastRunWasError) 
+stopSpinner();
           else hideShortcuts();
           console.log(
             `${c.blue('Info:')} ${

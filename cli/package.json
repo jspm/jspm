@@ -23,7 +23,7 @@
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^0.34.2",
+    "@antfu/eslint-config": "^9.0.0",
     "@types/node": "^18.15.11",
     "amaro": "^1.1.9",
     "cac": "^7.0.0",

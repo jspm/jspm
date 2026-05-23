@@ -1,9 +1,9 @@
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
 import c from 'picocolors';
-import { exists } from './utils.ts';
 import { withType } from './logger.ts';
+import { exists } from './utils.ts';
 
 // Configuration file paths
 export function getUserConfigPath() {

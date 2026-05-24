@@ -14,11 +14,11 @@
  *    limitations under the License.
  */
 
-import c from 'picocolors';
-import open from 'open';
-import { JspmError, availableProviders, getGenerator } from './utils.ts';
-import { loadConfig, saveConfig } from './config.ts';
 import type { BaseFlags } from './cli.ts';
+import open from 'open';
+import c from 'picocolors';
+import { loadConfig, saveConfig } from './config.ts';
+import { availableProviders, getGenerator, JspmError } from './utils.ts';
 
 export interface AuthProviderFlags extends BaseFlags {
   username?: string;

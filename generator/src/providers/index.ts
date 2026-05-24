@@ -22,7 +22,7 @@ export interface Provider {
   parseUrlPkg?(
     this: ProviderContext,
     url: string
-  ): ExactPackage | { pkg: ExactPackage; layer: string; builtin: string | null } | null;
+  ): ExactPackage | { pkg: ExactPackage; layer: string; builtin: string | null } | null | undefined;
 
   pkgToUrl?(
     this: ProviderContext,
@@ -46,7 +46,7 @@ export interface Provider {
     this: ProviderContext,
     specifier: string,
     env: string[]
-  ): string | { target: PackageTarget; subpath: '.' | `./${string}` } | null;
+  ): string | { target: PackageTarget; subpath: '.' | `./${string}` } | null | undefined;
 
   getPackageConfig?(this: ProviderContext, pkgUrl: string): Promise<PackageConfig | null>;
 
@@ -242,7 +242,7 @@ export class ProviderManager {
     const providerInstance = this.#getProvider(provider);
     if (!providerInstance.pkgToUrl)
       throw new JspmError(`Provider ${provider} does not provide versioned package support`);
-    return this.#getProvider(provider).pkgToUrl.call(
+    return providerInstance.pkgToUrl.call(
       this.#getProviderContext(provider),
       pkg,
       layer

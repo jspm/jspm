@@ -18,24 +18,24 @@
   "dependencies": {
     "@babel/core": "^7.24.7",
     "@jspm/generator": "^2.11.0",
-    "@jspm/plugin-rollup": "^1.2.4",
-    "ora": "^8.2.0",
+    "@jspm/plugin-rollup": "^2.0.0",
+    "ora": "^9.4.0",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^0.34.2",
+    "@antfu/eslint-config": "^9.0.0",
     "@types/node": "^18.15.11",
-    "amaro": "^0.5.3",
-    "cac": "^6.7.14",
-    "esbuild": "^0.16.17",
+    "amaro": "^1.1.9",
+    "cac": "^7.0.0",
+    "esbuild": "^0.28.0",
     "eslint": "^9.34.0",
-    "eslint-config-prettier": "^8.8.0",
+    "eslint-config-prettier": "^10.1.8",
     "mime": "^4.0.7",
     "minimatch": "^10.0.1",
     "open": "^10.1.2",
-    "prettier": "^2.8.7",
-    "rollup": "^3.29.5",
-    "tinyspy": "^1.1.1",
-    "typescript": "^4.9.5"
+    "prettier": "^3.8.3",
+    "rollup": "^4.60.4",
+    "tinyspy": "^4.0.4",
+    "typescript": "^5.9.3"
   }
 }

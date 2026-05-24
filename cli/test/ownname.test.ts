@@ -1,10 +1,10 @@
-import { test } from 'node:test';
-import assert from 'assert';
+import assert from 'node:assert';
+import { it } from 'node:test';
 import { mapDirectory, run } from './scenarios.ts';
 
 const filesOwnName = await mapDirectory('fixtures/scenario_ownname');
 
-test('Linking own-name package should not upgrade transitive dependencies', async () => {
+it('linking own-name package should not upgrade transitive dependencies', async () => {
   await run({
     files: filesOwnName,
     commands: ['jspm link app -o importmap.json'],
@@ -18,7 +18,7 @@ test('Linking own-name package should not upgrade transitive dependencies', asyn
   });
 });
 
-test('Linking local module should respect input map versions', async () => {
+it('linking local module should respect input map versions', async () => {
   await run({
     files: filesOwnName,
     commands: ['jspm link ./app.js -o outputmap.json'],
@@ -33,7 +33,7 @@ test('Linking local module should respect input map versions', async () => {
   });
 });
 
-test('Linking own-name package should respect input map versions', async () => {
+it('linking own-name package should respect input map versions', async () => {
   await run({
     files: filesOwnName,
     commands: ['jspm link app -o outputmap.json'],

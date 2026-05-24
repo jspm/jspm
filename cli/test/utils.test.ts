@@ -1,8 +1,8 @@
-import { test } from 'node:test';
-import assert from 'assert';
+import assert from 'node:assert';
+import { it } from 'node:test';
 import { wrapCommand } from '../src/utils.ts';
 
-test('wrapCommand should properly wrap commands', () => {
+it('wrapCommand should properly wrap commands', () => {
   // A simple test for wrapCommand functionality
   const testFn = (a: number, b: number) => a + b;
   const wrapped = wrapCommand(testFn);

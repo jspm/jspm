@@ -5,13 +5,13 @@ declare global {
   var location: any;
 }
 
-export function isFetchProtocol(protocol) {
+export function isFetchProtocol(protocol: any) {
   return (
     protocol === 'file:' || protocol === 'https:' || protocol === 'http:' || protocol === 'data:'
   );
 }
 
-export let baseUrl: URL;
+export let baseUrl: URL = undefined!;
 // @ts-ignore
 if (typeof Deno !== 'undefined') {
   // @ts-ignore

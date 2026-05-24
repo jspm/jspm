@@ -48,7 +48,7 @@ export class CachedResponseImpl implements CachedResponse {
   }
 
   async arrayBuffer(): Promise<ArrayBuffer> {
-    return this.#body.buffer.slice(
+    return (this.#body.buffer as ArrayBuffer).slice(
       this.#body.byteOffset,
       this.#body.byteOffset + this.#body.byteLength
     );

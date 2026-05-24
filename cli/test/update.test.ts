@@ -1,12 +1,12 @@
-import { test } from 'node:test';
-import assert from 'assert';
+import assert from 'node:assert';
+import { it } from 'node:test';
 import { mapDirectory, mapFile, run } from './scenarios.ts';
 
 const importMap = await mapFile('fixtures/importmap.js');
 const packageJson = await mapFile('fixtures/package.json');
 
 // Old update style - TODO bring back package selectors for update on non-primary top-level
-test.skip('Basic upgrade to latest react version', async () => {
+it.skip('basic upgrade to latest react version', async () => {
   await run({
     files: importMap,
     commands: ['jspm update react -o importmap.json'],
@@ -18,7 +18,7 @@ test.skip('Basic upgrade to latest react version', async () => {
   });
 });
 
-test.skip('Basic upgrade without parameters should upgrade all', async () => {
+it.skip('basic upgrade without parameters should upgrade all', async () => {
   await run({
     files: importMap,
     commands: ['jspm update -o importmap.json'],
@@ -30,7 +30,7 @@ test.skip('Basic upgrade without parameters should upgrade all', async () => {
   });
 });
 
-test.skip('Upgrade should use version from package.json', async () => {
+it.skip('upgrade should use version from package.json', async () => {
   await run({
     files: new Map([...importMap, ...packageJson]),
     commands: ['jspm update react -C development -o importmap.json'],
@@ -42,7 +42,7 @@ test.skip('Upgrade should use version from package.json', async () => {
   });
 });
 
-test.skip('--release flag', async () => {
+it.skip('--release flag', async () => {
   await run({
     files: new Map([...importMap, ...packageJson]),
     commands: ['jspm update --release -o importmap.json'],
@@ -54,7 +54,7 @@ test.skip('--release flag', async () => {
   });
 });
 
-test('Pruned update', async () => {
+it('pruned update', async () => {
   await run({
     files: await mapDirectory('fixtures/scenario_prune'),
     commands: ['jspm update -o importmap.json'],

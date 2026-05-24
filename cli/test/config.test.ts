@@ -1,8 +1,8 @@
-import { test } from 'node:test';
-import assert from 'assert';
+import assert from 'node:assert';
+import { it } from 'node:test';
 import { run } from './scenarios.ts';
 
-test('Config - set and get user level configuration', async () => {
+it('config - set and get user level configuration', async () => {
   await run({
     commands: ['jspm config set defaultProvider jsdelivr', 'jspm config get defaultProvider'],
     validationFn: async (_files: Map<string, string>) => {
@@ -12,7 +12,7 @@ test('Config - set and get user level configuration', async () => {
   });
 });
 
-test('Config - set and get local configuration', async () => {
+it('config - set and get local configuration', async () => {
   await run({
     commands: [
       'jspm config set defaultProvider jsdelivr --local',
@@ -29,7 +29,7 @@ test('Config - set and get local configuration', async () => {
   });
 });
 
-test('Config - list configuration', async () => {
+it('config - list configuration', async () => {
   await run({
     commands: [
       'jspm config set defaultProvider jsdelivr --local',
@@ -47,7 +47,7 @@ test('Config - list configuration', async () => {
   });
 });
 
-test('Config - delete configuration value', async () => {
+it('config - delete configuration value', async () => {
   await run({
     commands: [
       'jspm config set defaultProvider jsdelivr --local',
@@ -66,7 +66,7 @@ test('Config - delete configuration value', async () => {
   });
 });
 
-test('Config - nested provider configuration', async () => {
+it('config - nested provider configuration', async () => {
   await run({
     commands: [
       'jspm config set providers.npm.baseUrl https://custom-registry.example.com/ --local',
@@ -84,7 +84,7 @@ test('Config - nested provider configuration', async () => {
   });
 });
 
-test('Config - provider flag with dots in provider name', async () => {
+it('config - provider flag with dots in provider name', async () => {
   await run({
     commands: [
       'jspm config set -p jspm.io baseUrl https://jspm.io/ --local',
@@ -103,7 +103,7 @@ test('Config - provider flag with dots in provider name', async () => {
 });
 
 // Test configuration with installation scenario
-test('Config - installation with custom provider from config', async () => {
+it('config - installation with custom provider from config', async () => {
   await run({
     // Set up initial config and then perform an installation
     files: new Map([
@@ -128,7 +128,7 @@ test('Config - installation with custom provider from config', async () => {
 });
 
 // Test configuration priority (local overrides user)
-test('Config - local config overrides user config', async () => {
+it('config - local config overrides user config', async () => {
   await run({
     files: new Map([
       [
@@ -156,7 +156,7 @@ test('Config - local config overrides user config', async () => {
 });
 
 // Test configuration cascade from parent directories
-test('Config - configuration inherited from parent directory', async () => {
+it('config - configuration inherited from parent directory', async () => {
   await run({
     files: new Map([
       [

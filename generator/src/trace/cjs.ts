@@ -4,9 +4,9 @@ import { Analysis } from './analysis.js';
 // See: https://nodejs.org/docs/latest/api/modules.html#the-module-scope
 const cjsGlobals: string[] = ['__dirname', '__filename', 'exports', 'module', 'require'];
 
-let babel;
+let babel: any;
 
-export function setBabel(_babel) {
+export function setBabel(_babel: any) {
   babel = _babel;
 }
 
@@ -37,13 +37,13 @@ export async function createCjsAnalysis(
       errorRecovery: true
     },
     plugins: [
-      ({ types: t }) => {
+      ({ types: t }: any) => {
         return {
           visitor: {
-            Program(path, state) {
+            Program(path: any, state: any) {
               state.functionDepth = 0;
             },
-            CallExpression(path, state) {
+            CallExpression(path: any, state: any) {
               if (
                 t.isIdentifier(path.node.callee, { name: 'require' }) ||
                 (t.isIdentifier(path.node.callee.object, { name: 'require' }) &&
@@ -61,17 +61,17 @@ export async function createCjsAnalysis(
                 if (state.functionDepth > 0) lazy.add(req);
               }
             },
-            ReferencedIdentifier(path) {
+            ReferencedIdentifier(path: any) {
               let identifierName = path.node.name;
               if (!path.scope.hasBinding(identifierName)) {
                 unboundGlobals.add(identifierName);
               }
             },
             Scope: {
-              enter(path, state) {
+              enter(path: any, state: any) {
                 if (t.isFunction(path.scope.block)) state.functionDepth++;
               },
-              exit(path, state) {
+              exit(path: any, state: any) {
                 if (t.isFunction(path.scope.block)) state.functionDepth--;
               }
             }
@@ -96,7 +96,7 @@ export async function createCjsAnalysis(
 
   return {
     deps: [...requires],
-    dynamicDeps: imports.filter(impt => impt.n).map(impt => impt.n),
+    dynamicDeps: imports.filter((impt: any) => impt.n).map((impt: any) => impt.n),
     cjsLazyDeps: [...lazy],
     size: source.length,
     format: 'commonjs',
@@ -105,7 +105,7 @@ export async function createCjsAnalysis(
   };
 }
 
-function buildDynamicString(node, fileName, isEsm = false, lastIsWildcard = false): string {
+function buildDynamicString(node: any, fileName: any, isEsm = false, lastIsWildcard = false): string {
   if (node.type === 'StringLiteral') {
     return node.value;
   }
@@ -148,5 +148,5 @@ function buildDynamicString(node, fileName, isEsm = false, lastIsWildcard = fals
       return './' + fileName;
     }
   }*/
-  return lastIsWildcard ? '' : '*';
+  return lastIsWildcard ? '' : '\x10';
 }

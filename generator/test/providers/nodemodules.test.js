@@ -10,7 +10,7 @@ let generator = new Generator({
 await generator.install('chalk');
 
 let json = generator.getMap();
-assert.strictEqual(json.imports['chalk'], './node_modules/chalk/source/index.js');
+assert.strictEqual(json.imports['chalk'], '../node_modules/chalk/source/index.js');
 
 // Check that we can install using the jspm.io provider, and then go back to
 // the nodemodules provider, without affecting the resolutions:
@@ -32,4 +32,4 @@ generator = new Generator({
 });
 await generator.install();
 json = generator.getMap();
-assert.strictEqual(json.imports['chalk'], './node_modules/chalk/source/index.js');
+assert.strictEqual(json.imports['chalk'], '../node_modules/chalk/source/index.js');

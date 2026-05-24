@@ -14,8 +14,8 @@
  *    limitations under the License.
  */
 
-import { test } from 'node:test';
-import assert from 'assert';
+import assert from 'node:assert';
+import { it } from 'node:test';
 import { mapDirectory, run } from './scenarios.ts';
 
 if (!process.env.JSPM_TOKEN) {
@@ -31,7 +31,7 @@ function randomVersion() {
 }
 
 // Test publish with package validation errors
-test('publish with missing package.json name', async () => {
+it('publish with missing package.json name', async () => {
   const files = new Map();
   // Create a package.json without a name field
   files.set('package.json', JSON.stringify({ version: randomVersion() }));
@@ -53,7 +53,7 @@ test('publish with missing package.json name', async () => {
 });
 
 // Test publish with version validation errors
-test('publish with missing package.json version', async () => {
+it('publish with missing package.json version', async () => {
   const files = new Map();
   // Create a package.json without a version field
   files.set('package.json', JSON.stringify({ name: 'test-package' }));
@@ -74,7 +74,7 @@ test('publish with missing package.json version', async () => {
 });
 
 // Test publish with include configuration
-test('publish with include config', async () => {
+it('publish with include config', async () => {
   const files = new Map();
   // Create a complete valid test setup
   files.set(
@@ -101,7 +101,7 @@ test('publish with include config', async () => {
 });
 
 // Test publish with versioning
-test('publish with specific version', async () => {
+it('publish with specific version', async () => {
   const files = new Map();
   // Create package.json with a specific version
   const testVersion = randomVersion();
@@ -127,7 +127,7 @@ test('publish with specific version', async () => {
 });
 
 // Test publish with custom tag
-test('publish with custom tag', async () => {
+it('publish with custom tag', async () => {
   const files = new Map();
   // Create package.json with a version that should be overridden
   files.set(
@@ -154,7 +154,7 @@ test('publish with custom tag', async () => {
 });
 
 // Test publish with invalid tag
-test('publish with invalid tag', async () => {
+it('publish with invalid tag', async () => {
   const files = new Map();
   files.set(
     'package.json',
@@ -182,7 +182,7 @@ test('publish with invalid tag', async () => {
 });
 
 // Test publish and eject
-test('publish and eject', async () => {
+it('publish and eject', async () => {
   const files = new Map();
   const packageName = 'jspm-deploy-eject-test';
   const version = `test-${Math.round(Math.random() * 1000)}`;
@@ -247,7 +247,7 @@ test('publish and eject', async () => {
 });
 
 // Test complex package with importmap.js
-test('publish complex package with importmap', async () => {
+it('publish complex package with importmap', async () => {
   const files = new Map();
 
   // Create package.json
@@ -451,7 +451,7 @@ import { lookup } from '@jspm/generator';`
 
 // Test publish with watch mode (short duration for testing)
 // This test must be last as the watcher stop is a process.exit
-test('publish watch mode basic test', async () => {
+it('publish watch mode basic test', async () => {
   const files = await mapDirectory('fixtures/scenario_deploy');
 
   // For testing watch mode, we'll start it but cancel after a short time

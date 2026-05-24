@@ -11,8 +11,8 @@ await generator.install('lit-html');
 
 const json = generator.getMap();
 
-assert.strictEqual(json.imports['lit-element'], '../node_modules/lit-element/lit-element.js');
+assert.strictEqual(json.imports['lit-element'], '../node_modules/lit-element/development/index.js');
 assert.strictEqual(
-  json.scopes['../node_modules/lit-element/']['lit-html/'],
-  '../node_modules/lit-html/'
+  json.scopes['../node_modules/lit-element/']['@lit/reactive-element'],
+  '../node_modules/@lit/reactive-element/development/reactive-element.js'
 );

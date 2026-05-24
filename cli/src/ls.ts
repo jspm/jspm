@@ -14,20 +14,20 @@
  *    limitations under the License.
  */
 
+import type { LsFlags } from './cli.ts';
 import { relative } from 'node:path';
 import { getPackageConfig, lookup } from '@jspm/generator';
 import c from 'picocolors';
+import { initProject } from './init.ts';
+import { withType } from './logger.ts';
 import {
-  JspmError,
   getDisabledWarnings,
   getExportsEntries,
   getFilesRecursively,
+  JspmError,
   startSpinner,
   stopSpinner
 } from './utils.ts';
-import { withType } from './logger.ts';
-import type { LsFlags } from './cli.ts';
-import { initProject } from './init.ts';
 
 /**
  * Lists the exports of the current project
@@ -98,7 +98,7 @@ async function listCurrentProjectExports(flags: LsFlags) {
     const exportEntries = Object.entries(entries);
 
     let displayedEntries = 0;
-    const limit = flags.limit ? parseInt(flags.limit.toString()) : 20;
+    const limit = flags.limit ? Number.parseInt(flags.limit.toString()) : 20;
     const filteredEntries = exportEntries.filter(
       ([subpath]) => !flags.filter || subpath.toLowerCase().includes(flags.filter.toLowerCase())
     );
@@ -271,7 +271,7 @@ export default async function ls(packageSpec: string, flags: LsFlags) {
         : Object.entries(pjson.exports);
 
     let displayedEntries = 0;
-    const limit = flags.limit ? parseInt(flags.limit.toString()) : 20;
+    const limit = flags.limit ? Number.parseInt(flags.limit.toString()) : 20;
     const filteredEntries = exportEntries.filter(
       ([subpath]) =>
         (!flags.filter || subpath.toLowerCase().includes(flags.filter.toLowerCase())) &&

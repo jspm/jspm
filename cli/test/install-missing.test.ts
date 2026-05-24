@@ -1,7 +1,7 @@
-import { test } from 'node:test';
+import { it } from 'node:test';
 import { run } from './scenarios.ts';
 
-test('Install package with build failure', async () => {
+it('install package with build failure', async () => {
   await run({
     files: new Map([
       [

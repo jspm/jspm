@@ -1,6 +1,6 @@
-import { test } from 'node:test';
-import assert from 'assert';
 import type { IImportMap } from '../src/types.ts';
+import assert from 'node:assert';
+import { it } from 'node:test';
 import { run } from './scenarios.ts';
 
 // Create package.json with exports including pattern subpaths
@@ -35,7 +35,7 @@ const packageJsonWithExportPatterns = new Map([
   ['lib/custom/string.js', 'exports.concat = (a, b) => a + b;']
 ]);
 
-test('Install with exports field subpath patterns', async () => {
+it('install with exports field subpath patterns', async () => {
   await run({
     files: packageJsonWithExportPatterns,
     commands: ['jspm install -o importmap.json'],
@@ -64,7 +64,7 @@ test('Install with exports field subpath patterns', async () => {
   });
 });
 
-test("Install with exports field subpath patterns and 'custom' condition", async () => {
+it("install with exports field subpath patterns and 'custom' condition", async () => {
   await run({
     files: packageJsonWithExportPatterns,
     commands: ['jspm install -o importmap.json --conditions=custom'],

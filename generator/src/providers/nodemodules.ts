@@ -96,7 +96,7 @@ export function createProvider(baseUrl: string, ownsBaseUrl: boolean): Provider 
         return null;
     }
 
-    async function remap(this: ProviderContext, deps: Record<string, string> | null) {
+    async function remap(this: ProviderContext, deps: Record<string, string> | null | undefined) {
       if (!deps) return;
       for (const [name, dep] of Object.entries(deps)) {
         if (!isLocal(dep) && !isAlias(dep)) continue;
@@ -159,8 +159,8 @@ export function createProvider(baseUrl: string, ownsBaseUrl: boolean): Provider 
  * find it then recurse through the parent directories until you do.
  * TODO: we don't currently handle the target's version constraints here
  */
-let realpath, pathToFileURL;
-let _readdir, _fileURLToPath;
+let realpath: any, pathToFileURL: any;
+let _readdir: any, _fileURLToPath: any;
 async function nodeResolve(
   this: ProviderContext,
   name: string,

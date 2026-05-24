@@ -7,11 +7,11 @@ const generator = new Generator({
   env: ['production', 'browser']
 });
 
-await Promise.all([generator.install('react@16'), generator.install('lit-element@2.5.1')]);
+await Promise.all([generator.install('react@16'), generator.install('lit-element')]);
 const json = generator.getMap();
 
 assert.strictEqual(json.imports.react, 'https://ga.jspm.io/npm:react@16.14.0/index.js');
 assert.strictEqual(
   json.imports['lit-element'],
-  'https://ga.jspm.io/npm:lit-element@2.5.1/lit-element.js'
+  'https://ga.jspm.io/npm:lit-element@4.2.2/index.js'
 );

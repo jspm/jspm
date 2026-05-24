@@ -128,7 +128,7 @@ export function setConstraint(
 ) {
   if (pkgScope === null) constraints.primary[name] = target;
   else
-    (constraints.secondary[pkgScope] = constraints.secondary[pkgScope] || Object.create(null))[
+    (constraints.secondary[pkgScope as `${string}/`] = constraints.secondary[pkgScope as `${string}/`] || Object.create(null))[
       name
     ] = target;
 }
@@ -158,13 +158,13 @@ export function mergeLocks(resolutions: LockResolutions, newResolutions: LockRes
   for (const pkg of Object.keys(newResolutions.primary)) {
     resolutions.primary[pkg] = newResolutions.primary[pkg];
   }
-  for (const pkgUrl of Object.keys(newResolutions.secondary)) {
-    if (resolutions[pkgUrl])
-      Object.assign((resolutions[pkgUrl] = Object.create(null)), newResolutions[pkgUrl]);
+  for (const pkgUrl of Object.keys(newResolutions.secondary) as `${string}/`[]) {
+    if (resolutions.secondary[pkgUrl])
+      Object.assign((resolutions.secondary[pkgUrl] = Object.create(null)), newResolutions.secondary[pkgUrl]);
     else resolutions.secondary[pkgUrl] = newResolutions.secondary[pkgUrl];
   }
-  for (const scopeUrl of Object.keys(newResolutions.flattened)) {
-    if (resolutions[scopeUrl]) Object.assign(resolutions[scopeUrl], newResolutions[scopeUrl]);
+  for (const scopeUrl of Object.keys(newResolutions.flattened) as `${string}/`[]) {
+    if (resolutions.flattened[scopeUrl]) Object.assign(resolutions.flattened[scopeUrl], newResolutions.flattened[scopeUrl]);
     else resolutions.flattened[scopeUrl] = newResolutions.flattened[scopeUrl];
   }
 }
@@ -176,9 +176,9 @@ export function mergeConstraints(
   for (const pkg of Object.keys(newConstraints.primary)) {
     constraints.primary[pkg] = newConstraints.primary[pkg];
   }
-  for (const pkgUrl of Object.keys(newConstraints.secondary)) {
-    if (constraints[pkgUrl])
-      Object.assign((constraints[pkgUrl] = Object.create(null)), newConstraints[pkgUrl]);
+  for (const pkgUrl of Object.keys(newConstraints.secondary) as `${string}/`[]) {
+    if (constraints.secondary[pkgUrl])
+      Object.assign((constraints.secondary[pkgUrl] = Object.create(null)), newConstraints.secondary[pkgUrl]);
     else constraints.secondary[pkgUrl] = newConstraints.secondary[pkgUrl];
   }
 }
@@ -377,7 +377,7 @@ export async function extractLockConstraintsAndMap(
           const parsedKey = parsePkg(key)!;
 
           // Get the target package details in URL space:
-          const targetUrl = resolveUrl(map.imports[key], mapUrl, rootUrl);
+          const targetUrl = resolveUrl(map.imports![key], mapUrl, rootUrl);
           const { parsedTarget, pkgUrl } = await resolveTargetPkg(targetUrl, resolver);
 
           // Skip @empty.js stub entries produced by link() for missing modules —
@@ -414,8 +414,8 @@ export async function extractLockConstraintsAndMap(
 
         // Fallback - this resolution is non-standard, so we need to record it as
         // a custom import override:
-        maps.imports[isPlain(key) ? key : resolveUrl(key, mapUrl, rootUrl)] = resolveUrl(
-          map.imports[key],
+        maps.imports![isPlain(key) ? key : resolveUrl(key, mapUrl, rootUrl)] = resolveUrl(
+          map.imports![key],
           mapUrl,
           rootUrl
         );
@@ -425,7 +425,7 @@ export async function extractLockConstraintsAndMap(
 
   for (const scopeUrl of Object.keys(map.scopes || {})) {
     const resolvedScopeUrl = resolveUrl(scopeUrl, mapUrl, rootUrl) ?? scopeUrl;
-    const scope = map.scopes[scopeUrl];
+    const scope = map.scopes![scopeUrl];
     for (const key of Object.keys(scope)) {
       promises.push(
         (async () => {
@@ -438,7 +438,7 @@ export async function extractLockConstraintsAndMap(
           // as this can be a very large fetch set for small map operations.
           if (isPlain(key)) {
             // Get the package name and subpath in package specifier space.
-            const parsedKey = parsePkg(key);
+            const parsedKey = parsePkg(key)!;
 
             // Get the target package details in URL space:
             const targetUrl = resolveUrl(scope[key], mapUrl, rootUrl);
@@ -481,7 +481,7 @@ export async function extractLockConstraintsAndMap(
           }
 
           // Fallback -> Custom import with normalization
-          (maps.scopes[resolvedScopeUrl] = maps.scopes[resolvedScopeUrl] || Object.create(null))[
+          (maps.scopes![resolvedScopeUrl] = maps.scopes![resolvedScopeUrl] || Object.create(null))[
             isPlain(key) ? key : resolveUrl(key, mapUrl, rootUrl)
           ] = resolveUrl(scope[key], mapUrl, rootUrl);
         })()
@@ -528,7 +528,7 @@ async function enforceProviderConstraints(
       setResolution(res, pkgName, installUrl, pkgUrl as `${string}/`);
     }
   }
-  for (const [scopeUrl, pkgLocks] of Object.entries(locks.flattened)) {
+  for (const [scopeUrl, pkgLocks] of Object.entries(locks.flattened) as [`${string}/`, Record<string, FlatInstalledResolution[]>][]) {
     res.flattened[scopeUrl] = {};
     for (const [pkgName, locks] of Object.entries(pkgLocks)) {
       res.flattened[scopeUrl][pkgName] = [];
@@ -537,7 +537,7 @@ async function enforceProviderConstraints(
           lock.resolution,
           provider,
           resolver,
-          scopeUrl as `${string}/`
+          scopeUrl
         );
         res.flattened[scopeUrl][pkgName].push({
           export: lock.export,

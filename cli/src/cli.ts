@@ -30,20 +30,21 @@
  * {@link https://jspm.org/docs/cli JSPM CLI documentation}.
  */
 
+import type {Command} from 'cac';
 import { readFileSync } from 'node:fs';
+import cac from 'cac';
 import c from 'picocolors';
-import cac, { type Command } from 'cac';
+import * as auth from './auth.ts';
+import build from './build.ts';
 import clearCache from './clearCache.ts';
+import configCmd from './config-cmd.ts';
+import { initCreate } from './init.ts';
 import install from './install.ts';
 import link from './link.ts';
-import configCmd from './config-cmd.ts';
-import { JspmError, availableProviders, wrapCommand } from './utils.ts';
-import build from './build.ts';
-import { eject, publish } from './publish.ts';
-import * as auth from './auth.ts';
-import serve from './serve.ts';
 import ls from './ls.ts';
-import { initCreate } from './init.ts';
+import { eject, publish } from './publish.ts';
+import serve from './serve.ts';
+import { availableProviders, JspmError, wrapCommand } from './utils.ts';
 
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
@@ -217,12 +218,14 @@ cli
   .usage('[command] [options]')
   .action(
     wrapCommand((args: string[]) => {
-      if (args[0] === 'help') return cli.outputHelp();
+      if (args[0] === 'help') 
+return cli.outputHelp();
       if (args[0] === '--version') {
         console.log(version);
         return;
       }
-      if (!args.length) return cli.outputHelp();
+      if (!args.length) 
+return cli.outputHelp();
       throw new JspmError(
         `Unknown command: ${args[0]}\nRun "jspm" without any arguments to see the help file.`
       );
@@ -914,7 +917,8 @@ function defaultHelpCb(helpSections: HelpSection[]) {
         .split('\n')
         .slice(1)
         .filter(l => {
-          if (process.argv.includes('--all')) return true;
+          if (process.argv.includes('--all')) 
+return true;
           return !(
             l.includes('link') ||
             l.includes('config') ||
@@ -929,7 +933,8 @@ function defaultHelpCb(helpSections: HelpSection[]) {
   }
 
   for (const section of Object.values(helpSections)) {
-    if (section.title) section.title = c.bold(section.title);
+    if (section.title) 
+section.title = c.bold(section.title);
   }
 
   return helpSections;

@@ -28,6 +28,8 @@ To customize the location of the output import map, the `--out` flag can be used
  
 ## Init
 
+▣  JSPM  -  Import Map Package Management
+
 **Usage**
   
 ```
@@ -58,6 +60,8 @@ jspm init ./my-project
 Initialize a project in the ./my-project directory.
 
 ## Ls
+
+▣  JSPM  -  Import Map Package Management
 
 **Usage**
   
@@ -124,6 +128,8 @@ List exports for the Lit package using the unpkg provider explicitly.
 
 ## Install
 
+▣  JSPM  -  Import Map Package Management
+
 **Usage**
   
 ```
@@ -174,6 +180,8 @@ Install packages into the import map tracing the package.json "exports" entry po
 jspm install
 ```
 ## Serve
+
+▣  JSPM  -  Import Map Package Management
 
 **Usage**
   
@@ -261,6 +269,8 @@ Start a server that does not generate the import map on startup, perform type st
 
 ## Build
 
+▣  JSPM  -  Import Map Package Management
+
 **Usage**
   
 ```
@@ -341,6 +351,8 @@ Build using a custom import map file.
 
 ## Publish
 
+▣  JSPM  -  Import Map Package Management
+
 **Usage**
   
 ```
@@ -351,7 +363,7 @@ Manages publishes to the JSPM providers, currently in experimental preview.
 WARNING: jspm publish is experimental and should only be used for prototyping.
 Unlike the https://ga.jspm.io/ CDN which is stable, reliability guarantees are
 not provided for publishing on https://jspm.io/. For reliable package delivery,
-use npm publish ΓÇö all npm packages are available on the https://ga.jspm.io/ CDN.
+use npm publish — all npm packages are available on the https://ga.jspm.io/ CDN.
 
 For publishing (default):
 
@@ -433,6 +445,8 @@ Download the application package foo@bar into the folder foo, merging its import
 
 ## Auth
 
+▣  JSPM  -  Import Map Package Management
+
 **Usage**
   
 ```
@@ -470,6 +484,8 @@ List all available providers and their authentication status.
 
 ## Clear Cache
 
+▣  JSPM  -  Import Map Package Management
+
 **Usage**
   
 ```
@@ -483,7 +499,7 @@ Clears the global module fetch cache, for situations where the contents of a dep
 * `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
 * `-h, --help`                    Display this help (add --all for extended command list) 
 
-# Configuration
+## Configuration
 
 ## Conditions
 
@@ -512,7 +528,7 @@ The `nodemodules` provider resolves packages against the local `node_modules` fo
 
 ## Resolutions
 
-Resolutions may be used to remap package _names_ to particular package _targets_. For instance, the latest version of one of your secondary dependencies may be broken, and you want to pin it to an older version, or even to a different package altogether. To do this, you can provide one or more `-r` or `--resolution` flags, with arguments `[package_name]=[target_version]` or `[package_name]=[registry]:[name]@[target-range]`. Package specifiers can take the full syntax described under [`jspm install`](#jspm-install).
+Resolutions may be used to remap package _names_ to particular package _targets_. For instance, the latest version of one of your secondary dependencies may be broken, and you want to pin it to an older version, or even to a different package altogether. To do this, you can provide one or more `-r` or `--resolution` flags, with arguments `[package_name]=[target_version]` or `[package_name]=[registry]:[name]@[target-range]`. Package specifiers can take the full syntax described under [`jspm install`](#install).
 
 When a resolution is set, _all_ dependencies on that package will take the given remapping, no matter what the the resolution context is. Note that this may cause packages to break in unexpected ways if you violate their dependency constraints.
 

@@ -20,9 +20,9 @@ import { SemverRange } from 'sver';
 import { getIntegrity } from '../common/integrity.js';
 import { isNode } from '../common/env.js';
 
-let realpath, pathToFileURL;
+let realpath: any, pathToFileURL: any;
 
-export function setPathFns(_realpath, _pathToFileURL) {
+export function setPathFns(_realpath: any, _pathToFileURL: any) {
   (realpath = _realpath), (pathToFileURL = _pathToFileURL);
 }
 
@@ -48,8 +48,8 @@ export function isMappableScheme(specifier: string): specifier is `${string}:${s
 }
 
 export interface TraceEntry {
-  deps: string[];
-  dynamicDeps: string[];
+  deps: string[] | null;
+  dynamicDeps: string[] | null;
   // assetDeps: { expr: string, start: number, end: number, assets: string[] }
   hasStaticParent: boolean;
   size: number;
@@ -68,12 +68,12 @@ export interface TraceEntry {
 
   // For cjs modules, the list of hoisted deps
   // this is needed for proper cycle handling
-  cjsLazyDeps: string[];
-  format: 'esm' | 'commonjs' | 'system' | 'json' | 'css' | 'typescript' | 'wasm';
+  cjsLazyDeps: string[] | null;
+  format: 'esm' | 'commonjs' | 'system' | 'json' | 'css' | 'typescript' | 'wasm' | undefined;
 
   // network errors are stored on the traceEntryPromises promise, while parser
   // errors are stored here. This allows for existence checks in resolver operations.
-  parseError: Error;
+  parseError: Error | null;
 }
 
 export class Resolver {
@@ -94,7 +94,7 @@ export class Resolver {
   traceCjs: boolean;
   traceTs: boolean;
   traceSystem: boolean;
-  installer: Installer;
+  installer!: Installer;
   // Track visited URLs during final extraction for cache pruning
   // Populated by extractMap's visitor, cleared on each extractMap call
   visitedUrls: Set<string> = new Set();
@@ -269,7 +269,7 @@ export class Resolver {
             }
           }
         } catch (e) {
-          throw new JspmError(`Unable to read package ${path} - ${e.toString()}`);
+          throw new JspmError(`Unable to read package ${path} - ${(e as Error).toString()}`);
         }
       }
       await walk(pkgUrl, pkgUrl);
@@ -358,7 +358,7 @@ export class Resolver {
     const pcfg = await this.getPackageConfig(pkgUrl);
     if (!pcfg) return false;
     const subpath = './' + url.slice(pkgUrl.length);
-    return pcfg?.exports?.[subpath + '!cjs'] ? true : false;
+    return (pcfg?.exports as any)?.[subpath + '!cjs'] ? true : false;
   }
 
   async realPath(url: string): Promise<string> {
@@ -376,7 +376,7 @@ export class Resolver {
     }
     const outUrl = pathToFileURL(
       await new Promise((resolve, reject) =>
-        realpath(new URL(url), (err, result) => (err ? reject(err) : resolve(result)))
+        realpath(new URL(url), (err: any, result: any) => (err ? reject(err) : resolve(result)))
       )
     ).href;
     if (encodedColon) return 'file:' + outUrl.slice(5).replace(':', '%3a');
@@ -522,7 +522,7 @@ export class Resolver {
       } else {
         let bestMatch;
         for (const expt of Object.keys(pcfg.exports) as ('.' | `./${string}`)[]) {
-          const targets = enumeratePackageTargets(pcfg.exports[expt]);
+          const targets = enumeratePackageTargets((pcfg.exports as any)[expt]);
           for (const curTarget of targets) {
             if (curTarget.indexOf('*') === -1) {
               if (
@@ -569,7 +569,7 @@ export class Resolver {
             }
           }
         }
-        return bestMatch;
+        return (bestMatch as '.' | `./${string}`) ?? null;
       }
     } else {
       try {
@@ -649,6 +649,7 @@ export class Resolver {
           return subpath;
       } catch {}
     }
+    return null;
   }
 
   async resolveEmpty(cjsEnv: boolean, originalSpecifier: string, parentUrl: string) {
@@ -688,10 +689,10 @@ export class Resolver {
       pcfg.exports !== null &&
       Object.keys(pcfg.exports).length === 0
     ) {
-      return this.resolveEmpty(cjsEnv, originalSpecifier, parentUrl);
+      return this.resolveEmpty(cjsEnv, originalSpecifier, parentUrl!);
     }
 
-    function throwExportNotDefined() {
+    function throwExportNotDefined(): never {
       throw new JspmError(
         `No '${subpath}' exports subpath defined in ${pkgUrl} resolving ${originalSpecifier}${importedFrom(
           parentUrl
@@ -730,7 +731,7 @@ export class Resolver {
             replacement = subpath.slice(match.length);
           }
           const resolved = this.resolvePackageTarget(
-            pcfg.exports[match],
+            (pcfg.exports as any)[match],
             pkgUrl,
             cjsEnv,
             replacement,
@@ -862,7 +863,7 @@ export class Resolver {
     await this.traceEntryPromises[resolvedUrl];
     const traceEntry = this.getAnalysis(resolvedUrl);
     if (traceEntry?.parseError) throw traceEntry.parseError;
-    return traceEntry;
+    return traceEntry ?? null;
   }
 
   // Note: changes to this function must be updated enumeratePackageTargets too
@@ -990,6 +991,7 @@ async function getAnalysis(resolver: Resolver, resolvedUrl: string): Promise<Ana
       throw new Error(`Invalid status code ${res.status}`);
   }
   // TODO: headers over extensions for non-file URLs
+  var sourceText = '';
   try {
     if (resolvedUrl.endsWith('.wasm')) {
       try {
@@ -1007,7 +1009,7 @@ async function getAnalysis(resolver: Resolver, resolvedUrl: string): Promise<Ana
       };
     }
 
-    var sourceText = new TextDecoder().decode(source);
+    sourceText = new TextDecoder().decode(source);
 
     if (
       resolver.traceTs &&
@@ -1070,7 +1072,7 @@ async function getAnalysis(resolver: Resolver, resolvedUrl: string): Promise<Ana
     return resolver.traceSystem
       ? createSystemAnalysis(sourceText, imports, resolvedUrl)
       : createEsmAnalysis(imports, sourceText, resolvedUrl);
-  } catch (e) {
+  } catch (e: any) {
     if (!e.message || !e.message.startsWith('Parse error @:')) {
       return {
         parseError: e

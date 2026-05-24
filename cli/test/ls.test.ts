@@ -14,8 +14,8 @@
  *    limitations under the License.
  */
 
-import { describe, it } from 'node:test';
 import { strict as assert } from 'node:assert';
+import { describe, it } from 'node:test';
 import { getPackageConfig, lookup } from '@jspm/generator';
 import ls from '../src/ls.ts';
 

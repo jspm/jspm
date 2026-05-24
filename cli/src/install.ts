@@ -1,18 +1,18 @@
+import type { GenerateOutputFlags } from './cli.ts';
+import type { IImportMap } from './types.ts';
 import { pathToFileURL } from 'node:url';
 import c from 'picocolors';
+import { initProject } from './init.ts';
 import { withType } from './logger.ts';
-import type { GenerateOutputFlags } from './cli.ts';
 import {
-  JspmError,
   getEnv,
   getGenerator,
   getInputMap,
+  JspmError,
   startSpinner,
   stopSpinner,
   writeOutput
 } from './utils.ts';
-import type { IImportMap } from './types.ts';
-import { initProject } from './init.ts';
 
 export default async function install(
   flags: GenerateOutputFlags,
@@ -51,7 +51,8 @@ export default async function install(
 
     generator = await getGenerator(flags, null, input);
 
-    if (!flags.quiet) startSpinner(`Installing local package.json exports...`);
+    if (!flags.quiet) 
+startSpinner(`Installing local package.json exports...`);
 
     const packageUrl = pathToFileURL(`${projectConfig.projectPath}/`).href;
     // Install the local package with subpaths option to trace all exports

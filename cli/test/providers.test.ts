@@ -1,9 +1,9 @@
-import { test } from 'node:test';
-import assert from 'assert';
+import assert from 'node:assert';
+import { it } from 'node:test';
 import { availableProviders } from '../src/utils.ts';
 import { mapDirectory, run } from './scenarios.ts';
 
-test('Swapping providers with a reinstall', async () => {
+it('swapping providers with a reinstall', async () => {
   // Scenario that checks we can swap providers with a reinstall:
   await run({
     files: await mapDirectory('fixtures/scenario_provider_swap'),
@@ -46,7 +46,7 @@ for (const provider of availableProviders) {
     continue;
   }
 
-  test(`Using provider: ${provider}`, async () => {
+  it(`Using provider: ${provider}`, async () => {
     let name = 'lit';
     if (provider === 'node') {
       name = '@jspm/core/nodelibs/fs';
@@ -59,9 +59,12 @@ for (const provider of availableProviders) {
 
     // Setup a package.json with appropriate exports and dependencies for testing
     const pjson = JSON.parse(files.get('package.json') || '{}');
-    if (!pjson.name) pjson.name = 'test-project';
-    if (!pjson.exports) pjson.exports = { './index.js': './index.js' };
-    if (!pjson.dependencies) pjson.dependencies = {};
+    if (!pjson.name) 
+pjson.name = 'test-project';
+    if (!pjson.exports) 
+pjson.exports = { './index.js': './index.js' };
+    if (!pjson.dependencies) 
+pjson.dependencies = {};
     pjson.dependencies[name] = '*';
     files.set('package.json', JSON.stringify(pjson, null, 2));
 
@@ -71,7 +74,7 @@ for (const provider of availableProviders) {
     await run({
       files,
       commands: [
-        `jspm install ./fixtures/scenario_providers -p ${provider} -C production -m importmap.json`
+        `jspm install -p ${provider} -C production -m importmap.json`
       ],
       validationFn: async (files: Map<string, string>) => {
         const map = JSON.parse(files.get('importmap.json') ?? '{}');

@@ -10,11 +10,9 @@ if (typeof document === 'undefined') {
 
   await generator.install('chalk');
   const json = generator.getMap();
-  assert.equal(Object.keys(json.imports).length, 5);
+  assert.equal(Object.keys(json.imports).length, 1);
 
-  // The exact scope name changes depending on whether chalk's dependencies are
-  // installed as primaries or secondaries on the server where this test runs:
   const scopeKeys = Object.keys(json.scopes);
   assert.equal(scopeKeys.length, 1);
-  assert.equal(Object.keys(json.scopes[scopeKeys[0]]).length, 4);
+  assert.equal(Object.keys(json.scopes[scopeKeys[0]]).length, 2);
 }

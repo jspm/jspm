@@ -1,9 +1,9 @@
 import { getIntegrity } from '../common/integrity.js';
 import { Analysis } from './analysis.js';
 
-let babel, babelPresetTs, babelPluginImportAttributes;
+let babel: any, babelPresetTs: any, babelPluginImportAttributes: any;
 
-export function setBabel(_babel, _babelPresetTs, _babelPluginImportAttributes) {
+export function setBabel(_babel: any, _babelPresetTs: any, _babelPluginImportAttributes: any) {
   (babel = _babel),
     (babelPresetTs = _babelPresetTs),
     (babelPluginImportAttributes = _babelPluginImportAttributes);
@@ -78,16 +78,16 @@ export async function createTsAnalysis(source: string, url: string): Promise<Ana
         () => {
           return {
             visitor: {
-              ExportAllDeclaration(path) {
+              ExportAllDeclaration(path: any) {
                 if (path.node.exportKind !== 'type') imports.add(path.node.source.value);
               },
-              ExportNamedDeclaration(path) {
+              ExportNamedDeclaration(path: any) {
                 if (path.node.source) imports.add(path.node.source.value);
               },
-              ImportDeclaration(path) {
+              ImportDeclaration(path: any) {
                 if (path.node.exportKind !== 'type') imports.add(path.node.source.value);
               },
-              Import(path) {
+              Import(path: any) {
                 dynamicImports.add(
                   buildDynamicString(path.parentPath.get('arguments.0').node, url, true)
                 );
@@ -112,7 +112,7 @@ export async function createTsAnalysis(source: string, url: string): Promise<Ana
 }
 
 // We use the special character \x10 as a "wildcard symbol"
-function buildDynamicString(node, fileName, isEsm = false, lastIsWildcard = false): string {
+function buildDynamicString(node: any, fileName: any, isEsm = false, lastIsWildcard = false): string {
   if (node.type === 'StringLiteral') {
     return node.value;
   }

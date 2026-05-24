@@ -1,5 +1,5 @@
 import { createWriteStream } from 'node:fs';
-import os from 'os';
+import os from 'node:os';
 import c from 'picocolors';
 
 export type Log = (type: string, message: string) => void;

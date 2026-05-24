@@ -2,10 +2,13 @@ import { ImportMap } from "@jspm/import-map";
 import babel from "@babel/core";
 import dewTransformPlugin from "./transform-cjs-dew.cjs";
 import path from "path";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
 import { Generator, fetch } from "@jspm/generator";
 import * as cjsModuleLexer from "cjs-module-lexer";
 import { isIdentifier } from "./identifier.js";
 import presetTypescript from '@babel/preset-typescript';
+import { builtinModules } from 'module';
 
 let cache = Object.create(null);
 let namedExportsCache = new Map();
@@ -78,6 +81,25 @@ const FORMAT_CJS = 1;
 const FORMAT_CJS_DEW = 2;
 const FORMAT_JSON = 4;
 const FORMAT_TYPESCRIPT = 8;
+const FORMAT_CSS = 16;
+
+function sanitizeTemplateStr(str) {
+  return str.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+}
+
+function minifyCSS(content) {
+  const calc_functions = [];
+  const calc_regex = /\bcalc\(([^)]+)\)/g;
+  const comments = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\/\*[\s\S]*?\*\//g;
+  const syntax =
+    /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\s*([{};,>~])\s*|\s*([*$~^|]?=)\s*|\s+([+-])(?=.*\{)|([[(:])\s+|\s+([\])])|\s+(:)(?![^}]*\{)|^\s+|\s+$|(\s)\s+(?![^(]*\))/g;
+  return content
+    .replace(calc_regex, (_, group) => { calc_functions.push(group); return '__CALC__'; })
+    .replace(comments, '$1')
+    .replace(syntax, '$1$2$3$4$5$6$7$8')
+    .replace(/__CALC__/g, () => `calc(${calc_functions.shift()})`)
+    .replace(/\n+/g, ' ');
+}
 
 export default ({
   baseUrl,
@@ -170,18 +192,20 @@ export default ({
 
       if (minify && !terser) terser = await import("terser");
 
-      // always trace process and buffer builtins
-      try {
-        await Promise.all([
-          generator.link("process"),
-          generator.link("buffer"),
-          generator.link("module"),
-        ]);
-        processBuiltinResolved = generator.importMap.resolve("process");
-        bufferBuiltinResolved = generator.importMap.resolve("buffer");
-        moduleBuiltinResolved = generator.importMap.resolve("module");
-      } catch (err) {
-        builtinResolvedErr = err;
+      // always trace process and buffer builtins (browser polyfills)
+      if (!env.includes('node')) {
+        try {
+          await Promise.all([
+            generator.link("process"),
+            generator.link("buffer"),
+            generator.link("module"),
+          ]);
+          processBuiltinResolved = generator.importMap.resolve("process");
+          bufferBuiltinResolved = generator.importMap.resolve("buffer");
+          moduleBuiltinResolved = generator.importMap.resolve("module");
+        } catch (err) {
+          builtinResolvedErr = err;
+        }
       }
 
       await Promise.all(
@@ -212,15 +236,27 @@ export default ({
         );
       }
     },
-    async resolveId(name, parent) {
+    async resolveId(name, parent, options) {
+      const attributes = options?.attributes || options?.assertions;
       const topLevel = !parent;
       if (topLevel) parent = baseUrl;
+
+      if (attributes?.type === 'css' || attributes?.type === 'json') {
+        let resolved;
+        try { resolved = importMap.resolve(name, parent); } catch {}
+        if (!resolved) resolved = new URL(name, parent).href;
+        moduleFormats.set(resolved, attributes.type === 'css' ? FORMAT_CSS : FORMAT_JSON);
+        return resolved;
+      }
 
       const cjsResolve =
         moduleFormats.get(parent) & (FORMAT_CJS | FORMAT_CJS_DEW);
 
       if (cjsResolve && name[name.length - 1] === "/")
         name = name.substr(0, name.length - 1);
+
+      if (env.includes('node') && (name.startsWith('node:') || builtinModules.includes(name)))
+        return { id: name, external: true };
 
       let resolved = importMap.resolve(name, parent);
 
@@ -252,8 +288,6 @@ export default ({
 
       const format = generator.getAnalysis(resolved).format;
 
-      // builtins treated as externals
-      // (builtins only emitted as builtins from resolver for Node, not browser)
       switch (format) {
         case "json":
           moduleFormats.set(resolved, FORMAT_JSON);
@@ -315,6 +349,30 @@ export default ({
             },
             presets: [presetTypescript],
           });
+        case FORMAT_CSS: {
+          const basePath = fileURLToPath(baseUrl);
+          const cssUrlRegEx = /url\(\s*(?:(["'])((?:\\.|[^\n\\"'])+)\1|((?:\\.|[^\s,"'()\\])+))\s*\)/g;
+          const processedCode = code.replace(cssUrlRegEx, (match, quotes = '', relUrl1, relUrl2) => {
+            const resolved = new URL(relUrl1 || relUrl2, id).href;
+            if (!resolved.startsWith('file:')) return match;
+            const fileId = this.emitFile({
+              type: 'asset',
+              name: path.relative(basePath, fileURLToPath(resolved)).replace(/\\/g, '/'),
+              source: readFileSync(fileURLToPath(resolved))
+            });
+            return `url(${quotes}import.meta.ROLLUP_FILE_URL_${fileId}}${quotes})`;
+          });
+          const transformedCode = minify ? minifyCSS(processedCode) : processedCode;
+          return {
+            code: `const sheet = new CSSStyleSheet();sheet.replaceSync(\`${sanitizeTemplateStr(
+              transformedCode
+            ).replace(
+              /import\.meta\.ROLLUP_FILE_URL_/g,
+              '${import.meta.ROLLUP_FILE_URL_'
+            )}\`);export default sheet;`,
+            map: { mappings: '' }
+          };
+        }
         case FORMAT_CJS_DEW:
           // fallthrough
           break;
@@ -372,6 +430,9 @@ export default ({
                 } else if (depId.endsWith("/")) {
                   depId = depId.slice(0, -1);
                 }
+
+                if (env.includes('node') && builtinModules.includes(depId))
+                  return depId;
 
                 if (depId === "process") {
                   if (builtinResolvedErr) throw builtinResolvedErr;
@@ -445,6 +506,8 @@ export default ({
                 } else if (depId.endsWith("/")) {
                   depId = depId.slice(0, -1);
                 }
+                if (env.includes('node') && builtinModules.includes(depId))
+                  return true;
                 if (
                   depId === "buffer" ||
                   depId === "module" ||

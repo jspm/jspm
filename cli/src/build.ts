@@ -1,12 +1,14 @@
-import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { copyFile, mkdir, writeFile } from 'node:fs/promises';
+import type { BuildFlags } from './cli.ts';
 import { readFileSync } from 'node:fs';
-import { rollup } from 'rollup';
+import { copyFile, mkdir, writeFile } from 'node:fs/promises';
+import { dirname, join, relative, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import jspmRollup from '@jspm/plugin-rollup';
 import c from 'picocolors';
+import { rollup } from 'rollup';
+import { initProject } from './init.ts';
+import install from './install.ts';
 import {
-  JspmError,
   getDisabledWarnings,
   getEnv,
   getExportsEntries,
@@ -14,13 +16,10 @@ import {
   getGenerator,
   getInputPath,
   getOutputPath,
-  sanitizeTemplateStr,
+  JspmError,
   startSpinner,
   stopSpinner
 } from './utils.ts';
-import type { BuildFlags } from './cli.ts';
-import { initProject } from './init.ts';
-import install from './install.ts';
 
 export default async function build(flags: BuildFlags) {
   // Try to validate the project configuration
@@ -68,7 +67,8 @@ export default async function build(flags: BuildFlags) {
   const generator = await getGenerator(flags);
 
   try {
-    if (!flags.quiet) startSpinner(`Building package ${c.cyan(projectConfig.name)}...`);
+    if (!flags.quiet) 
+startSpinner(`Building package ${c.cyan(projectConfig.name)}...`);
 
     const baseUrl = pathToFileURL(projectConfig.projectPath).href;
     const externalPackages = Object.keys(projectConfig.dependencies || {});
@@ -85,11 +85,7 @@ export default async function build(flags: BuildFlags) {
           baseUrl,
           env,
           minify: flags.minify
-        }) as any,
-        cssPlugin({
-          baseUrl,
-          minify: flags.minify
-        })
+        }) as any
       ]
     });
 
@@ -100,7 +96,8 @@ export default async function build(flags: BuildFlags) {
         ? chunkInfo => {
             const name = chunkInfo.name;
             const dotIdx = name.lastIndexOf('.');
-            if (dotIdx !== -1) return `${name.slice(0, dotIdx)}-[hash:8]${name.slice(dotIdx)}`;
+            if (dotIdx !== -1) 
+return `${name.slice(0, dotIdx)}-[hash:8]${name.slice(dotIdx)}`;
             return '[name]-[hash:8]';
           }
         : '[name]',
@@ -234,64 +231,4 @@ export default async function build(flags: BuildFlags) {
     stopSpinner();
     throw e;
   }
-}
-
-// Taken from https://github.com/jleeson/rollup-plugin-import-css, Jacob Leeson, MIT
-function cssPlugin({ minify, baseUrl }) {
-  const basePath = fileURLToPath(baseUrl);
-
-  const minifyCSS = (content: string) => {
-    const calc_functions: string[] = [];
-    const calc_regex = /\bcalc\(([^)]+)\)/g;
-    const comments = /("(?:[^"\\]+|\\.)*"|'(?:[^'\\]+|\\.)*')|\/\*[\s\S]*?\*\//g;
-    const syntax =
-      /("(?:[^"\\]+|\\.)*"|'(?:[^'\\]+|\\.)*')|\s*([{};,>~])\s*|\s*([*$~^|]?=)\s*|\s+([+-])(?=.*\{)|([[(:])\s+|\s+([\])])|\s+(:)(?![^}]*\{)|^\s+|\s+$|(\s)\s+(?![^(]*\))/g;
-
-    return content
-      .replace(calc_regex, (_, group) => {
-        calc_functions.push(group);
-        return '__CALC__';
-      })
-      .replace(comments, '$1')
-      .replace(syntax, '$1$2$3$4$5$6$7$8')
-      .replace(/__CALC__/g, () => `calc(${calc_functions.shift()})`)
-      .replace(/\n+/g, ' ');
-  };
-
-  return {
-    async transform(code: string, id: string) {
-      if (!id.endsWith('.css')) return;
-      const moduleInfo = this.getModuleInfo(id);
-      if ((moduleInfo.attributes || moduleInfo.assertions)?.type !== 'css')
-        throw new Error(
-          `CSS file "${id}" imported without 'with { type: "css" }' assertion. Only CSSStyleSheet imports are supported.`
-        );
-
-      const cssUrlRegEx = /url\(\s*(?:(["'])((?:\\.|[^\n\\"'])+)\1|((?:\\.|[^\s,"'()\\])+))\s*\)/g;
-
-      // Rebase all relative URLs in the CSS
-      const processedCode = code.replace(cssUrlRegEx, (match, quotes = '', relUrl1, relUrl2) => {
-        const resolved = new URL(relUrl1 || relUrl2, id).href;
-        if (!resolved.startsWith('file:')) return match;
-        const fileId = this.emitFile({
-          type: 'asset',
-          name: relative(basePath, fileURLToPath(resolved)).replace(/\\/g, '/'),
-          source: readFileSync(fileURLToPath(resolved))
-        });
-        return `url(${quotes}import.meta.ROLLUP_FILE_URL_${fileId}}${quotes})`;
-      });
-
-      const transformedCode = minify ? minifyCSS(processedCode) : processedCode;
-
-      return {
-        code: `const sheet = new CSSStyleSheet();sheet.replaceSync(\`${sanitizeTemplateStr(
-          transformedCode
-        ).replace(
-          /import\.meta\.ROLLUP_FILE_URL_/g,
-          '${import.meta.ROLLUP_FILE_URL_'
-        )}\`);export default sheet;`,
-        map: { mappings: '' }
-      };
-    }
-  };
 }

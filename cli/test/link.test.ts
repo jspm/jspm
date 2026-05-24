@@ -1,5 +1,5 @@
-import { test } from 'node:test';
-import assert from 'assert';
+import assert from 'node:assert';
+import { it } from 'node:test';
 import { mapFile, run } from './scenarios.ts';
 
 const scripts = await mapFile(['fixtures/a.js', 'fixtures/b.js']);
@@ -9,7 +9,7 @@ const inlineModules = await mapFile('fixtures/inlinemodules.html');
 const inlineHtml = await mapFile('fixtures/inlinehtml.js');
 const indexScript = await mapFile('fixtures/index.js');
 
-test('Basic link from a package without an existing import map', async () => {
+it('basic link from a package without an existing import map', async () => {
   await run({
     files: scripts,
     commands: ['jspm link ./a.js -o importmap.json'],
@@ -20,7 +20,7 @@ test('Basic link from a package without an existing import map', async () => {
   });
 });
 
-test('Dependency constraints are picked up from input map', async () => {
+it('dependency constraints are picked up from input map', async () => {
   await run({
     files: new Map([...scripts, ...importMap]),
     commands: ['jspm link ./a.js -o importmap.json -C production'],
@@ -35,7 +35,7 @@ test('Dependency constraints are picked up from input map', async () => {
   });
 });
 
-test('Injecting the output into a non-existent HTML file should create one', async () => {
+it('injecting the output into a non-existent HTML file should create one', async () => {
   await run({
     files: new Map([...scripts, ...importMap]),
     commands: ['jspm link ./a.js -o index.html'],
@@ -46,7 +46,7 @@ test('Injecting the output into a non-existent HTML file should create one', asy
   });
 });
 
-test('Injecting the output into an existing HTML file should maintain content', async () => {
+it('injecting the output into an existing HTML file should maintain content', async () => {
   await run({
     files: new Map([...scripts, ...importMap, ...htmlFile]),
     commands: ['jspm link ./a.js -o index.html'],
@@ -58,7 +58,7 @@ test('Injecting the output into an existing HTML file should maintain content', 
   });
 });
 
-test('Running a link on an HTML file should trace package entries', async () => {
+it('running a link on an HTML file should trace package entries', async () => {
   await run({
     files: new Map([...scripts, ...importMap, ...inlineModules]),
     commands: ['jspm link -m inlinemodules.html inlinemodules.html'],
@@ -71,7 +71,7 @@ test('Running a link on an HTML file should trace package entries', async () => 
   });
 });
 
-test('Link with output to HTML file should include versions from importmap', async () => {
+it('link with output to HTML file should include versions from importmap', async () => {
   await run({
     files: new Map([...scripts, ...importMap, ...inlineModules]),
     commands: ['jspm link -o inlinemodules.html'],
@@ -82,7 +82,7 @@ test('Link with output to HTML file should include versions from importmap', asy
   });
 });
 
-test("Linking 'index.js' when no local file exists should link against npm package", async () => {
+it("linking 'index.js' when no local file exists should link against npm package", async () => {
   await run({
     commands: ['jspm link index.js -o importmap.json'],
     validationFn: async (files: Map<string, string>) => {
@@ -92,7 +92,7 @@ test("Linking 'index.js' when no local file exists should link against npm packa
   });
 });
 
-test("Linking 'index.js' when local file exists should link against local file", async () => {
+it("linking 'index.js' when local file exists should link against local file", async () => {
   await run({
     files: indexScript,
     commands: ['jspm link index.js -o importmap.json'],
@@ -104,7 +104,7 @@ test("Linking 'index.js' when local file exists should link against local file",
   });
 });
 
-test("Linking '%index.js' should link against npm package even when local file exists", async () => {
+it("linking '%index.js' should link against npm package even when local file exists", async () => {
   await run({
     files: indexScript,
     commands: ['jspm link %index.js -o importmap.json'],
@@ -116,7 +116,7 @@ test("Linking '%index.js' should link against npm package even when local file e
   });
 });
 
-test('Linking HTML file directly should link all inline modules', async () => {
+it('linking HTML file directly should link all inline modules', async () => {
   await run({
     files: new Map([...scripts, ...inlineModules, ...importMap]),
     commands: ['jspm link inlinemodules.html -o importmap.json -C production'],
@@ -131,7 +131,7 @@ test('Linking HTML file directly should link all inline modules', async () => {
   });
 });
 
-test("CLI shouldn't be confused by JS file with inline HTML string", async () => {
+it("cLI shouldn't be confused by JS file with inline HTML string", async () => {
   await run({
     files: new Map([...scripts, ...inlineModules, ...inlineHtml]),
     commands: ['jspm link inlinehtml.js -o importmap.json'],
@@ -144,7 +144,7 @@ test("CLI shouldn't be confused by JS file with inline HTML string", async () =>
   });
 });
 
-test('Support HTML as import map when no importmap.json exists', async () => {
+it('support HTML as import map when no importmap.json exists', async () => {
   await run({
     files: new Map([...htmlFile, ['app.js', 'import "react"']]),
     commands: ['jspm link index.html -o index.html --integrity'],

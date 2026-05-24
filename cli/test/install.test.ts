@@ -1,9 +1,9 @@
-import { test } from 'node:test';
-import assert from 'assert';
 import type { IImportMap } from '../src/types.ts';
+import assert from 'node:assert';
+import { it } from 'node:test';
 import { mapDirectory, run } from './scenarios.ts';
 
-test('Basic install', async () => {
+it('basic install', async () => {
   await run({
     commands: ['jspm install -m importmap.json'],
     files: packageJsonWithExports,
@@ -20,7 +20,7 @@ test('Basic install', async () => {
   });
 });
 
-test('Linking with no arguments should use package.json exports', async () => {
+it('linking with no arguments should use package.json exports', async () => {
   await run({
     files: packageJsonWithExports,
     commands: ['jspm install -o importmap.json'],
@@ -40,7 +40,7 @@ test('Linking with no arguments should use package.json exports', async () => {
   });
 });
 
-test('Local install', async () => {
+it('local install', async () => {
   const files = await mapDirectory('fixtures/scenario_local');
   await run({
     commands: ['jspm install -m importmap.json -p jsdelivr'],
@@ -54,7 +54,7 @@ test('Local install', async () => {
   });
 });
 
-test('Install pruning', async () => {
+it('install pruning', async () => {
   const files = await mapDirectory('fixtures/scenario_prune');
   await run({
     commands: ['jspm install -o importmap.json'],

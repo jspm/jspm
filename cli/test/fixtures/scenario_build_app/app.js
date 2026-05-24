@@ -1,8 +1,8 @@
-import { LitElement, css, html } from "lit-element";
+import { css, html, LitElement } from "lit-element";
+import styleSheet from "./assets/styles.css" with { type: "css" };
+import componentData from "./data.json" with { type: "json" };
+import { createDemoUsers, TYPESCRIPT_VERSION, UserManager } from "./helpers.ts";
 import { add } from "./utils.js";
-import styleSheet from "./assets/styles.css" assert { type: "css" };
-import componentData from "./data.json" assert { type: "json" };
-import { TYPESCRIPT_VERSION, UserManager, createDemoUsers } from "./helpers.ts";
 
 class MyElement extends LitElement {
   static get properties() {

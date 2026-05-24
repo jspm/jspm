@@ -1,6 +1,6 @@
 import assert from 'node:assert';
-import { it } from 'node:test';
 import fs from 'node:fs/promises';
+import { it } from 'node:test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from './scenarios.ts';

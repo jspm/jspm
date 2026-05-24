@@ -44,7 +44,7 @@ jobs:
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
-          claude_args: --max-turns 15 --model claude-sonnet-4-6
+          claude_args: --max-turns 15 --model claude-opus-4-7 --permission-mode bypassPermissions
           show_full_output: true
 
       - name: Remove claude-review label

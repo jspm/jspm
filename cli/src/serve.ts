@@ -211,7 +211,8 @@ filePath = filePath.slice(0, -4);
           try {
             // Use Node.js built-in TypeScript type stripping
             const strippedCode = transformSync(tsContent, {
-              transform: { mode: 'strip-only', noEmptyExport: true }
+              mode: 'strip-only',
+              transform: { noEmptyExport: true }
             }).code;
             // Reference an external identity source map so DevTools (when open)
             // resolves the original TypeScript by its canonical URL — the URL

@@ -16,6 +16,8 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+            node: 20.x
+          - os: ubuntu-latest
             node: 22.x
           - os: windows-latest
             node: 24.x
@@ -48,10 +50,10 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - name: Use Node.js 22.x
+      - name: Use Node.js 20.x
         uses: actions/setup-node@v2
         with:
-          node-version: 22.x
+          node-version: 20.x
       - name: Setup Chomp
         uses: guybedford/chomp-action@v1
         env:

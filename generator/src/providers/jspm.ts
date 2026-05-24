@@ -21,7 +21,7 @@ let publishUrl = 'https://dev.qitkao.com/';
 // the URL the published jspm.io packages can be seen
 let rawUrl = 'https://jspm.io/';
 
-let authToken;
+let authToken: any;
 let versionsCacheMap: Record<string, string[]> = {};
 
 const BUILD_POLL_TIME = 60 * 1000;
@@ -404,7 +404,7 @@ async function lookupRange(
   return lookupPromise;
 }
 
-async function getTextIfOk(url, fetchOpts): Promise<string | null> {
+async function getTextIfOk(url: string, fetchOpts: any): Promise<string | null> {
   const res = await fetch(url, fetchOpts);
   switch (res.status) {
     case 200:
@@ -424,7 +424,7 @@ export async function fetchVersions(this: ProviderContext, name: string): Promis
   }
   const registryLookup =
     JSON.parse(
-      await getTextIfOk(`https://npmlookup.jspm.io/${encodeURI(name)}`, { cache: 'no-cache' })
+      await getTextIfOk(`https://npmlookup.jspm.io/${encodeURI(name)}`, { cache: 'no-cache' }) as string
     ) || {};
   const versions = Object.keys(registryLookup.versions || {});
   versionsCacheMap[name] = versions;
@@ -464,7 +464,7 @@ export async function download(
   const fileData: Record<string, Uint8Array> = {};
 
   await new Promise((resolve, reject) => {
-    extract.on('entry', async function (header, stream, next) {
+    extract.on('entry', async function (header: any, stream: any, next: any) {
       try {
         if (header.type === 'file') {
           if (header.name.indexOf('/') === -1) {
@@ -606,7 +606,7 @@ async function latestEsms(this: ProviderContext, forUrl: string) {
     forUrl,
     null
   );
-  return pkgToUrl.call(this, esmsPkg, 'default') + 'dist/es-module-shims.js';
+  return pkgToUrl.call(this, esmsPkg!, 'default') + 'dist/es-module-shims.js';
 }
 
 /**
@@ -684,7 +684,7 @@ export async function auth(
       // Success! Store and return the token
       authToken = tokenData.access_token;
       return { token: authToken };
-    } catch (error) {
+    } catch (error: any) {
       // Handle network errors, continue polling
       if (error.name === 'FetchError') {
         continue;
@@ -733,7 +733,7 @@ async function createPublishToken(packageName: string, packageVersion: string): 
 
     const data = await response.json();
     return data.token;
-  } catch (error) {
+  } catch (error: any) {
     // Fall back to the placeholder token if there's an error
     if (error.message.includes('Invalid or expired token'))
       throw new JspmError(

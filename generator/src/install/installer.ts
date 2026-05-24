@@ -143,7 +143,7 @@ export class Installer {
     // providers owning particular registries. The proper way to do this would
     // be to have each provider declare what registries it supports, and
     // construct a providers mapping at init when we detect default provider:
-    if (opts.defaultProvider.includes('deno')) this.providers['npm:'] ??= 'jspm.io';
+    if (opts.defaultProvider?.includes('deno')) this.providers['npm:'] ??= 'jspm.io';
 
     if (opts.providers) Object.assign(this.providers, opts.providers);
   }
@@ -153,7 +153,7 @@ export class Installer {
   ) {
     if (visitor(this.installs.primary, null)) return;
     for (const scopeUrl of Object.keys(this.installs.secondary)) {
-      if (visitor(this.installs.secondary[scopeUrl], scopeUrl)) return;
+      if (visitor(this.installs.secondary[scopeUrl as `${string}/`], scopeUrl)) return;
     }
   }
 
@@ -371,7 +371,7 @@ export class Installer {
 
     // existing primary version fallback
     if (this.installs.primary[install.name]) {
-      const { installUrl } = getResolution(this.installs, install.name, null);
+      const { installUrl } = getResolution(this.installs, install.name, null)!;
       return { installUrl };
     }
 
@@ -455,7 +455,7 @@ export class Installer {
       existingResolution &&
       (isTopLevel ||
         mode === 'freeze' ||
-        (await this.inRange(existingResolution.installUrl, pjsonTarget.pkgTarget)))
+        (await this.inRange(existingResolution.installUrl, (pjsonTarget as InstallTarget).pkgTarget)))
     ) {
       this.log?.(
         'installer/install',
@@ -474,11 +474,11 @@ export class Installer {
       const flattenedResolution = await getFlattenedResolution(
         this.installs,
         pkgName,
-        versionScope,
+        versionScope!,
         traceSubpath,
         semverCompatible,
         semverCompatible && pjsonTarget
-          ? async (installUrl: string) => this.inRange(installUrl, pjsonTarget.pkgTarget)
+          ? async (installUrl: string) => this.inRange(installUrl, (pjsonTarget as InstallTarget).pkgTarget)
           : null
       );
 
@@ -507,7 +507,7 @@ export class Installer {
 
     // existing primary version fallback
     if (this.installs.primary[pkgName]) {
-      const { installUrl } = getResolution(this.installs, pkgName, null);
+      const { installUrl } = getResolution(this.installs, pkgName, null)!;
       return { installUrl };
     }
 

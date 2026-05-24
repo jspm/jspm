@@ -66,7 +66,7 @@ export function getWildcardPrefixes(
   for (const subpath of Object.keys(exports)) {
     if (subpath.indexOf('*') === -1) continue;
     let targetList = new Set<string>();
-    expandTargetResolutions(exports[subpath], files, env, targetList, [], true);
+    expandTargetResolutions((exports as Record<string, ExportsTarget>)[subpath], files, env, targetList, [], true);
     for (const target of targetList) {
       if (!target.startsWith('./') || target.indexOf('*') === -1) continue;
       const targetSuffix = target.slice(target.indexOf('*') + 1);
@@ -115,7 +115,7 @@ export function expandExportsResolutions(
   } else {
     for (const subpath of Object.keys(exports)) {
       let targetList = new Set<string>();
-      expandTargetResolutions(exports[subpath], files, env, targetList, [], true);
+      expandTargetResolutions((exports as Record<string, ExportsTarget>)[subpath], files, env, targetList, [], true);
       for (const target of targetList) {
         expandExportsTarget(
           exports as Record<string, ExportsTarget>,
@@ -151,7 +151,7 @@ export function expandExportsEntries(
   } else {
     for (const subpath of Object.keys(exports)) {
       let targetList = new Set<string>();
-      expandTargetResolutions(exports[subpath], files, env, targetList, [], false);
+      expandTargetResolutions((exports as Record<string, ExportsTarget>)[subpath], files, env, targetList, [], false);
       for (const target of targetList) {
         let map = new Map();
         expandExportsTarget(exports as Record<string, ExportsTarget>, subpath, target, files, map);
@@ -182,7 +182,7 @@ function expandTargetResolutions(
   files: Set<string> | undefined,
   env: string[],
   targetList: Set<string>,
-  envExclusions = env.map(condition => conditionMutualExclusions[condition]).filter(c => c),
+  envExclusions = env.map(condition => (conditionMutualExclusions as Record<string, string>)[condition]).filter(c => c),
   firstOnly: boolean
 ): boolean {
   if (typeof exports === 'string') {
@@ -216,7 +216,7 @@ function expandTargetResolutions(
         }
       }
       if (envExclusions.includes(condition)) continue;
-      const maybeNewExclusion = conditionMutualExclusions[condition];
+      const maybeNewExclusion = (conditionMutualExclusions as Record<string, string>)[condition];
       const newExclusions =
         maybeNewExclusion && !envExclusions.includes(maybeNewExclusion)
           ? [...envExclusions, maybeNewExclusion]

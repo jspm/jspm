@@ -126,6 +126,7 @@ export async function getPackageConfig(): Promise<PackageConfig> {
 }
 
 export async function resolveLatestTarget(
+  this: any,
   target: LatestPackageTarget,
   layer: string,
   parentUrl: string,

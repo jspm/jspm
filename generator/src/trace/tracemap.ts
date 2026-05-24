@@ -161,17 +161,17 @@ export default class TraceMap {
       const { maps, locks, constraints } = await extractLockConstraintsAndMap(
         this.log,
         inMap,
-        preloads,
+        preloads ?? [],
         mapUrl,
         rootUrl,
-        this.installer.defaultRegistry,
+        this.installer!.defaultRegistry,
         this.resolver,
-        this.installer.defaultProvider,
+        this.installer!.defaultProvider,
         this.opts.linkedScopes
       );
       this.inputMap.extend(maps);
-      mergeLocks(this.installer.installs, locks);
-      mergeConstraints(this.installer.constraints, constraints);
+      mergeLocks(this.installer!.installs, locks);
+      mergeConstraints(this.installer!.constraints, constraints);
     }));
   }
 
@@ -323,7 +323,7 @@ export default class TraceMap {
     resolved: string,
     entry: TraceEntry
   ): Promise<string | null | undefined> {
-    const stop = await opts.visitor(specifier, parentUrl, resolved, opts.toplevel, entry);
+    const stop = await opts.visitor!(specifier, parentUrl, resolved, opts.toplevel, entry);
     if (stop) return;
     return this._fanout(specifier, opts, resolved, seen, entry);
   }
@@ -335,9 +335,9 @@ export default class TraceMap {
     seen: Set<string>,
     entry: TraceEntry
   ): string | Promise<string> {
-    let allDeps: string[] = [...entry.deps];
-    if (entry.dynamicDeps.length && !opts.static) {
-      for (const dep of entry.dynamicDeps) {
+    let allDeps: string[] = [...(entry.deps || [])];
+    if (entry.dynamicDeps?.length && !opts.static) {
+      for (const dep of entry.dynamicDeps!) {
         if (!allDeps.includes(dep)) allDeps.push(dep);
       }
     }
@@ -461,13 +461,13 @@ export default class TraceMap {
           isToplevel && (isMappableScheme(specifier) || isPlain(specifier)) ? false : isToplevel;
 
         // Walk static deps
-        for (const dep of entry.deps) {
+        for (const dep of entry.deps || []) {
           if (dep.indexOf('\x10') !== -1) continue;
           walk(dep, resolved, nextToplevel, isDynamic);
         }
 
         // Walk dynamic deps
-        for (const dep of entry.dynamicDeps) {
+        for (const dep of entry.dynamicDeps || []) {
           if (dep.indexOf('\x10') !== -1) continue;
           walk(dep, resolved, false, true);
         }
@@ -515,7 +515,7 @@ export default class TraceMap {
       parentUrl: string,
       resolved: string,
       toplevel: boolean,
-      entry
+      entry: any
     ) => {
       if (!list.has(resolved)) list.add(resolved);
 
@@ -591,7 +591,7 @@ export default class TraceMap {
    * Returns true if successful, false if a cache miss requires async fallback.
    */
   async add(name: string, target: InstallTarget, opts: InstallMode): Promise<InstalledResolution> {
-    return await this.installer.installTarget(name, target, opts, null, this.mapUrl.href);
+    return await this.installer!.installTarget(name, target, opts, null, this.mapUrl.href);
   }
 
   async resolve(
@@ -601,7 +601,7 @@ export default class TraceMap {
     toplevel: boolean
   ): Promise<string> {
     const parentAnalysis = this.resolver.getAnalysis(parentUrl);
-    const cjsEnv = parentAnalysis?.wasCjs;
+    const cjsEnv = parentAnalysis?.wasCjs ?? false;
 
     const parentPkgUrl = await this.resolver.getPackageBase(parentUrl);
     if (!parentPkgUrl) throwInternalError();
@@ -650,7 +650,7 @@ export default class TraceMap {
           );
           return resolvedUrl;
         }
-      } catch (error) {
+      } catch (error: any) {
         // Re-throw custom resolver errors
         throw new JspmError(
           `Custom resolver error for "${specifier}": ${error.message}${importedFrom(parentUrl)}`
@@ -696,7 +696,7 @@ export default class TraceMap {
     }
 
     // Subscope override
-    const scopeMatches = getScopeMatches(parentUrl, this.inputMap.scopes, this.inputMap.mapUrl);
+    const scopeMatches = getScopeMatches(parentUrl, this.inputMap.scopes, this.inputMap.mapUrl!);
     const pkgSubscopes = scopeMatches.filter(([, url]) => url.startsWith(parentPkgUrl));
     if (pkgSubscopes.length) {
       for (const [scope] of pkgSubscopes) {
@@ -705,8 +705,8 @@ export default class TraceMap {
           const resolved = await this.resolver.realPath(
             resolveUrl(
               this.inputMap.scopes[scope][mapMatch] + specifier.slice(mapMatch.length),
-              this.inputMap.mapUrl,
-              this.inputMap.rootUrl
+              this.inputMap.mapUrl!,
+              this.inputMap.rootUrl!
             )
           );
           this.log?.(
@@ -728,8 +728,8 @@ export default class TraceMap {
         ? await this.resolver.realPath(
             resolveUrl(
               imports[userImportsMatch] + specifier.slice(userImportsMatch.length),
-              this.inputMap.mapUrl,
-              this.inputMap.rootUrl
+              this.inputMap.mapUrl!,
+              this.inputMap.rootUrl!
             )
           )
         : null;
@@ -748,8 +748,8 @@ export default class TraceMap {
       ? await this.resolver.realPath(
           resolveUrl(
             this.inputMap.imports[userImportsMatch] + specifier.slice(userImportsMatch.length),
-            this.inputMap.mapUrl,
-            this.inputMap.rootUrl
+            this.inputMap.mapUrl!,
+            this.inputMap.rootUrl!
           )
         )
       : null;
@@ -798,7 +798,7 @@ export default class TraceMap {
         cjsEnv,
         specifier.slice(match.length),
         true
-      );
+      )!;
       if (!isURL(target)) {
         return await this.resolve(target, parentUrl, installOpts, toplevel);
       }
@@ -814,7 +814,7 @@ export default class TraceMap {
     const builtin = this.resolver.resolveBuiltin(specifier);
     if (builtin) {
       if (typeof builtin === 'string') return builtin;
-      const { installUrl } = await this.installer.installBuiltin(
+      const { installUrl } = await this.installer!.installBuiltin(
         builtin.target,
         specifier,
         installOpts,
@@ -835,7 +835,7 @@ export default class TraceMap {
     }
 
     // Normal package install
-    const { installUrl } = await this.installer.install(
+    const { installUrl } = await this.installer!.install(
       pkgName,
       installOpts,
       toplevel ? null : parentPkgUrl,

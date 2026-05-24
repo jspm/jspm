@@ -66,7 +66,7 @@ const leadingCommentRegex = /^\s*(\/\*[\s\S]*?\*\/|\s*\/\/[^\n]*)*/;
 const registerRegex =
   /^\s*System\s*\.\s*register\s*\(\s*(\[[^\]]*\])\s*,\s*\(?function\s*\(\s*([^\),\s]+\s*(,\s*([^\),\s]+)\s*)?\s*)?\)/;
 
-function systemMatch(code) {
+function systemMatch(code: string) {
   const commentMatch = code.match(leadingCommentRegex);
   const offset = commentMatch ? commentMatch[0].length : 0;
   return code.slice(offset).match(registerRegex);

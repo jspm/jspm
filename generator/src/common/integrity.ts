@@ -1,4 +1,4 @@
-let _nodeCrypto;
+let _nodeCrypto: any;
 
 export async function getIntegrityNodeLegacy(
   buf: Uint8Array | string

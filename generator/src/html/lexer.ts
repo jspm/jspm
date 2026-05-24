@@ -24,7 +24,7 @@ export function parseHtml(_source: string, tagNames: string[] = ['script', 'link
   i = 0;
 
   let curScript: ParsedTag = {
-    tagName: undefined,
+    tagName: '',
     start: -1,
     end: -1,
     attributes: [],
@@ -80,7 +80,7 @@ export function parseHtml(_source: string, tagNames: string[] = ['script', 'link
       }
       scripts.push(curScript);
       curScript = {
-        tagName: undefined,
+        tagName: '',
         start: -1,
         end: -1,
         attributes: [],
@@ -146,7 +146,7 @@ function scanAttr(): ParsedAttribute | null {
   }
 }
 
-export function isWs(ch) {
+export function isWs(ch: number) {
   return ch === 32 || (ch < 14 && ch > 8);
 }
 

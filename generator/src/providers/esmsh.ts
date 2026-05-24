@@ -42,7 +42,7 @@ export async function getPackageConfig(
     case 406:
     case 500:
       this.context.pcfgs[pkgUrl] = null;
-      return;
+      return null;
     default:
       throw new JspmError(
         `Invalid status code ${res.status} reading package config for ${pkgUrl}. ${res.statusText}`

@@ -8,7 +8,7 @@ import type { ProviderContext } from './index.js';
 const cdnUrl = 'https://deno.land/x/';
 const stdlibUrl = 'https://deno.land/std';
 
-let denoStdVersion;
+let denoStdVersion: string;
 
 export function resolveBuiltin(
   specifier: string,
@@ -51,7 +51,7 @@ export function pkgToUrl(pkg: ExactPackage): `${string}/` {
 export async function getPackageConfig(
   this: ProviderContext,
   pkgUrl: string
-): Promise<PackageConfig | null | undefined> {
+): Promise<PackageConfig | null> {
   if (pkgUrl.startsWith('https://deno.land/std@')) {
     return {
       exports: {
@@ -151,7 +151,7 @@ export async function getPackageConfig(
   return null;
 }
 
-const vCache = {};
+const vCache: Record<string, boolean> = {};
 
 export function parseUrlPkg(
   url: string
@@ -214,7 +214,7 @@ export async function resolveLatestTarget(
   const fetchUrl = registry === 'denoland' ? cdnUrl + name + '/mod.ts' : stdlibUrl + '/version.ts';
   const res = await fetch(fetchUrl, fetchOpts);
   if (!res.ok) throw new Error(`Deno: Unable to lookup ${fetchUrl}`);
-  const { version } = (await parseUrlPkg(res.url)).pkg;
+  const { version } = (await parseUrlPkg(res.url))!.pkg;
   if (registry === 'deno') denoStdVersion = version;
   return { registry, name, version };
 }

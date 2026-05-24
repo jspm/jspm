@@ -21,9 +21,10 @@ function getAttr(source: string, tag: ParsedTag, name: string) {
   return null;
 }
 
-export interface ParsedMap extends HtmlTag {
+export interface ParsedMap extends Omit<HtmlTag, 'attrs'> {
   json: any;
-  style: SourceStyle;
+  style: SourceStyle | null;
+  attrs: Record<string, HtmlAttr> | null;
   newScript: boolean;
 }
 

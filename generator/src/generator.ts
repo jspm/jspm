@@ -781,12 +781,12 @@ export class Generator {
     } else if (!mapUrl && !baseUrl) {
       baseUrl = mapUrl = _baseUrl;
     }
-    this.baseUrl = typeof baseUrl === 'string' ? new URL(baseUrl, _baseUrl) : baseUrl;
+    this.baseUrl = typeof baseUrl === 'string' ? new URL(baseUrl, _baseUrl) : baseUrl!;
     if (!this.baseUrl.pathname.endsWith('/')) {
       this.baseUrl = new URL(this.baseUrl.href);
       this.baseUrl.pathname += '/';
     }
-    this.mapUrl = typeof mapUrl === 'string' ? new URL(mapUrl, this.baseUrl) : mapUrl;
+    this.mapUrl = typeof mapUrl === 'string' ? new URL(mapUrl, this.baseUrl) : mapUrl!;
     this.rootUrl = typeof rootUrl === 'string' ? new URL(rootUrl, this.baseUrl) : rootUrl || null;
     if (this.rootUrl && !this.rootUrl.pathname.endsWith('/')) this.rootUrl.pathname += '/';
     if (!this.mapUrl.pathname.endsWith('/')) {
@@ -819,7 +819,7 @@ export class Generator {
 
     // We make an attempt to auto-detect the default provider from the input
     // map, by picking the provider with the most owned URLs:
-    defaultProvider = detectDefaultProvider(defaultProvider, inputMap, pm);
+    defaultProvider = detectDefaultProvider(defaultProvider ?? null, inputMap ?? null, pm);
 
     // Initialise the resolver:
     const resolver = new Resolver({
@@ -837,7 +837,7 @@ export class Generator {
           if (resolved.endsWith('/package.json')) resolved = resolved.slice(0, -12);
           return [resolved, pcfg];
         })
-      )
+      ) as any
     });
 
     // Normalize linkedScopes URLs against baseUrl
@@ -911,7 +911,7 @@ export class Generator {
   async addMappings(
     jsonOrHtml: string | IImportMap,
     mapUrl: string | URL = this.mapUrl,
-    rootUrl: string | URL = this.rootUrl,
+    rootUrl: string | URL = this.rootUrl!,
     preloads?: string[]
   ): Promise<string[]> {
     if (typeof mapUrl === 'string') mapUrl = new URL(mapUrl, this.baseUrl);
@@ -924,7 +924,7 @@ export class Generator {
         const analysis = analyzeHtml(jsonOrHtml as string, mapUrl);
         jsonOrHtml = (analysis.map.json || {}) as IImportMap;
         preloads = (preloads || []).concat(
-          analysis.preloads.map(preload => preload.attrs.href?.value).filter(x => x)
+          analysis.preloads.map(preload => preload.attrs.href?.value).filter(x => x) as string[]
         );
         htmlModules = [...new Set([...analysis.staticImports, ...analysis.dynamicImports])];
       }
@@ -937,7 +937,7 @@ export class Generator {
    * Retrieve the lockfile data from the installer
    */
   getLock(): LockResolutions {
-    return JSON.parse(JSON.stringify(this.traceMap.installer.installs));
+    return JSON.parse(JSON.stringify(this.traceMap.installer!.installs));
   }
 
   /**
@@ -1000,7 +1000,7 @@ export class Generator {
       throw e;
     } finally {
       const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
-        this.traceMap.pins || pins || [],
+        this.traceMap.pins || (pins?.filter(Boolean) as string[]) || [],
         this.integrity,
         !this.scopedLink,
         parentUrl
@@ -1008,6 +1008,7 @@ export class Generator {
       this.map = map;
       if (!error) return { staticDeps, dynamicDeps };
     }
+    return undefined as any;
   }
 
   /**
@@ -1023,7 +1024,7 @@ export class Generator {
       return [...new Set(impts)].reduce((a, b) => a.concat(b), []);
     }
 
-    let resolvedUrl: URL;
+    let resolvedUrl: URL = undefined as any;
     if (htmlUrl) {
       if (typeof htmlUrl === 'string') {
         resolvedUrl = new URL(resolveUrl(htmlUrl, this.mapUrl, this.rootUrl));
@@ -1086,14 +1087,15 @@ export class Generator {
       modules = [...new Set([...modules, ...impts])];
     }
 
+    var map: any, staticDeps: string[] = [], dynamicDeps: string[] = [];
     try {
-      var { map, staticDeps, dynamicDeps } = await this.extractMap(
+      ({ map, staticDeps, dynamicDeps } = await this.extractMap(
         modules,
         htmlUrl,
         rootUrl,
         integrity
-      );
-    } catch (err) {
+      ));
+    } catch (err: any) {
       // Most likely cause of a generation failure:
       err.message +=
         '\n\nIf you are linking locally against your node_modules folder, make sure that you have all the necessary dependencies installed.';
@@ -1121,15 +1123,15 @@ export class Generator {
             range: new SemverRange('*'),
             unstable: false
           },
-          this.traceMap.installer.defaultProvider,
+          this.traceMap.installer!.defaultProvider,
           this.baseUrl.href,
           this.traceMap.resolver
         );
       } catch (err) {
         // This usually happens because the user is trying to use their
         // node_modules as the provider but has not installed the shim:
-        let errMsg = `Unable to resolve "es-module-shims@*" under current provider "${this.traceMap.installer.defaultProvider.provider}".`;
-        if (this.traceMap.installer.defaultProvider.provider === 'nodemodules') {
+        let errMsg = `Unable to resolve "es-module-shims@*" under current provider "${this.traceMap.installer!.defaultProvider.provider}".`;
+        if (this.traceMap.installer!.defaultProvider.provider === 'nodemodules') {
           errMsg += `\n\nJspm automatically injects a shim so that the import map in your HTML file will be usable by older browsers.\nYou may need to run "npm install es-module-shims" to install the shim if you want to link against your local node_modules folder.`;
         }
         errMsg += `\nTo disable the import maps polyfill injection, set esModuleShims: false.`;
@@ -1139,8 +1141,8 @@ export class Generator {
       let esmsUrl =
         (await this.traceMap.resolver.pm.pkgToUrl(
           esmsPkg,
-          this.traceMap.installer.defaultProvider.provider,
-          this.traceMap.installer.defaultProvider.layer
+          this.traceMap.installer!.defaultProvider.provider,
+          this.traceMap.installer!.defaultProvider.layer
         )) + 'dist/es-module-shims.js';
 
       // detect esmsUrl as a wrapper URL
@@ -1253,8 +1255,8 @@ export class Generator {
    * Will respect {@link GeneratorOptions.customResolver} for dependency specifier resolution. If requiring
    * a {@link GeneratorOptions.customResolver} to apply at the top-level, use {@link Generator.link} instead.
    */
-  async install(install: string | Install | (string | Install)[], mode?: InstallMode);
-  async install(mode?: InstallMode);
+  async install(install: string | Install | (string | Install)[], mode?: InstallMode): Promise<void | { staticDeps: string[]; dynamicDeps: string[] }>;
+  async install(mode?: InstallMode): Promise<void | { staticDeps: string[]; dynamicDeps: string[] }>;
   async install(
     install?: string | Install | (string | Install)[] | InstallMode,
     mode?: InstallMode
@@ -1287,10 +1289,10 @@ export class Generator {
       // existing resolutions for everything unless it's out-of-range:
       mode ??= 'default';
 
-      if (Object.keys(this.traceMap.installer.installs.primary).length) {
+      if (Object.keys(this.traceMap.installer!.installs.primary).length) {
         return this._install(
-          Object.entries(this.traceMap.installer.installs.primary).map(([alias, target]) => {
-            const pkgTarget = this.traceMap.installer.constraints.primary[alias];
+          Object.entries(this.traceMap.installer!.installs.primary).map(([alias, target]) => {
+            const pkgTarget = this.traceMap.installer!.constraints.primary[alias];
 
             // Try to reinstall lock against constraints if possible, otherwise
             // reinstall it as a URL directly (which has the downside that it
@@ -1314,7 +1316,7 @@ export class Generator {
       }
     }
 
-    if (!Array.isArray(install)) install = [install];
+    if (!Array.isArray(install)) install = [install!];
 
     await this.traceMap.processInputMap; // don't race input processing
 
@@ -1327,12 +1329,12 @@ export class Generator {
             ({ alias, target, subpath } = (await installToTarget.call(
               this,
               install,
-              this.traceMap.installer.defaultRegistry
+              this.traceMap.installer!.defaultRegistry
             )) as any);
             if ((install as Install)?.subpaths) subpaths = (install as Install).subpaths;
           } else {
             ({ alias, target, subpath, subpaths } = install);
-            validatePkgName(alias);
+            validatePkgName(alias!);
           }
 
           this.log(
@@ -1348,7 +1350,7 @@ export class Generator {
 
           // expand all package subpaths
           if (subpaths === true) {
-            const pcfg = await this.traceMap.resolver.getPackageConfig(installed.installUrl);
+            const pcfg = (await this.traceMap.resolver.getPackageConfig(installed.installUrl))!;
             // no entry point case
             if (!pcfg.exports && !pcfg.main) {
               return [];
@@ -1362,7 +1364,7 @@ export class Generator {
             // Expand exports into entry point list
             const resolutionMap = new Map<string, string>();
             await expandExportsResolutions(
-              pcfg.exports,
+              pcfg.exports!,
               this.traceMap.resolver.env,
               fileList,
               resolutionMap
@@ -1381,15 +1383,15 @@ export class Generator {
           }
         })
       )
-    ).flatMap(i => i);
+    ).flatMap((i: any) => i);
 
     const pins = this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports);
     await Promise.all(
-      imports.map(async impt => {
+      imports.map(async (impt: any) => {
         await this.traceMap.visit(
           impt,
           {
-            installMode: mode,
+            installMode: mode!,
             toplevel: true
           },
           this.mapUrl.href
@@ -1432,8 +1434,8 @@ export class Generator {
     if (typeof pkgNames === 'string') pkgNames = [pkgNames];
     await this.traceMap.processInputMap;
 
-    const primaryResolutions = this.traceMap.installer.installs.primary;
-    const primaryConstraints = this.traceMap.installer.constraints.primary;
+    const primaryResolutions = this.traceMap.installer!.installs.primary;
+    const primaryConstraints = this.traceMap.installer!.constraints.primary;
 
     // Matching the behaviour of "npm update":
     let mode: InstallMode = 'latest-primaries';
@@ -1622,7 +1624,7 @@ export class Generator {
         const decoder = new TextDecoder();
         pjson = JSON.parse(decoder.decode(pkgJson));
       }
-    } catch (err) {
+    } catch (err: any) {
       throw new JspmError('Invalid package.json: ' + err.message);
     }
 
@@ -1710,7 +1712,7 @@ export class Generator {
     }
 
     // If importMap option is set to true, pass a clone of the generator's map
-    return await this.traceMap.resolver.pm.publish(
+    return await (this.traceMap.resolver.pm.publish as any)(
       exactPkg,
       provider,
       (this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports)).sort((a, b) => {
@@ -1833,11 +1835,11 @@ export class Generator {
       rootUrl: this.rootUrl,
       env: this.traceMap.resolver.env,
       defaultProvider:
-        this.traceMap.installer.defaultProvider.provider +
+        this.traceMap.installer!.defaultProvider.provider +
         '#' +
-        this.traceMap.installer.defaultProvider.layer,
-      defaultRegistry: this.traceMap.installer.defaultRegistry,
-      resolutions: this.traceMap.installer.resolutions,
+        this.traceMap.installer!.defaultProvider.layer,
+      defaultRegistry: this.traceMap.installer!.defaultRegistry,
+      resolutions: this.traceMap.installer!.resolutions,
       fetchOptions: this.traceMap.resolver.fetchOpts,
       commonJS: this.traceMap.resolver.traceCjs,
       typeScript: this.traceMap.resolver.traceTs,
@@ -1913,9 +1915,9 @@ export class Generator {
     const trace = this.traceMap.resolver.getAnalysis(url);
     if (!trace) throw new Error(`The URL ${url} has not been traced by this generator instance.`);
     return {
-      format: trace.format,
-      staticDeps: trace.deps,
-      dynamicDeps: trace.dynamicDeps,
+      format: trace.format!,
+      staticDeps: trace.deps!,
+      dynamicDeps: trace.dynamicDeps!,
       cjsLazyDeps: trace.cjsLazyDeps || []
     };
   }
@@ -1966,7 +1968,7 @@ export class Generator {
       const entry = resolver.traceEntries[url];
       const packageBase = resolver.packageBaseCache[url];
       if (typeof packageBase === 'string') {
-        cache.packageBases[url] = packageBase;
+        cache.packageBases![url] = packageBase;
       }
 
       if (!entry) continue;
@@ -1983,10 +1985,10 @@ export class Generator {
         }
         continue;
       }
-      if (['json', 'esm', 'css', 'wasm'].includes(entry.format)) {
+      if (['json', 'esm', 'css', 'wasm'].includes(entry.format!)) {
         cache.analysis[url] = {
-          deps: entry.deps,
-          dynamicDeps: entry.dynamicDeps,
+          deps: entry.deps!,
+          dynamicDeps: entry.dynamicDeps!,
           size: entry.size,
           integrity: entry.integrity,
           format: entry.format as 'json' | 'esm' | 'css' | 'wasm',
@@ -1996,7 +1998,7 @@ export class Generator {
     }
 
     // Clean up empty sections
-    if (!Object.keys(cache.packageBases).length) delete cache.packageBases;
+    if (!Object.keys(cache.packageBases!).length) delete cache.packageBases;
 
     return cache;
   }
@@ -2015,7 +2017,7 @@ export class Generator {
       const resolveTarget = (target: string): string => {
         if (isURL(target)) return target;
         if (map.rootUrl && target.startsWith('/')) return new URL(target, map.rootUrl).href;
-        return new URL(target, map.mapUrl).href;
+        return new URL(target, map.mapUrl!).href;
       };
 
       const packageBaseCache = new Map<string, string | null>();
@@ -2130,7 +2132,7 @@ export async function lookup(install: string | Install, { provider, cache }: Loo
   const { target, subpath, alias } = await installToTarget.call(
     generator,
     install,
-    generator.traceMap.installer.defaultRegistry
+    generator.traceMap.installer!.defaultRegistry
   );
   if (typeof target === 'string')
     throw new Error(
@@ -2141,7 +2143,7 @@ export async function lookup(install: string | Install, { provider, cache }: Loo
   if (pkgTarget instanceof URL) throw new Error('URL lookups not supported');
   const resolved = await generator.traceMap.resolver.pm.resolveLatestTarget(
     pkgTarget,
-    generator.traceMap.installer.getProvider(pkgTarget),
+    generator.traceMap.installer!.getProvider(pkgTarget),
     generator.baseUrl.href,
     generator.traceMap.resolver
   );
@@ -2189,8 +2191,8 @@ export async function getPackageConfig(
   if (typeof pkg === 'object' && 'name' in pkg)
     pkg = await generator.traceMap.resolver.pm.pkgToUrl(
       pkg,
-      generator.traceMap.installer.defaultProvider.provider,
-      generator.traceMap.installer.defaultProvider.layer
+      generator.traceMap.installer!.defaultProvider.provider,
+      generator.traceMap.installer!.defaultProvider.layer
     );
   else if (typeof pkg === 'string') pkg = new URL(pkg).href;
   else pkg = pkg.href;
@@ -2321,7 +2323,7 @@ function detectDefaultProvider(
     }
   }
 
-  let winner: string | null;
+  let winner: string | null = null;
   let winnerCount = 0;
   for (const [name, count] of Object.entries(counts)) {
     if (count > winnerCount) {

@@ -19,6 +19,7 @@ export default antfu(
         varsIgnorePattern: '^_',
       }],
       'antfu/no-import-dist': 'off',
+      'test/no-import-node-test': 'off',
       'regexp/no-super-linear-backtracking': 'off',
       'regexp/optimal-quantifier-concatenation': 'off',
       'regexp/use-ignore-case': 'off',

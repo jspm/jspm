@@ -15,8 +15,8 @@
  */
 
 import { strict as assert } from 'node:assert';
-import { getPackageConfig, lookup } from '@jspm/generator';
 import { describe, it } from 'node:test';
+import { getPackageConfig, lookup } from '@jspm/generator';
 import ls from '../src/ls.ts';
 
 describe('ls command', () => {

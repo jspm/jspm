@@ -236,7 +236,8 @@ export default ({
         );
       }
     },
-    async resolveId(name, parent, { attributes } = {}) {
+    async resolveId(name, parent, options) {
+      const attributes = options?.attributes || options?.assertions;
       const topLevel = !parent;
       if (topLevel) parent = baseUrl;
 

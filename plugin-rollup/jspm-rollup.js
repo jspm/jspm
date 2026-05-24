@@ -278,27 +278,26 @@ export default ({
       if (resolved.startsWith("node:"))
         return { id: resolved.slice(5), external: true };
 
-      const format = generator.getAnalysis(resolved).format;
-
-      // builtins treated as externals
-      // (builtins only emitted as builtins from resolver for Node, not browser)
-      switch (format) {
-        case "json":
-          moduleFormats.set(resolved, FORMAT_JSON);
-          break;
-        case "commonjs":
-          if (!cjsResolve) resolved += "?entry";
-          moduleFormats.set(resolved, cjsResolve ? FORMAT_CJS_DEW : FORMAT_CJS);
-          break;
-        case "typescript":
-          moduleFormats.set(resolved, FORMAT_TYPESCRIPT);
-          break;
-      }
-
-      if (attributes?.type === 'css')
+      if (attributes?.type === 'css') {
         moduleFormats.set(resolved, FORMAT_CSS);
-      else if (attributes?.type === 'json')
+      } else if (attributes?.type === 'json') {
         moduleFormats.set(resolved, FORMAT_JSON);
+      } else {
+        const format = generator.getAnalysis(resolved).format;
+
+        switch (format) {
+          case "json":
+            moduleFormats.set(resolved, FORMAT_JSON);
+            break;
+          case "commonjs":
+            if (!cjsResolve) resolved += "?entry";
+            moduleFormats.set(resolved, cjsResolve ? FORMAT_CJS_DEW : FORMAT_CJS);
+            break;
+          case "typescript":
+            moduleFormats.set(resolved, FORMAT_TYPESCRIPT);
+            break;
+        }
+      }
 
       if (externalsMap) {
         let id = externalsMap.get(resolved);

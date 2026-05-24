@@ -24,4 +24,5 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - run: npm install
+    - run: npm run -ws build
     - run: chomp -c plugin-rollup test

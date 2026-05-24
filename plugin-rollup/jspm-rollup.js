@@ -2,6 +2,8 @@ import { ImportMap } from "@jspm/import-map";
 import babel from "@babel/core";
 import dewTransformPlugin from "./transform-cjs-dew.cjs";
 import path from "path";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
 import { Generator, fetch } from "@jspm/generator";
 import * as cjsModuleLexer from "cjs-module-lexer";
 import { isIdentifier } from "./identifier.js";
@@ -80,6 +82,24 @@ const FORMAT_CJS_DEW = 2;
 const FORMAT_JSON = 4;
 const FORMAT_TYPESCRIPT = 8;
 const FORMAT_CSS = 16;
+
+function sanitizeTemplateStr(str) {
+  return str.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+}
+
+function minifyCSS(content) {
+  const calc_functions = [];
+  const calc_regex = /\bcalc\(([^)]+)\)/g;
+  const comments = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\/\*[\s\S]*?\*\//g;
+  const syntax =
+    /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\s*([{};,>~])\s*|\s*([*$~^|]?=)\s*|\s+([+-])(?=.*\{)|([[(:])\s+|\s+([\])])|\s+(:)(?![^}]*\{)|^\s+|\s+$|(\s)\s+(?![^(]*\))/g;
+  return content
+    .replace(calc_regex, (_, group) => { calc_functions.push(group); return '__CALC__'; })
+    .replace(comments, '$1')
+    .replace(syntax, '$1$2$3$4$5$6$7$8')
+    .replace(/__CALC__/g, () => `calc(${calc_functions.shift()})`)
+    .replace(/\n+/g, ' ');
+}
 
 export default ({
   baseUrl,
@@ -275,6 +295,11 @@ export default ({
           break;
       }
 
+      if (attributes?.type === 'css')
+        moduleFormats.set(resolved, FORMAT_CSS);
+      else if (attributes?.type === 'json')
+        moduleFormats.set(resolved, FORMAT_JSON);
+
       if (externalsMap) {
         let id = externalsMap.get(resolved);
         if (id !== undefined) {
@@ -323,6 +348,30 @@ export default ({
             },
             presets: [presetTypescript],
           });
+        case FORMAT_CSS: {
+          const basePath = fileURLToPath(baseUrl);
+          const cssUrlRegEx = /url\(\s*(?:(["'])((?:\\.|[^\n\\"'])+)\1|((?:\\.|[^\s,"'()\\])+))\s*\)/g;
+          const processedCode = code.replace(cssUrlRegEx, (match, quotes = '', relUrl1, relUrl2) => {
+            const resolved = new URL(relUrl1 || relUrl2, id).href;
+            if (!resolved.startsWith('file:')) return match;
+            const fileId = this.emitFile({
+              type: 'asset',
+              name: path.relative(basePath, fileURLToPath(resolved)).replace(/\\/g, '/'),
+              source: readFileSync(fileURLToPath(resolved))
+            });
+            return `url(${quotes}import.meta.ROLLUP_FILE_URL_${fileId}}${quotes})`;
+          });
+          const transformedCode = minify ? minifyCSS(processedCode) : processedCode;
+          return {
+            code: `const sheet = new CSSStyleSheet();sheet.replaceSync(\`${sanitizeTemplateStr(
+              transformedCode
+            ).replace(
+              /import\.meta\.ROLLUP_FILE_URL_/g,
+              '${import.meta.ROLLUP_FILE_URL_'
+            )}\`);export default sheet;`,
+            map: { mappings: '' }
+          };
+        }
         case FORMAT_CJS_DEW:
           // fallthrough
           break;

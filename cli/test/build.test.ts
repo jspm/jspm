@@ -47,9 +47,9 @@ it('build with rollup config', async () => {
         'CSS URLs should be rebased to use proper relative paths'
       );
 
-      // Verify JSON data imports are correctly handled
-      ok(appJs.includes('"Test Component Data"'), 'Built app.js should include imported JSON data');
-      ok(appJs.includes('theme:"light"'), 'Built app.js should include settings from JSON data');
+      // Verify JSON data imports are correctly handled (only used properties survive tree-shaking)
+      ok(appJs.includes('First Item'), 'Built app.js should include imported JSON data');
+      ok(appJs.includes('light'), 'Built app.js should include settings from JSON data');
 
       // Verify TypeScript compilation
       ok(

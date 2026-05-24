@@ -11,6 +11,7 @@ import {
   mergeConstraints,
   mergeLocks,
   extractLockConstraintsAndMap,
+  resolveScopeGroup,
   InstalledResolution
 } from '../install/lock.js';
 
@@ -739,6 +740,34 @@ export default class TraceMap {
           `${specifier} ${parentUrl} -> ${userImportsResolved} (scope resolution)`
         );
         return userImportsResolved;
+      }
+    }
+
+    // Linked scope fallback: if the parent is in a linked secondary scope,
+    // check the master scope's inputMap entries
+    if (this.opts.linkedScopes) {
+      const masterScope = resolveScopeGroup(parentPkgUrl, this.opts.linkedScopes);
+      if (masterScope !== parentPkgUrl) {
+        const masterScopeMatches = getScopeMatches(
+          masterScope, this.inputMap.scopes, this.inputMap.mapUrl!
+        );
+        for (const [scope] of masterScopeMatches) {
+          const mapMatch = getMapMatch(specifier, this.inputMap.scopes[scope]);
+          if (mapMatch) {
+            const resolved = await this.resolver.realPath(
+              resolveUrl(
+                this.inputMap.scopes[scope][mapMatch] + specifier.slice(mapMatch.length),
+                this.inputMap.mapUrl!,
+                this.inputMap.rootUrl!
+              )
+            );
+            this.log?.(
+              'tracemap/resolve',
+              `${specifier} ${parentUrl} -> ${resolved} (linked scope resolution)`
+            );
+            return resolved;
+          }
+        }
       }
     }
 

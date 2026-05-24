@@ -112,6 +112,73 @@ import { Generator } from '@jspm/generator';
   assert.strictEqual(primarySemver, secondarySemver, 'both scopes should share the same resolution');
 }
 
+// #-prefixed inputMap specifiers resolve via linked master scope
+{
+  const CDN = 'https://example.com/modules';
+  const masterScope = `${CDN}/masterAAA/`;
+  const otherScope = `${CDN}/otherBBB/`;
+
+  const generator = new Generator({
+    mapUrl: 'about:blank',
+    inputMap: {
+      imports: {},
+      scopes: {
+        [masterScope]: {
+          '#framer/local/comp/abc/abc.js': `${CDN}/masterAAA/save1/mod.js`,
+          lodash: 'https://ga.jspm.io/npm:lodash@4.17.21/lodash.js',
+        },
+      },
+    },
+    env: ['production', 'browser', 'module'],
+    flattenScopes: false,
+    combineSubpaths: false,
+    scopedLink: true,
+    linkedScopes: {
+      [masterScope]: [masterScope, otherScope],
+    },
+    customProviders: {
+      test: {
+        ownsUrl(url) {
+          return url.startsWith(CDN + '/');
+        },
+        async getPackageConfig(url) {
+          if (!url.startsWith(CDN + '/')) return {};
+          const segments = url.slice(CDN.length + 1).split('/');
+          const moduleId = segments[0];
+          if (
+            (moduleId === 'masterAAA' || moduleId === 'otherBBB') &&
+            segments.length > 2
+          )
+            return null;
+          return {};
+        },
+      },
+    },
+  });
+
+  generator.setVirtualSourceData(`${CDN}/otherBBB/save1/`, {
+    'mod.js': 'import comp from "#framer/local/comp/abc/abc.js";\nexport default comp;',
+  });
+  generator.setVirtualSourceData(`${CDN}/masterAAA/save1/`, {
+    'mod.js': "export default 'A';",
+  });
+
+  await generator.link([`${CDN}/otherBBB/save1/mod.js`]);
+  const map = generator.getMap();
+
+  const otherScopeMappings = map.scopes[otherScope];
+  assert.ok(otherScopeMappings, 'otherBBB scope should exist in the output map');
+  assert.ok(
+    otherScopeMappings['#framer/local/comp/abc/abc.js'],
+    '#-prefixed specifier should be resolved for the linked secondary scope'
+  );
+  assert.strictEqual(
+    otherScopeMappings['#framer/local/comp/abc/abc.js'],
+    `${CDN}/masterAAA/save1/mod.js`,
+    '#-prefixed specifier should resolve to the master scope target'
+  );
+}
+
 // Freeze install preserves primary inputMap resolution despite secondary range conflict
 {
   const generator = new Generator({

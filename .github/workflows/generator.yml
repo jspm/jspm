@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [18.x, 24.x]
+        node: [20.x, 24.x]
         deno: ['2']
     steps:
     - uses: actions/checkout@v2

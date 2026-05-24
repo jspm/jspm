@@ -17,10 +17,13 @@ jobs:
         include:
           - os: ubuntu-latest
             node: 20.x
+            lint: false
           - os: ubuntu-latest
             node: 22.x
+            lint: true
           - os: windows-latest
             node: 24.x
+            lint: true
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
@@ -36,6 +39,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm install
       - run: chomp -c cli lint
+        if: matrix.lint
       - run: npm run -ws build
       - run: node cli/dist/jspm.js config set -p jspm.io authToken ${{ secrets.JSPM_TOKEN }}
         if: env.JSPM_TOKEN != ''

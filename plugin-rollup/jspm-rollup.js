@@ -237,9 +237,16 @@ export default ({
       }
     },
     async resolveId(name, parent, { attributes } = {}) {
-
       const topLevel = !parent;
       if (topLevel) parent = baseUrl;
+
+      if (attributes?.type === 'css' || attributes?.type === 'json') {
+        let resolved;
+        try { resolved = importMap.resolve(name, parent); } catch {}
+        if (!resolved) resolved = new URL(name, parent).href;
+        moduleFormats.set(resolved, attributes.type === 'css' ? FORMAT_CSS : FORMAT_JSON);
+        return resolved;
+      }
 
       const cjsResolve =
         moduleFormats.get(parent) & (FORMAT_CJS | FORMAT_CJS_DEW);
@@ -278,25 +285,19 @@ export default ({
       if (resolved.startsWith("node:"))
         return { id: resolved.slice(5), external: true };
 
-      if (attributes?.type === 'css') {
-        moduleFormats.set(resolved, FORMAT_CSS);
-      } else if (attributes?.type === 'json') {
-        moduleFormats.set(resolved, FORMAT_JSON);
-      } else {
-        const format = generator.getAnalysis(resolved).format;
+      const format = generator.getAnalysis(resolved).format;
 
-        switch (format) {
-          case "json":
-            moduleFormats.set(resolved, FORMAT_JSON);
-            break;
-          case "commonjs":
-            if (!cjsResolve) resolved += "?entry";
-            moduleFormats.set(resolved, cjsResolve ? FORMAT_CJS_DEW : FORMAT_CJS);
-            break;
-          case "typescript":
-            moduleFormats.set(resolved, FORMAT_TYPESCRIPT);
-            break;
-        }
+      switch (format) {
+        case "json":
+          moduleFormats.set(resolved, FORMAT_JSON);
+          break;
+        case "commonjs":
+          if (!cjsResolve) resolved += "?entry";
+          moduleFormats.set(resolved, cjsResolve ? FORMAT_CJS_DEW : FORMAT_CJS);
+          break;
+        case "typescript":
+          moduleFormats.set(resolved, FORMAT_TYPESCRIPT);
+          break;
       }
 
       if (externalsMap) {

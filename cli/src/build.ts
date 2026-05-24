@@ -81,16 +81,16 @@ startSpinner(`Building package ${c.cyan(projectConfig.name)}...`);
       },
       input,
       plugins: [
+        cssPlugin({
+          baseUrl,
+          minify: flags.minify
+        }),
         jspmRollup({
           generator,
           baseUrl,
           env,
           minify: flags.minify
-        }) as any,
-        cssPlugin({
-          baseUrl,
-          minify: flags.minify
-        })
+        }) as any
       ]
     });
 

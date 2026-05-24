@@ -4,3 +4,4 @@ dist
 sandbox
 deno.lock
 importmap.json
+plugin-rollup/test/out

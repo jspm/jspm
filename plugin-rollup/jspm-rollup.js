@@ -6,6 +6,7 @@ import { Generator, fetch } from "@jspm/generator";
 import * as cjsModuleLexer from "cjs-module-lexer";
 import { isIdentifier } from "./identifier.js";
 import presetTypescript from '@babel/preset-typescript';
+import { builtinModules } from 'module';
 
 let cache = Object.create(null);
 let namedExportsCache = new Map();
@@ -78,6 +79,7 @@ const FORMAT_CJS = 1;
 const FORMAT_CJS_DEW = 2;
 const FORMAT_JSON = 4;
 const FORMAT_TYPESCRIPT = 8;
+const FORMAT_CSS = 16;
 
 export default ({
   baseUrl,
@@ -170,18 +172,20 @@ export default ({
 
       if (minify && !terser) terser = await import("terser");
 
-      // always trace process and buffer builtins
-      try {
-        await Promise.all([
-          generator.link("process"),
-          generator.link("buffer"),
-          generator.link("module"),
-        ]);
-        processBuiltinResolved = generator.importMap.resolve("process");
-        bufferBuiltinResolved = generator.importMap.resolve("buffer");
-        moduleBuiltinResolved = generator.importMap.resolve("module");
-      } catch (err) {
-        builtinResolvedErr = err;
+      // always trace process and buffer builtins (browser polyfills)
+      if (!env.includes('node')) {
+        try {
+          await Promise.all([
+            generator.link("process"),
+            generator.link("buffer"),
+            generator.link("module"),
+          ]);
+          processBuiltinResolved = generator.importMap.resolve("process");
+          bufferBuiltinResolved = generator.importMap.resolve("buffer");
+          moduleBuiltinResolved = generator.importMap.resolve("module");
+        } catch (err) {
+          builtinResolvedErr = err;
+        }
       }
 
       await Promise.all(
@@ -212,7 +216,8 @@ export default ({
         );
       }
     },
-    async resolveId(name, parent) {
+    async resolveId(name, parent, { attributes } = {}) {
+
       const topLevel = !parent;
       if (topLevel) parent = baseUrl;
 
@@ -221,6 +226,9 @@ export default ({
 
       if (cjsResolve && name[name.length - 1] === "/")
         name = name.substr(0, name.length - 1);
+
+      if (env.includes('node') && (name.startsWith('node:') || builtinModules.includes(name)))
+        return { id: name, external: true };
 
       let resolved = importMap.resolve(name, parent);
 
@@ -373,6 +381,9 @@ export default ({
                   depId = depId.slice(0, -1);
                 }
 
+                if (env.includes('node') && builtinModules.includes(depId))
+                  return depId;
+
                 if (depId === "process") {
                   if (builtinResolvedErr) throw builtinResolvedErr;
                   return processBuiltinResolved;
@@ -445,6 +456,8 @@ export default ({
                 } else if (depId.endsWith("/")) {
                   depId = depId.slice(0, -1);
                 }
+                if (env.includes('node') && builtinModules.includes(depId))
+                  return true;
                 if (
                   depId === "buffer" ||
                   depId === "module" ||

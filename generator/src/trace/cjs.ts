@@ -148,5 +148,5 @@ function buildDynamicString(node: any, fileName: any, isEsm = false, lastIsWildc
       return './' + fileName;
     }
   }*/
-  return lastIsWildcard ? '' : '*';
+  return lastIsWildcard ? '' : '\x10';
 }

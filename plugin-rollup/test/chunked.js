@@ -4,7 +4,8 @@ import * as rollup from 'rollup';
 import jspmRollup from '@jspm/plugin-rollup';
 import { fileURLToPath } from 'url';
 
-const baseUrl = new URL('../', import.meta.url);
+const baseUrl = new URL('../../', import.meta.url);
+const projectUrl = new URL('../', import.meta.url);
 const fixturesUrl = new URL('./fixtures', import.meta.url);
 const outFixturesUrl = new URL('./out', import.meta.url);
 const outFixturesPath = fileURLToPath(outFixturesUrl);
@@ -36,27 +37,21 @@ suite('Dynamic import', () => {
     assert.strictEqual(code.indexOf(`import('chalk')`), -1, 'Dynamic import must be remapped');
     assert.deepStrictEqual(
       build.cache.modules
-        .map(module => module.id.slice(baseUrl.href.length))
+        .map(module =>
+          module.id.startsWith(projectUrl.href)
+            ? module.id.slice(projectUrl.href.length)
+            : module.id.startsWith(baseUrl.href)
+              ? module.id.slice(baseUrl.href.length)
+              : module.id
+        )
         .sort()
         .filter(m => !m.startsWith('node_modules/@jspm/core/')),
       [
-        '-string-regexp/index.js',
-        'convert/conversions.js',
-        'convert/index.js',
-        'convert/route.js',
-        'core/nodelibs/browser/assert.js',
-        'core/nodelibs/browser/chunk-CkFCi-G1.js',
-        'core/nodelibs/browser/chunk-DEMDiNwt.js',
-        'core/nodelibs/browser/chunk-DtcTpLWz.js',
-        'core/nodelibs/browser/process.js',
-        'core/nodelibs/browser/util.js',
-        'index.js',
-        'index.js?entry',
-        'name/index.js',
-        'templates.js',
-        'test/fixtures/dynamic-import.js',
-        'ts-color/browser.js',
-        'tyles/index.js'
+        'node_modules/chalk/source/index.js',
+        'node_modules/chalk/source/utilities.js',
+        'node_modules/chalk/source/vendor/ansi-styles/index.js',
+        'node_modules/chalk/source/vendor/supports-color/browser.js',
+        'test/fixtures/dynamic-import.js'
       ].map(path => (path.endsWith('?dewexternal') ? path : path))
     );
   });
@@ -120,7 +115,7 @@ suite('Chunked builds', () => {
       output: [babel, lodash]
     } = await bundle.write({ format: 'esm', dir: outFixturesPath });
 
-    assert.strictEqual(Object.keys(babel.modules).length, 306);
+    assert.strictEqual(Object.keys(babel.modules).length, 298);
     assert.strictEqual(Object.keys(lodash.modules).length, 138);
 
     // test we can execute (assertions in code)

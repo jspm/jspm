@@ -74,7 +74,7 @@ pjson.dependencies = {};
     await run({
       files,
       commands: [
-        `jspm install ./fixtures/scenario_providers -p ${provider} -C production -m importmap.json`
+        `jspm install -p ${provider} -C production -m importmap.json`
       ],
       validationFn: async (files: Map<string, string>) => {
         const map = JSON.parse(files.get('importmap.json') ?? '{}');

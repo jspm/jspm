@@ -7,7 +7,7 @@ const filesRoot = await mapDirectory('fixtures/scenario_roots');
 it('rootURL = /, mapURL = /importmap.json', async () => {
   await run({
     files: filesRoot,
-    commands: ['jspm install roots -o importmap.json'],
+    commands: ['jspm install -o importmap.json'],
     validationFn: async (files: Map<string, string>) => {
       const map = JSON.parse(files.get('importmap.json')!);
       assert.strictEqual(map.imports.roots, './a/b/index.js');
@@ -19,7 +19,7 @@ it('rootURL = /, mapURL = /importmap.json', async () => {
 it('rootURL = /, mapURL = /a/importmap.json', async () => {
   await run({
     files: filesRoot,
-    commands: ['jspm install roots -o a/importmap.json --root .'],
+    commands: ['jspm install -o a/importmap.json --root .'],
     validationFn: async (files: Map<string, string>) => {
       const map = JSON.parse(files.get('a/importmap.json')!);
       assert.strictEqual(map.imports.roots, '/a/b/index.js'); // rooted URL
@@ -31,7 +31,7 @@ it('rootURL = /, mapURL = /a/importmap.json', async () => {
 it('rootURL = /a, mapURL = /a/importmap.json', async () => {
   await run({
     files: filesRoot,
-    commands: ['jspm install roots -o a/importmap.json --root a'],
+    commands: ['jspm install -o a/importmap.json --root a'],
     validationFn: async (files: Map<string, string>) => {
       const map = JSON.parse(files.get('a/importmap.json')!);
       assert.strictEqual(map.imports.roots, '/b/index.js'); // rooted URL
@@ -45,7 +45,7 @@ it('rootURL = /a, mapURL = /a/importmap.json', async () => {
 it('rootURL = /a/b, mapURL = /a/importmap.json', async () => {
   await run({
     files: filesRoot,
-    commands: ['jspm install roots -o a/importmap.json --root a/b'],
+    commands: ['jspm install -o a/importmap.json --root a/b'],
     validationFn: async (files: Map<string, string>) => {
       const map = JSON.parse(files.get('a/importmap.json')!);
       assert.strictEqual(map.imports.roots, '/index.js'); // rooted URL

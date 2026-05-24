@@ -1255,12 +1255,12 @@ export class Generator {
    * Will respect {@link GeneratorOptions.customResolver} for dependency specifier resolution. If requiring
    * a {@link GeneratorOptions.customResolver} to apply at the top-level, use {@link Generator.link} instead.
    */
-  async install(install: string | Install | (string | Install)[], mode?: InstallMode): Promise<void | { staticDeps: string[]; dynamicDeps: string[] }>;
-  async install(mode?: InstallMode): Promise<void | { staticDeps: string[]; dynamicDeps: string[] }>;
+  async install(install: string | Install | (string | Install)[], mode?: InstallMode): Promise<{ staticDeps: string[]; dynamicDeps: string[] }>;
+  async install(mode?: InstallMode): Promise<{ staticDeps: string[]; dynamicDeps: string[] }>;
   async install(
     install?: string | Install | (string | Install)[] | InstallMode,
     mode?: InstallMode
-  ): Promise<void | { staticDeps: string[]; dynamicDeps: string[] }> {
+  ): Promise<{ staticDeps: string[]; dynamicDeps: string[] }> {
     if (
       install === 'default' ||
       install === 'latest-primaries' ||
@@ -1276,7 +1276,7 @@ export class Generator {
   private async _install(
     install?: string | Install | (string | Install)[],
     mode?: InstallMode
-  ): Promise<void | { staticDeps: string[]; dynamicDeps: string[] }> {
+  ): Promise<{ staticDeps: string[]; dynamicDeps: string[] }> {
     // If there are no arguments, then we reinstall all the top-level locks:
     if (
       install === null ||

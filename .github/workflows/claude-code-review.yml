@@ -2,28 +2,17 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [opened, ready_for_review, reopened, labeled]
-    paths-ignore:
-      - "**/*.md"
-      - "**/*.lock"
-      - "package-lock.json"
-      - "pnpm-lock.yaml"
-      - "yarn.lock"
-      - "dist/**"
-      - "build/**"
-      - "**/__generated__/**"
-
-concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+    types: [opened, synchronize, ready_for_review, reopened, labeled]
 
 jobs:
   claude-review:
     if: |
-      (github.event.action == 'labeled' && github.event.label.name == 'claude-review') ||
-      (github.event.action != 'labeled' && github.event.pull_request.draft == false)
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.draft == false && (
+        (github.event.action == 'labeled' && github.event.label.name == 'claude-review') ||
+        github.event.action != 'labeled'
+      )
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     permissions:
       contents: read
       pull-requests: write
@@ -44,8 +33,6 @@ jobs:
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
-          claude_args: --max-turns 15 --model claude-opus-4-7 --permission-mode bypassPermissions
-          show_full_output: true
 
       - name: Remove claude-review label
         if: always() && github.event.action == 'labeled' && github.event.label.name == 'claude-review'

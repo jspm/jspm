@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { it } from 'vitest';
+import { it } from 'node:test';
 import { run } from './scenarios.ts';
 
 it('support importmap.json when both exist', async () => {

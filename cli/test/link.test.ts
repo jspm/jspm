@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { it } from 'vitest';
+import { it } from 'node:test';
 import { mapFile, run } from './scenarios.ts';
 
 const scripts = await mapFile(['fixtures/a.js', 'fixtures/b.js']);

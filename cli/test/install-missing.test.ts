@@ -1,4 +1,4 @@
-import { it } from 'vitest';
+import { it } from 'node:test';
 import { run } from './scenarios.ts';
 
 it('install package with build failure', async () => {

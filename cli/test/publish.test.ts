@@ -15,7 +15,7 @@
  */
 
 import assert from 'node:assert';
-import { it } from 'vitest';
+import { it } from 'node:test';
 import { mapDirectory, run } from './scenarios.ts';
 
 if (!process.env.JSPM_TOKEN) {

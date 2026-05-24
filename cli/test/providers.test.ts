@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { it } from 'vitest';
+import { it } from 'node:test';
 import { availableProviders } from '../src/utils.ts';
 import { mapDirectory, run } from './scenarios.ts';
 

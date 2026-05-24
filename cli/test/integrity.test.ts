@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { it } from 'vitest';
+import { it } from 'node:test';
 import { mapDirectory, mapFile, run } from './scenarios.ts';
 
 const importMap = await mapFile('fixtures/importmap.js');

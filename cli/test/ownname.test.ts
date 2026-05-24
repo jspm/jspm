@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { it } from 'vitest';
+import { it } from 'node:test';
 import { mapDirectory, run } from './scenarios.ts';
 
 const filesOwnName = await mapDirectory('fixtures/scenario_ownname');

@@ -1,5 +1,5 @@
 import { ok } from 'node:assert';
-import { it } from 'vitest';
+import { it } from 'node:test';
 import { mapDirectory, run } from './scenarios.ts';
 
 it('build with rollup config', async () => {

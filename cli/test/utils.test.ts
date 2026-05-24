@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { it } from 'vitest';
+import { it } from 'node:test';
 import { wrapCommand } from '../src/utils.ts';
 
 it('wrapCommand should properly wrap commands', () => {

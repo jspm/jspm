@@ -1934,6 +1934,13 @@ export class Generator {
    * parse errors. CJS/TypeScript/System formats are excluded as they require
    * dynamic transpilation.
    *
+   * `packageConfigSkips` omits cached package configs and package bases for
+   * URLs starting with any listed base, while still caching their module
+   * analysis (deps). Use this for providers whose `getPackageConfig` is dynamic
+   * - caching a snapshot of such configs would pin stale package boundaries on
+   * subsequent runs. `moduleSkips` omits cached module analysis for URLs
+   * starting with any listed base.
+   *
    * @example
    * ```js
    * const generator = new Generator({ traceCache: true });
@@ -1942,9 +1949,15 @@ export class Generator {
    * fs.writeFileSync('cache.json', JSON.stringify(cache));
    * ```
    */
-  getCache(): GeneratorCache {
+  getCache({
+    moduleSkips = [],
+    packageConfigSkips = []
+  }: { moduleSkips?: string[]; packageConfigSkips?: string[] } = {}): GeneratorCache {
     const resolver = this.traceMap.resolver;
     const traceMap = this.traceMap;
+    const skipModule = (url: string) => moduleSkips.some(base => url.startsWith(base));
+    const skipPackageConfig = (url: string) =>
+      packageConfigSkips.some(base => url.startsWith(base));
     const packageConfigUrls = new Set([
       ...resolver.visitedUrls,
       ...resolver.touchedPackageConfigUrls
@@ -1958,6 +1971,7 @@ export class Generator {
     };
 
     for (const url of packageConfigUrls) {
+      if (skipPackageConfig(url)) continue;
       const pcfg = resolver.pcfgs[url];
       if (pcfg !== undefined) {
         cache.packageConfigs[url] = pcfg;
@@ -1967,9 +1981,11 @@ export class Generator {
     for (const url of analysisUrls) {
       const entry = resolver.traceEntries[url];
       const packageBase = resolver.packageBaseCache[url];
-      if (typeof packageBase === 'string') {
+      if (typeof packageBase === 'string' && !skipPackageConfig(url)) {
         cache.packageBases![url] = packageBase;
       }
+
+      if (skipModule(url)) continue;
 
       if (!entry) continue;
       if (entry.parseError) {

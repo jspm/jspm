@@ -67,7 +67,7 @@ deps = [
 run = """
 ../node_modules/.bin/esbuild src/cli.ts --bundle --platform=node --format=esm --outfile=$TARGET \
     --external:@jspm/generator --external:ora --external:picocolors --external:@babel/core \
-    --external:@jspm/plugin-rollup --external:node:*
+    --external:@jspm/plugin-rollup --external:rollup --external:@rollup/rollup-* --external:node:* --external:fsevents
 """
 
 [[task]]

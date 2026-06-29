@@ -374,6 +374,41 @@ export default class TraceMap {
     toplevel: boolean = true,
     parentUrl?: string
   ) {
+    const result = await this._extractMap(modules, integrity, toplevel, parentUrl);
+    this.applyLinkedScopes(result.map);
+    return result;
+  }
+
+  // Give every linked scope the same scope object identity as its master scope, so that a
+  // dependency resolved into any linked origin's scope is also reflected in the master scope
+  // (master wins on conflict). The installer already shares version resolution across a linked
+  // group; this mirrors that into the output map so the group resolves consistently and the
+  // master scope can be hoisted by a consumer. See the linkedScopes option.
+  private applyLinkedScopes(map: ImportMap) {
+    const linkedScopes = this.opts.linkedScopes;
+    if (!linkedScopes) return;
+    for (const [master, secondaries] of Object.entries(linkedScopes)) {
+      let shared = map.scopes[master];
+      for (const secondary of secondaries) {
+        if (secondary === master) continue;
+        const secondaryScope = map.scopes[secondary];
+        if (!secondaryScope || secondaryScope === shared) continue;
+        if (!shared) shared = map.scopes[master] = Object.create(null);
+        for (const key of Object.keys(secondaryScope)) {
+          if (!(key in shared)) shared[key] = secondaryScope[key];
+        }
+      }
+      if (!shared) continue;
+      for (const secondary of secondaries) map.scopes[secondary] = shared;
+    }
+  }
+
+  private async _extractMap(
+    modules: string[],
+    integrity: boolean,
+    toplevel: boolean = true,
+    parentUrl?: string
+  ) {
     this.log?.('generator/extractMap', `Extracting map for ${modules.join(', ')}`);
     const map = new ImportMap({ mapUrl: this.mapUrl, rootUrl: this.rootUrl });
 

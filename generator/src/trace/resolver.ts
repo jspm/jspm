@@ -1011,6 +1011,25 @@ async function getAnalysis(resolver: Resolver, resolvedUrl: string): Promise<Ana
 
     sourceText = new TextDecoder().decode(source);
 
+    // Declaration files are validly exported and remain mapped, but carry no
+    // runtime module graph - their specifiers follow TypeScript declaration
+    // resolution (a "./x.js" specifier naming an ./x.d.ts), so tracing them as
+    // imports resolves against files that need not exist.
+    if (
+      resolvedUrl.endsWith('.d.ts') ||
+      resolvedUrl.endsWith('.d.mts') ||
+      resolvedUrl.endsWith('.d.cts')
+    ) {
+      return {
+        deps: [],
+        dynamicDeps: [],
+        cjsLazyDeps: null,
+        size: sourceText.length,
+        format: 'typescript',
+        integrity: await getIntegrity(sourceText)
+      };
+    }
+
     if (
       resolver.traceTs &&
       (resolvedUrl.endsWith('.ts') || resolvedUrl.endsWith('.tsx') || resolvedUrl.endsWith('.jsx'))

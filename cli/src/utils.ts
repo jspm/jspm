@@ -1032,6 +1032,26 @@ return false;
 }
 
 /**
+ * Resolve an exports target to the single resolution it takes for the given env,
+ * matching the strict Node conditional resolution of Resolver.resolvePackageTarget.
+ *
+ * Unknown conditions are only speculatively expanded as a whole-target fallback,
+ * when no strict resolution exists at all, so that packages exporting solely
+ * under conditions we don't know about still resolve to something. Speculating
+ * inline would let an unknown condition ordered ahead of "default" shadow it,
+ * enumerating subpaths that then fail to resolve.
+ */
+function resolveTargetResolution(
+  exports: any,
+  files: Set<string> | undefined,
+  env: string[],
+  targetList: Set<string>
+) {
+  if (!expandTargetResolutions(exports, files, env, targetList, [], true, false))
+    expandTargetResolutions(exports, files, env, targetList, [], true, true);
+}
+
+/**
  * Expand a package exports field into its set of subpaths and resolution
  * With an optional file list for expanding globs
  */
@@ -1043,18 +1063,18 @@ export function expandExportsResolutions(
 ) {
   if (typeof exports !== 'object' || exports === null || !allDotKeys(exports)) {
     const targetList = new Set<string>();
-    expandTargetResolutions(exports, files, env, targetList, [], true);
+    resolveTargetResolution(exports, files, env, targetList);
     for (const target of targetList) {
       if (target.startsWith('./')) {
         const targetFile = target.slice(2);
-        if (!files || files.has(targetFile)) 
+        if (!files || files.has(targetFile))
 exportsResolutions.set('.', targetFile);
       }
     }
   } else {
     for (const subpath of Object.keys(exports)) {
       const targetList = new Set<string>();
-      expandTargetResolutions(exports[subpath], files, env, targetList, [], true);
+      resolveTargetResolution(exports[subpath], files, env, targetList);
       for (const target of targetList) {
         expandExportsTarget(
           exports as Record<string, any>,
@@ -1123,15 +1143,16 @@ function expandTargetResolutions(
   env: string[],
   targetList: Set<string>,
   envExclusions = env.map(condition => conditionMutualExclusions[condition]).filter(c => c),
-  firstOnly: boolean
+  firstOnly: boolean,
+  speculate = true
 ): boolean {
   if (typeof exports === 'string') {
-    if (exports.startsWith('./')) 
+    if (exports.startsWith('./'))
 targetList.add(exports);
     return true;
   } else if (Array.isArray(exports)) {
     for (const item of exports) {
-      if (expandTargetResolutions(item, files, env, targetList, envExclusions, firstOnly))
+      if (expandTargetResolutions(item, files, env, targetList, envExclusions, firstOnly, speculate))
         return true;
     }
     return false;
@@ -1151,13 +1172,14 @@ continue;
             env,
             targetList,
             envExclusions,
-            firstOnly
+            firstOnly,
+            speculate
           )
         ) {
           return true;
         }
       }
-      if (envExclusions.includes(condition)) 
+      if (!speculate || envExclusions.includes(condition))
 continue;
       const maybeNewExclusion = conditionMutualExclusions[condition];
       const newExclusions =
@@ -1172,10 +1194,11 @@ continue;
           env,
           targetList,
           newExclusions,
-          firstOnly
+          firstOnly,
+          speculate
         )
       ) {
-        if (firstOnly) 
+        if (firstOnly)
 return true;
         hasSomeResolution = true;
         envExclusions = newExclusions;

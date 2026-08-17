@@ -9,6 +9,6 @@
         "default": "./src/*"
       }
     },
-    "./dist/*": "./dist/*"
+    "./bundled/*": "./bundled/*"
   }
 }

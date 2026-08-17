@@ -28,8 +28,8 @@ if (!isBrowser) {
     'Should have trailing-slash entry for src/'
   );
   assert.ok(
-    json.imports['wildcard-conditions-test/dist/'],
-    'Should have trailing-slash entry for dist/'
+    json.imports['wildcard-conditions-test/bundled/'],
+    'Should have trailing-slash entry for bundled/'
   );
   assert.ok(
     json.imports['wildcard-conditions-test/src/'].endsWith('/src/'),

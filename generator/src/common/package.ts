@@ -66,7 +66,12 @@ export function getWildcardPrefixes(
   for (const subpath of Object.keys(exports)) {
     if (subpath.indexOf('*') === -1) continue;
     let targetList = new Set<string>();
-    expandTargetResolutions((exports as Record<string, ExportsTarget>)[subpath], files, env, targetList, [], true);
+    resolveTargetResolution(
+      (exports as Record<string, ExportsTarget>)[subpath],
+      files,
+      env,
+      targetList
+    );
     for (const target of targetList) {
       if (!target.startsWith('./') || target.indexOf('*') === -1) continue;
       const targetSuffix = target.slice(target.indexOf('*') + 1);
@@ -94,6 +99,26 @@ export function getWildcardPrefixes(
 }
 
 /**
+ * Resolve an exports target to the single resolution it takes for the given env,
+ * matching the strict Node conditional resolution of Resolver.resolvePackageTarget.
+ *
+ * Unknown conditions are only speculatively expanded as a whole-target fallback,
+ * when no strict resolution exists at all, so that packages exporting solely
+ * under conditions we don't know about still resolve to something. Speculating
+ * inline would let an unknown condition ordered ahead of "default" shadow it,
+ * enumerating subpaths that then fail to resolve.
+ */
+function resolveTargetResolution(
+  exports: ExportsTarget,
+  files: Set<string> | undefined,
+  env: string[],
+  targetList: Set<string>
+) {
+  if (!expandTargetResolutions(exports, files, env, targetList, [], true, false))
+    expandTargetResolutions(exports, files, env, targetList, [], true, true);
+}
+
+/**
  * Expand a package exports field into its set of subpaths and resolution
  * With an optional file list for expanding globs
  */
@@ -105,7 +130,7 @@ export function expandExportsResolutions(
 ) {
   if (typeof exports !== 'object' || exports === null || !allDotKeys(exports)) {
     let targetList = new Set<string>();
-    expandTargetResolutions(exports, files, env, targetList, [], true);
+    resolveTargetResolution(exports, files, env, targetList);
     for (const target of targetList) {
       if (target.startsWith('./')) {
         const targetFile = target.slice(2);
@@ -115,7 +140,12 @@ export function expandExportsResolutions(
   } else {
     for (const subpath of Object.keys(exports)) {
       let targetList = new Set<string>();
-      expandTargetResolutions((exports as Record<string, ExportsTarget>)[subpath], files, env, targetList, [], true);
+      resolveTargetResolution(
+        (exports as Record<string, ExportsTarget>)[subpath],
+        files,
+        env,
+        targetList
+      );
       for (const target of targetList) {
         expandExportsTarget(
           exports as Record<string, ExportsTarget>,
@@ -151,7 +181,14 @@ export function expandExportsEntries(
   } else {
     for (const subpath of Object.keys(exports)) {
       let targetList = new Set<string>();
-      expandTargetResolutions((exports as Record<string, ExportsTarget>)[subpath], files, env, targetList, [], false);
+      expandTargetResolutions(
+        (exports as Record<string, ExportsTarget>)[subpath],
+        files,
+        env,
+        targetList,
+        [],
+        false
+      );
       for (const target of targetList) {
         let map = new Map();
         expandExportsTarget(exports as Record<string, ExportsTarget>, subpath, target, files, map);
@@ -182,15 +219,20 @@ function expandTargetResolutions(
   files: Set<string> | undefined,
   env: string[],
   targetList: Set<string>,
-  envExclusions = env.map(condition => (conditionMutualExclusions as Record<string, string>)[condition]).filter(c => c),
-  firstOnly: boolean
+  envExclusions = env
+    .map(condition => (conditionMutualExclusions as Record<string, string>)[condition])
+    .filter(c => c),
+  firstOnly: boolean,
+  speculate = true
 ): boolean {
   if (typeof exports === 'string') {
     if (exports.startsWith('./')) targetList.add(exports);
     return true;
   } else if (Array.isArray(exports)) {
     for (const item of exports) {
-      if (expandTargetResolutions(item, files, env, targetList, envExclusions, firstOnly))
+      if (
+        expandTargetResolutions(item, files, env, targetList, envExclusions, firstOnly, speculate)
+      )
         return true;
     }
     return false;
@@ -209,13 +251,14 @@ function expandTargetResolutions(
             env,
             targetList,
             envExclusions,
-            firstOnly
+            firstOnly,
+            speculate
           )
         ) {
           return true;
         }
       }
-      if (envExclusions.includes(condition)) continue;
+      if (!speculate || envExclusions.includes(condition)) continue;
       const maybeNewExclusion = (conditionMutualExclusions as Record<string, string>)[condition];
       const newExclusions =
         maybeNewExclusion && !envExclusions.includes(maybeNewExclusion)
@@ -229,7 +272,8 @@ function expandTargetResolutions(
           env,
           targetList,
           newExclusions,
-          firstOnly
+          firstOnly,
+          speculate
         )
       ) {
         if (firstOnly) return true;
@@ -264,7 +308,8 @@ function expandExportsTarget(
   // and any subsequent *s become backreferences, enforcing that all wildcards
   // match the same value (per Node.js exports semantics).
   // See https://nodejs.org/api/packages.html#subpath-patterns
-  const regexPattern = target.slice(2)
+  const regexPattern = target
+    .slice(2)
     .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
     .replace('*', '(.+)')
     .replaceAll('*', '\\1');

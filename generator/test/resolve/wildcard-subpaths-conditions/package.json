@@ -1,0 +1,14 @@
+{
+  "name": "wildcard-conditions-test",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./src/*": {
+      "import": {
+        "types": "./types/src/*",
+        "default": "./src/*"
+      }
+    },
+    "./dist/*": "./dist/*"
+  }
+}

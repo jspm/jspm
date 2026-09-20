@@ -2,7 +2,7 @@ import { JspmError } from '../common/err.js';
 import { baseUrl, isRelative } from '../common/url.js';
 // @ts-ignore
 import sver from 'sver';
-const { SemverRange } = sver;
+const { Semver, SemverRange } = sver;
 import { InstallTarget, PackageProvider } from './installer.js';
 import { Resolver } from '../trace/resolver.js';
 import { builtinSchemes } from '../providers/index.js';
@@ -219,18 +219,6 @@ export async function parseTarget(
   };
 }
 
-const npmVPrefixRegEx = /(^|[\s=<>^~|])v(?=\d)/g;
-
-// npm ignores a "v" prefix on versions, where for other registries it is a tag
-function npmSemverRange(rangeStr: string) {
-  const stripped = rangeStr.replace(npmVPrefixRegEx, '$1');
-  if (stripped !== rangeStr) {
-    const range = new SemverRange(stripped);
-    if (!range.isExact || !range.version.tag) return range;
-  }
-  return new SemverRange(rangeStr);
-}
-
 export function newPackageTarget(
   target: string,
   parentPkgUrl: URL,
@@ -278,7 +266,10 @@ export function newPackageTarget(
 
   if (registryIndex === -1 && name.indexOf('/') !== -1 && name[0] !== '@') registry = 'github';
 
-  range = registry === 'npm' ? npmSemverRange(rangeStr) : new SemverRange(rangeStr);
+  // npm ignores a "v" prefix on versions, where for other registries it is a tag
+  if (registry === 'npm' && rangeStr.startsWith('v') && Semver.isValid(rangeStr.slice(1)))
+    rangeStr = rangeStr.slice(1);
+  range = new SemverRange(rangeStr);
 
   const targetNameLen = name.split('/').length;
   if (targetNameLen > 2 || (targetNameLen === 1 && name[0] === '@'))

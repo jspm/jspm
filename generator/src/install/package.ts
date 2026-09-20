@@ -2,7 +2,7 @@ import { JspmError } from '../common/err.js';
 import { baseUrl, isRelative } from '../common/url.js';
 // @ts-ignore
 import sver from 'sver';
-const { SemverRange } = sver;
+const { Semver, SemverRange } = sver;
 import { InstallTarget, PackageProvider } from './installer.js';
 import { Resolver } from '../trace/resolver.js';
 import { builtinSchemes } from '../providers/index.js';
@@ -251,20 +251,25 @@ export function newPackageTarget(
 
   const versionIndex = target.lastIndexOf('@');
   let unstable = false;
+  let rangeStr = '*';
   if (versionIndex > registryIndex + 1) {
     name = target.slice(registryIndex + 1, versionIndex);
     const version = target.slice(versionIndex + 1);
-    range = new SemverRange(version || '*');
     if (version === '') unstable = true;
+    else rangeStr = version;
   } else if (registryIndex === -1 && pkgName) {
     name = pkgName;
-    range = new SemverRange(target);
+    rangeStr = target;
   } else {
     name = target.slice(registryIndex + 1);
-    range = new SemverRange('*');
   }
 
   if (registryIndex === -1 && name.indexOf('/') !== -1 && name[0] !== '@') registry = 'github';
+
+  // npm ignores a "v" prefix on versions, where for other registries it is a tag
+  if (registry === 'npm' && rangeStr.startsWith('v') && Semver.isValid(rangeStr.slice(1)))
+    rangeStr = rangeStr.slice(1);
+  range = new SemverRange(rangeStr);
 
   const targetNameLen = name.split('/').length;
   if (targetNameLen > 2 || (targetNameLen === 1 && name[0] === '@'))

@@ -1,0 +1,7 @@
+{
+  "name": "vprefix",
+  "type": "module",
+  "dependencies": {
+    "lodash-es": "v4.17.20"
+  }
+}

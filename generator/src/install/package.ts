@@ -219,6 +219,18 @@ export async function parseTarget(
   };
 }
 
+const npmVPrefixRegEx = /(^|[\s=<>^~|])v(?=\d)/g;
+
+// npm ignores a "v" prefix on versions, where for other registries it is a tag
+function npmSemverRange(rangeStr: string) {
+  const stripped = rangeStr.replace(npmVPrefixRegEx, '$1');
+  if (stripped !== rangeStr) {
+    const range = new SemverRange(stripped);
+    if (!range.isExact || !range.version.tag) return range;
+  }
+  return new SemverRange(rangeStr);
+}
+
 export function newPackageTarget(
   target: string,
   parentPkgUrl: URL,
@@ -251,20 +263,22 @@ export function newPackageTarget(
 
   const versionIndex = target.lastIndexOf('@');
   let unstable = false;
+  let rangeStr = '*';
   if (versionIndex > registryIndex + 1) {
     name = target.slice(registryIndex + 1, versionIndex);
     const version = target.slice(versionIndex + 1);
-    range = new SemverRange(version || '*');
     if (version === '') unstable = true;
+    else rangeStr = version;
   } else if (registryIndex === -1 && pkgName) {
     name = pkgName;
-    range = new SemverRange(target);
+    rangeStr = target;
   } else {
     name = target.slice(registryIndex + 1);
-    range = new SemverRange('*');
   }
 
   if (registryIndex === -1 && name.indexOf('/') !== -1 && name[0] !== '@') registry = 'github';
+
+  range = registry === 'npm' ? npmSemverRange(rangeStr) : new SemverRange(rangeStr);
 
   const targetNameLen = name.split('/').length;
   if (targetNameLen > 2 || (targetNameLen === 1 && name[0] === '@'))

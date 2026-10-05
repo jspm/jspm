@@ -125,36 +125,23 @@ describe('ls command', () => {
       await fs.writeFile(path.join(dir, file), 'export {};\n');
 
     const originalConsoleLog = console.log;
-    let logCalls: string[] = [];
+    let listed: Record<string, string> = {};
     console.log = (...args) => {
-      logCalls.push(args.join(' '));
+      // colors are enabled under CI
+      const match = args
+        .join(' ')
+        .replace(/\u001B\[\d+m/g, '')
+        .match(/^(\S+) → (.+)$/);
+      if (match) listed[match[1]] = match[2];
     };
 
     try {
       await ls('', { quiet: false, dir });
-      assert.ok(
-        logCalls.some(log => log.includes('ls-env-test ') && log.includes('a.js')),
-        'Should resolve the import branch'
-      );
-      assert.ok(
-        logCalls.some(log => log.includes('ls-env-test/platform') && log.includes('browser.js')),
-        'Should resolve the browser branch by default'
-      );
-      assert.ok(
-        !logCalls.some(log => log.includes('a.cjs') || log.includes('node.js')),
-        'Should not list targets outside the environment'
-      );
+      assert.deepEqual(listed, { 'ls-env-test': 'a.js', 'ls-env-test/platform': 'browser.js' });
 
-      logCalls = [];
+      listed = {};
       await ls('', { quiet: false, dir, conditions: 'node' });
-      assert.ok(
-        logCalls.some(log => log.includes('ls-env-test/platform') && log.includes('node.js')),
-        'Should resolve the node branch with -C node'
-      );
-      assert.ok(
-        !logCalls.some(log => log.includes('browser.js')),
-        'Should drop the browser branch with -C node'
-      );
+      assert.deepEqual(listed, { 'ls-env-test': 'a.js', 'ls-env-test/platform': 'node.js' });
     } finally {
       console.log = originalConsoleLog;
       await fs.rm(dir, { recursive: true });

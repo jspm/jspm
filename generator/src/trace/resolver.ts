@@ -974,7 +974,6 @@ async function legacyMainResolve(
 
 // TODO: Refactor legacy intermediate Analysis type into TraceEntry directly
 async function getAnalysis(resolver: Resolver, resolvedUrl: string): Promise<Analysis | null> {
-  const parentIsRequire = false;
   const res = await fetch(resolvedUrl, resolver.fetchOpts);
   if (isResponseImmutable(res.headers)) resolver.immutableUrls.add(resolvedUrl);
   let source;
@@ -1062,34 +1061,19 @@ async function getAnalysis(resolver: Resolver, resolvedUrl: string): Promise<Ana
       } catch {}
     }
 
-    const [imports, exports] = parse(sourceText);
+    const [imports, , , hasModuleSyntax] = parse(sourceText);
+    // CommonJS tracing applies to the file: protocol only, following the Node.js
+    // detection rule that a source without module syntax is CommonJS
     if (
-      imports.every(impt => impt.type === 'dynamic') &&
-      !exports.length &&
-      resolvedUrl.startsWith('file:')
+      resolver.traceCjs &&
+      !hasModuleSyntax &&
+      resolvedUrl.startsWith('file:') &&
+      (resolvedUrl.endsWith('.cjs') ||
+        (resolvedUrl.endsWith('.js') &&
+          (await resolver.getPackageConfig(await resolver.getPackageBase(resolvedUrl)))?.type !==
+            'module'))
     ) {
-      // Support CommonJS package boundary checks for non-ESM on file: protocol only
-      if (parentIsRequire) {
-        if (
-          resolver.traceCjs &&
-          !(
-            resolvedUrl.endsWith('.mjs') ||
-            (resolvedUrl.endsWith('.js') &&
-              (await resolver.getPackageConfig(await resolver.getPackageBase(resolvedUrl)))
-                ?.type === 'module')
-          )
-        ) {
-          return createCjsAnalysis(imports, sourceText, resolvedUrl);
-        }
-      } else if (
-        resolver.traceCjs &&
-        (resolvedUrl.endsWith('.cjs') ||
-          (resolvedUrl.endsWith('.js') &&
-            (await resolver.getPackageConfig(await resolver.getPackageBase(resolvedUrl)))?.type !==
-              'module'))
-      ) {
-        return createCjsAnalysis(imports, sourceText, resolvedUrl);
-      }
+      return createCjsAnalysis(imports, sourceText, resolvedUrl);
     }
     return resolver.traceSystem
       ? createSystemAnalysis(sourceText, imports, resolvedUrl)

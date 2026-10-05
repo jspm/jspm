@@ -376,6 +376,7 @@ export interface GeneratorOptions {
   /**
    * Support tracing CommonJS dependencies locally. This is necessary if you
    * are using the "nodemodules" provider and have CommonJS dependencies.
+   * Local files without ES module syntax are traced as CommonJS.
    * Disabled by default.
    */
   commonJS?: boolean;

@@ -449,37 +449,6 @@ import { lookup } from '@jspm/generator';`
   });
 });
 
-// Test publish with watch mode (short duration for testing)
-// This test must be last as the watcher stop is a process.exit
-it('publish watch mode basic test', async () => {
-  const files = await mapDirectory('fixtures/scenario_deploy');
-
-  // For testing watch mode, we'll start it but cancel after a short time
-  // This is just to ensure the watch mode starts properly
-  let watchProcess;
-
-  try {
-    // We need to handle this differently since watch mode is long-running
-    // Instead we'll just verify it can start
-    watchProcess = run({
-      files,
-      commands: [`jspm publish -p jspm.io --version dev --watch --no-usage`],
-      validationFn: async () => {
-        // Watch mode should start successfully
-        await new Promise((resolve, reject) => {
-          watchProcess.catch(reject);
-          setTimeout(resolve, 5_000);
-        });
-        process.stdin.emit('data', 'q');
-      }
-    });
-    // This test is more to verify the watch mode can be started
-    // A more thorough test would actually modify files and verify republish
-  } catch (error) {
-    assert.fail(`Watch mode failed to start: ${error}`);
-  }
-});
-
 // Test publish with --dir
 it('publish with --dir publishes the package in that directory', async () => {
   const files = new Map();
@@ -509,4 +478,35 @@ it('publish with --dir publishes the package in that directory', async () => {
       assert((await res.text()).includes('dir test'), 'Published package should be the --dir package');
     }
   });
+});
+
+// Test publish with watch mode (short duration for testing)
+// This test must be last as the watcher stop is a process.exit
+it('publish watch mode basic test', async () => {
+  const files = await mapDirectory('fixtures/scenario_deploy');
+
+  // For testing watch mode, we'll start it but cancel after a short time
+  // This is just to ensure the watch mode starts properly
+  let watchProcess;
+
+  try {
+    // We need to handle this differently since watch mode is long-running
+    // Instead we'll just verify it can start
+    watchProcess = run({
+      files,
+      commands: [`jspm publish -p jspm.io --version dev --watch --no-usage`],
+      validationFn: async () => {
+        // Watch mode should start successfully
+        await new Promise((resolve, reject) => {
+          watchProcess.catch(reject);
+          setTimeout(resolve, 5_000);
+        });
+        process.stdin.emit('data', 'q');
+      }
+    });
+    // This test is more to verify the watch mode can be started
+    // A more thorough test would actually modify files and verify republish
+  } catch (error) {
+    assert.fail(`Watch mode failed to start: ${error}`);
+  }
 });

@@ -156,3 +156,30 @@ const opts = {
     'merged prefix mapping should be traced into its exports'
   );
 }
+
+// Scoped link roots are updated and uninstalled like top-level roots:
+{
+  const generator = new Generator({
+    ...opts,
+    scopedLink: true,
+    inputMap: {
+      imports: {
+        react: 'https://ga.jspm.io/npm:react@17.0.1/index.js'
+      }
+    }
+  });
+  const reactUrl = () =>
+    Object.values(generator.getMap().scopes ?? {}).find(scope => scope.react)?.react;
+
+  await generator.link('react');
+  assert.strictEqual(reactUrl(), 'https://ga.jspm.io/npm:react@17.0.1/index.js');
+
+  await generator.install();
+  assert.strictEqual(reactUrl(), 'https://ga.jspm.io/npm:react@17.0.1/index.js');
+
+  await generator.update('react');
+  assert.strictEqual(reactUrl(), 'https://ga.jspm.io/npm:react@17.0.2/index.js');
+
+  await generator.uninstall('react');
+  assert.deepStrictEqual(generator.getMap(), {});
+}

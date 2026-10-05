@@ -1438,14 +1438,31 @@ export class Generator {
         return this.traceMap.add(name, { pkgTarget }, mode);
       })
     );
-    // enumerated pins keep their unknown importer tolerance
-    return this._trace(
-      this.traceMap.roots.imports.filter(impt =>
-        names.some(name => impt === name || impt.startsWith(name + '/'))
-      ),
-      mode,
-      this.traceMap.unknownPins
+
+    // Retrace the matching roots of every group under the install mode, each
+    // from its own parent, keeping the unknown importer tolerance of enumerated pins
+    const { roots, unknownPins } = this.traceMap;
+    const matches = (impt: string) =>
+      names.some(name => impt === name || impt.startsWith(name + '/'));
+    for (const [list, toplevel, parentUrl] of rootGroups(roots, this.mapUrl.href)) {
+      const modules = await this.traceMap.expandRoots(list.filter(matches), unknownPins);
+      await Promise.all(
+        modules.map(impt =>
+          this.traceMap.visit(
+            impt,
+            { installMode: mode, toplevel, unknownImporter: unknownPins.has(impt) },
+            parentUrl
+          )
+        )
+      );
+    }
+
+    const { map, staticDeps, dynamicDeps } = await this.traceMap.extractRoots(
+      roots,
+      this.integrity
     );
+    this.map = map;
+    return { staticDeps, dynamicDeps };
   }
 
   // Traces the given top-level imports under the install mode, adding them to
@@ -1522,21 +1539,29 @@ export class Generator {
     if (typeof names === 'string') names = [names];
     await this.traceMap.processInputMap;
     const { roots, unknownPins } = this.traceMap;
+    const lists = [roots.imports, ...Object.values(roots.scopes)];
     for (const name of names) {
-      const removed = roots.imports.filter(
-        impt => impt === name || (name.endsWith('/') && impt.startsWith(name))
-      );
-      if (!removed.length) throw new JspmError(`No "imports" entry for "${name}" to uninstall.`);
-      for (const impt of removed) {
-        roots.imports.splice(roots.imports.indexOf(impt), 1);
-        unknownPins.delete(impt);
+      let removed = 0;
+      for (const list of lists) {
+        for (const impt of list.filter(
+          impt => impt === name || (name.endsWith('/') && impt.startsWith(name))
+        )) {
+          list.splice(list.indexOf(impt), 1);
+          unknownPins.delete(impt);
+          removed++;
+        }
       }
+      if (!removed) throw new JspmError(`No "imports" entry for "${name}" to uninstall.`);
 
-      // Drop the primary lock once no top-level import of the package remains
+      // Drop the primary lock once no root of the package remains
       const { pkgName } = parsePkg(name)!;
-      if (!roots.imports.some(impt => impt === pkgName || impt.startsWith(pkgName + '/')))
+      if (
+        !lists.some(list => list.some(impt => impt === pkgName || impt.startsWith(pkgName + '/')))
+      )
         this.traceMap.installer!.removePrimary(pkgName);
     }
+    for (const [parentUrl, list] of Object.entries(roots.scopes))
+      if (!list.length) delete roots.scopes[parentUrl];
     const { staticDeps, dynamicDeps, map } = await this.traceMap.extractRoots(
       roots,
       this.integrity
@@ -2351,6 +2376,18 @@ async function installToTarget(
     alias: install.alias || alias,
     subpath: install.subpath || subpath
   };
+}
+
+// The root groups with their trace parent and placement, as extraction walks them
+function rootGroups(roots: Roots, mapUrl: string): [string[], boolean, string][] {
+  return [
+    [roots.imports, true, mapUrl],
+    ...Object.entries(roots.scopes).map(([parentUrl, list]): [string[], boolean, string] => [
+      list,
+      false,
+      parentUrl
+    ])
+  ];
 }
 
 function hasRoots(roots: Roots) {

@@ -41,14 +41,14 @@ function showShortcuts(directory?: string) {
   console.log(`${c.magenta(c.bold('\nKeyboard shortcuts:'))}
  → ${c.bold(c.bgBlueBright(c.whiteBright(' o ')))} ${c.dim('Open package URL in the browser')}
  → ${c.bold(c.bgBlueBright(c.whiteBright(' l ')))} ${c.dim(
-    'Open package listing page in the browser'
-  )}
+   'Open package listing page in the browser'
+ )}
  → ${c.bold(c.bgBlueBright(c.whiteBright(' c ')))} ${c.dim(
-    'Copy HTML usage script code snippet to clipboard'
-  )}
+   'Copy HTML usage script code snippet to clipboard'
+ )}
  → ${c.bold(c.bgBlueBright(c.whiteBright(' p ')))} ${c.dim(
-    'Open self-contained preview URL in the browser'
-  )}
+   'Open self-contained preview URL in the browser'
+ )}
  → ${c.bold(c.bgBlueBright(c.whiteBright(' r ')))} ${c.dim('Force republish')}
  → ${c.bold(c.bgBlueBright(c.whiteBright(' q ')))} ${c.dim('Stop (or Ctrl+C)')}`);
 
@@ -102,11 +102,9 @@ export async function eject(flags: EjectFlags) {
   const generator = await getGenerator(flags);
 
   let name = pkg.slice(4);
-  if (name[0] !== '@') 
-name = name.split('/')[0];
+  if (name[0] !== '@') name = name.split('/')[0];
   else name = name.split('/').slice(0, 2).join('/');
-  if (name.includes('@')) 
-name = name.slice(0, name.indexOf('@'));
+  if (name.includes('@')) name = name.slice(0, name.indexOf('@'));
 
   const version = pkg.slice(4 + name.length + 1);
 
@@ -320,19 +318,16 @@ async function startWatchMode(
         stopWatch();
         break;
       case 'o':
-        if (packageUrl) 
-open(packageUrl.endsWith('/') ? packageUrl.slice(0, -1) : packageUrl);
+        if (packageUrl) open(packageUrl.endsWith('/') ? packageUrl.slice(0, -1) : packageUrl);
         break;
       case 'l':
-        if (packageUrl) 
-open(packageUrl.endsWith('/') ? packageUrl : `${packageUrl}/`);
+        if (packageUrl) open(packageUrl.endsWith('/') ? packageUrl : `${packageUrl}/`);
         break;
       case 'r':
         forcedRepublish = true;
         break;
       case 'c':
-        if (codeSnippet) 
-copyToClipboard(codeSnippet);
+        if (codeSnippet) copyToClipboard(codeSnippet);
         break;
       case 'p':
         if (codeSnippet) {
@@ -346,7 +341,7 @@ copyToClipboard(codeSnippet);
             ).toString('base64')}`,
             { app: { name: 'chrome' } }
           );
-}
+        }
     }
   });
 
@@ -391,16 +386,15 @@ copyToClipboard(codeSnippet);
       if (changes.length || forcedRepublish) {
         waiting = false;
         if (!firstRun) {
-          if (lastRunWasError) 
-stopSpinner();
+          if (lastRunWasError) stopSpinner();
           else hideShortcuts();
           console.log(
             `${c.blue('Info:')} ${
               forcedRepublish
                 ? 'Requesting republish'
                 : changes.length > 1
-                ? 'Multiple changes detected'
-                : `${path.relative(directory, changes[0]).replace(/\\/g, '/')} changed`
+                  ? 'Multiple changes detected'
+                  : `${path.relative(directory, changes[0]).replace(/\\/g, '/')} changed`
             }, republishing...`
           );
         }

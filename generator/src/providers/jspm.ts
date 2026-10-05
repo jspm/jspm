@@ -424,7 +424,9 @@ export async function fetchVersions(this: ProviderContext, name: string): Promis
   }
   const registryLookup =
     JSON.parse(
-      await getTextIfOk(`https://npmlookup.jspm.io/${encodeURI(name)}`, { cache: 'no-cache' }) as string
+      (await getTextIfOk(`https://npmlookup.jspm.io/${encodeURI(name)}`, {
+        cache: 'no-cache'
+      })) as string
     ) || {};
   const versions = Object.keys(registryLookup.versions || {});
   versionsCacheMap[name] = versions;
@@ -581,8 +583,8 @@ ${
               idx === 0
                 ? ''
                 : idx === 1
-                ? '// Further available import map entrypoints - import as needed:\n// '
-                : '// '
+                  ? '// Further available import map entrypoints - import as needed:\n// '
+                  : '// '
             }import '${impt}';`
         )
         .join('\n')}${imports.length > 1 ? '\n' : ''}</script>`

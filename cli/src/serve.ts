@@ -1,17 +1,17 @@
-import type {ServerResponse} from 'node:http';
+import type { ServerResponse } from 'node:http';
 import type { ServeFlags } from './cli.ts';
-import type {ProjectConfig} from './init.ts';
+import type { ProjectConfig } from './init.ts';
 import type { IImportMap } from './types.ts';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { createServer  } from 'node:http';
+import { createServer } from 'node:http';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { analyzeHtml } from '@jspm/generator';
 import { transformSync } from 'amaro';
 import mime from 'mime';
 import c from 'picocolors';
-import { initProject  } from './init.ts';
+import { initProject } from './init.ts';
 import install from './install.ts';
 import {
   esmsCodeSnippet,
@@ -78,13 +78,7 @@ export default async function serve(flags: ServeFlags = {}) {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
         });
-        res.end(
-          JSON.stringify(
-            { workspace: { root: resolvedDir, uuid: devtoolsUuid } },
-            null,
-            2
-          )
-        );
+        res.end(JSON.stringify({ workspace: { root: resolvedDir, uuid: devtoolsUuid } }, null, 2));
         return;
       }
 
@@ -126,8 +120,7 @@ export default async function serve(flags: ServeFlags = {}) {
       // Rlve to the actual file system path
       let filePath = join(resolvedDir, reqPath);
       const tsMap = filePath.endsWith('.ts.map') || filePath.endsWith('.mts.map');
-      if (tsMap) 
-filePath = filePath.slice(0, -4);
+      if (tsMap) filePath = filePath.slice(0, -4);
       const relativePath = relative(resolvedDir, filePath).replace(/\\/g, '/');
 
       // Basic security check to prevent directory traversal
@@ -317,8 +310,7 @@ ${error.snippet}`
             for (const module of analyzed.modules) {
               if (module.attrs.type?.value === 'module') {
                 let { start, end, quote } = module.attrs.type!;
-                if (quote) 
-end++;
+                if (quote) end++;
                 content = `${content.slice(0, start + offset)}type="module-shim"${content.slice(
                   end + offset
                 )}`;
@@ -330,8 +322,7 @@ end++;
             for (const inlineModule of analyzed.inlineModules) {
               if (inlineModule.attrs.type?.value === 'module') {
                 let { start, end, quote } = inlineModule.attrs.type!;
-                if (quote) 
-end++;
+                if (quote) end++;
                 content = `${content.slice(0, start + offset)}type="module-shim"${content.slice(
                   end + offset
                 )}`;
@@ -424,19 +415,19 @@ end++;
                   code: printedAvailableExports
                     ? undefined
                     : Object.entries(entries).length > 0
-                    ? {
-                        title: 'Available package.json entry points:',
-                        snippet: Object.entries(entries)
-                          .map(
-                            ([impt, modules]) =>
-                              `${c.green(impt)} → ${modules.map(m => c.cyan(m)).join(', ')}`
-                          )
-                          .join('\n')
-                      }
-                    : {
-                        title: 'package.json:',
-                        snippet: exportsCodeSnippetForEntry('entrypoint.js')
-                      }
+                      ? {
+                          title: 'Available package.json entry points:',
+                          snippet: Object.entries(entries)
+                            .map(
+                              ([impt, modules]) =>
+                                `${c.green(impt)} → ${modules.map(m => c.cyan(m)).join(', ')}`
+                            )
+                            .join('\n')
+                        }
+                      : {
+                          title: 'package.json:',
+                          snippet: exportsCodeSnippetForEntry('entrypoint.js')
+                        }
                 });
                 printedAvailableExports = true;
               }
@@ -522,23 +513,17 @@ end++;
         console.log('');
       } catch (e) {
         stopSpinner();
-        console.error(
-          `${c.red('Install Error:')} `,
-          e instanceof Error ? e.message : e
-        );
+        console.error(`${c.red('Install Error:')} `, e instanceof Error ? e.message : e);
         return null;
       }
-      if (!result) 
-return null;
+      if (!result) return null;
       const mapDeps = new Set<string>();
       const { staticDeps, dynamicDeps } = result;
       staticDeps.forEach(dep => {
-        if (dep.startsWith('file:')) 
-mapDeps.add(dep);
+        if (dep.startsWith('file:')) mapDeps.add(dep);
       });
       dynamicDeps.forEach(dep => {
-        if (dep.startsWith('file:')) 
-mapDeps.add(dep);
+        if (dep.startsWith('file:')) mapDeps.add(dep);
       });
       return {
         deps: [...mapDeps].map(fileUrl => fileURLToPath(fileUrl)),
@@ -562,8 +547,7 @@ mapDeps.add(dep);
       // Start the watch interval
       setInterval(async () => {
         // skip if still processing an existing change
-        if (processing) 
-return;
+        if (processing) return;
 
         const changes: string[] = [];
         const currentFileList = await getFilesRecursively(

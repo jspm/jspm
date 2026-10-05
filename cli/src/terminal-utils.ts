@@ -51,8 +51,7 @@ export async function getOption(
 
     // Handle keypress events
     const handleKeypress = (str, key) => {
-      if (!key) 
-return;
+      if (!key) return;
 
       if (key.name === 'up' && selectedIndex > 0) {
         selectedIndex--;

@@ -82,5 +82,9 @@ import assert from 'assert';
 
   const filterMatch = json.imports['lodash/filter.js'].match(/lodash@(\d+\.\d+\.\d+)\//);
   assert.ok(filterMatch, 'lodash/filter.js import should contain a version');
-  assert.strictEqual(lodashMatch[1], filterMatch[1], 'lodash and lodash/filter.js should have the same version');
+  assert.strictEqual(
+    lodashMatch[1],
+    filterMatch[1],
+    'lodash and lodash/filter.js should have the same version'
+  );
 }

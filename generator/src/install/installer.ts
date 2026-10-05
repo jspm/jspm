@@ -411,9 +411,8 @@ export class Installer {
     // a secondary dependency:
     // TODO: wire this concept through the whole codebase.
     const isTopLevel = !pkgScope || pkgScope == this.installBaseUrl;
-    const versionScope = !isTopLevel && pkgScope
-      ? resolveScopeGroup(pkgScope, this.opts.linkedScopes)
-      : pkgScope;
+    const versionScope =
+      !isTopLevel && pkgScope ? resolveScopeGroup(pkgScope, this.opts.linkedScopes) : pkgScope;
 
     if (this.resolutions[pkgName])
       return this.installTarget(
@@ -441,7 +440,12 @@ export class Installer {
       (isTopLevel && pcfg.devDependencies?.[pkgName]);
     const pjsonTarget =
       pjsonTargetStr &&
-      newPackageTarget(pjsonTargetStr, new URL(definitelyVersionScope), this.defaultRegistry, pkgName);
+      newPackageTarget(
+        pjsonTargetStr,
+        new URL(definitelyVersionScope),
+        this.defaultRegistry,
+        pkgName
+      );
 
     const useLatestPjsonTarget =
       !!pjsonTarget &&
@@ -449,13 +453,20 @@ export class Installer {
 
     // Find any existing locks in the version scope, making sure
     // locks are always in-range for their parent scope pjsons:
-    const existingResolution = getResolution(this.installs, pkgName, isTopLevel ? null : versionScope);
+    const existingResolution = getResolution(
+      this.installs,
+      pkgName,
+      isTopLevel ? null : versionScope
+    );
     if (
       !useLatestPjsonTarget &&
       existingResolution &&
       (isTopLevel ||
         mode === 'freeze' ||
-        (await this.inRange(existingResolution.installUrl, (pjsonTarget as InstallTarget).pkgTarget)))
+        (await this.inRange(
+          existingResolution.installUrl,
+          (pjsonTarget as InstallTarget).pkgTarget
+        )))
     ) {
       this.log?.(
         'installer/install',
@@ -478,7 +489,8 @@ export class Installer {
         traceSubpath,
         semverCompatible,
         semverCompatible && pjsonTarget
-          ? async (installUrl: string) => this.inRange(installUrl, (pjsonTarget as InstallTarget).pkgTarget)
+          ? async (installUrl: string) =>
+              this.inRange(installUrl, (pjsonTarget as InstallTarget).pkgTarget)
           : null
       );
 
@@ -489,7 +501,11 @@ export class Installer {
           (pjsonTarget &&
             (await this.inRange(flattenedResolution.installUrl, pjsonTarget.pkgTarget))))
       ) {
-        this.newInstalls = this.setResolution(pkgName, flattenedResolution.installUrl, versionScope);
+        this.newInstalls = this.setResolution(
+          pkgName,
+          flattenedResolution.installUrl,
+          versionScope
+        );
         return flattenedResolution;
       }
     }

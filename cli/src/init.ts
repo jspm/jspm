@@ -85,8 +85,7 @@ export async function initCreate(
 
     // Set default values based on existing package.json or directory name
     // Use basename to extract just the directory name, not the full path
-    const defaultName =
-      existingPackageJson?.name || basename(projectDir).replace(/[^\w-]/g, '-');
+    const defaultName = existingPackageJson?.name || basename(projectDir).replace(/[^\w-]/g, '-');
     const defaultVersion = existingPackageJson?.version || 'dev';
     const defaultDescription = existingPackageJson?.description || '';
 
@@ -144,8 +143,8 @@ export async function initCreate(
     const defaultEntryPoint = useTypeScript
       ? 'src/index.ts'
       : mode === 'Creating'
-      ? 'src/index.js'
-      : defaultExport;
+        ? 'src/index.js'
+        : defaultExport;
 
     const exportPath =
       defaultExport !== false
@@ -237,8 +236,7 @@ export async function initCreate(
 
     const projectDirRel = relative(process.cwd(), projectDir).replace(/\\/g, '/');
 
-    if (!flags.quiet) 
-console.log('');
+    if (!flags.quiet) console.log('');
 
     // Create tsconfig.json if TypeScript is enabled
     if (useTypeScript) {
@@ -268,7 +266,7 @@ console.log('');
           console.log(
             `${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/tsconfig.json`)} created`
           );
-}
+        }
       }
     }
 
@@ -314,7 +312,7 @@ console.log('');
             console.log(
               `${c.green('✓')}  ${c.cyan(`${projectDirRel || '.'}/${exportsValue}`)} created`
             );
-}
+          }
 
           // Also write the example landing component
           await writeFile(join(dirname(entrypointPath), 'landing.js'), exampleLandingJs);
@@ -328,7 +326,7 @@ console.log('');
                 )}`
               )} created`
             );
-}
+          }
 
           if (!flags.quiet) {
             console.log(
@@ -339,7 +337,7 @@ console.log('');
                 )}`
               )} created`
             );
-}
+          }
         }
       }
     }
@@ -352,8 +350,7 @@ console.log('');
 
         const aiRuleFileRel = relative(process.cwd(), aiRulePath).replace(/\\/g, '/');
 
-        if (!flags.quiet) 
-console.log(`${c.green('✓')}  ${c.cyan(aiRuleFileRel)} created`);
+        if (!flags.quiet) console.log(`${c.green('✓')}  ${c.cyan(aiRuleFileRel)} created`);
       }
     }
 
@@ -388,8 +385,7 @@ console.log(`${c.green('✓')}  ${c.cyan(aiRuleFileRel)} created`);
 
     return config;
   } finally {
-    if (!closed) 
-readline.close();
+    if (!closed) readline.close();
   }
 }
 
@@ -482,7 +478,7 @@ export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
   return config;
 }
 
-async function createExampleHtml (packageJson, hasEntry: boolean) {
+async function createExampleHtml(packageJson, hasEntry: boolean) {
   let esmsUrl;
   try {
     esmsUrl = await getLatestEsms(await getGenerator({}), 'jspm.io');
@@ -513,7 +509,7 @@ async function createExampleHtml (packageJson, hasEntry: boolean) {
 `;
 }
 
-function aiFile (tsEnabled: boolean) {
+function aiFile(tsEnabled: boolean) {
   return `
 # Claude Configuration
 
@@ -652,14 +648,14 @@ The \`importmap.js\` behaves like a lock file itself in that once installed a de
 - \`jspm install\`: Generate importmap.js from package.json entry points and dependencies.
 - \`jspm serve --watch\`: Run the local dev server
 - \`jspm build -o dist\`: Build the application
-`
+`;
 }
 
-function exampleEntry () {
+function exampleEntry() {
   return `import * as landing from './landing.js';
 document.body.innerHTML = landing.render();
 landing.attach(document.body);
-`
+`;
 }
 
 const exampleLandingCss = `:root {
@@ -935,10 +931,10 @@ export function attach(container) {
  * @param _useTypeScript Whether TypeScript is enabled in the project
  * @returns The content for the .gitignore file
  */
-function createGitignore (_useTypeScript: boolean) {
+function createGitignore(_useTypeScript: boolean) {
   return `node_modules/
 dist/
 .vscode/
 .DS_Store
-`
+`;
 }

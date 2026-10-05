@@ -48,10 +48,8 @@ export default async function generateDirectoryListing(
 
   // Format file size
   const formatFileSize = (size: number): string => {
-    if (size < 1024) 
-return `${size} B`;
-    if (size < 1024 * 1024) 
-return `${(size / 1024).toFixed(1)} KB`;
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   };
 
@@ -344,10 +342,8 @@ return `${(size / 1024).toFixed(1)} KB`;
 
   // Sort entries: directories first, then files
   const sortedFiles = files.sort((a, b) => {
-    if (a.isDirectory() && !b.isDirectory()) 
-return -1;
-    if (!a.isDirectory() && b.isDirectory()) 
-return 1;
+    if (a.isDirectory() && !b.isDirectory()) return -1;
+    if (!a.isDirectory() && b.isDirectory()) return 1;
     return a.name.localeCompare(b.name);
   });
 

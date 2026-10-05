@@ -59,12 +59,9 @@ for (const provider of availableProviders) {
 
     // Setup a package.json with appropriate exports and dependencies for testing
     const pjson = JSON.parse(files.get('package.json') || '{}');
-    if (!pjson.name) 
-pjson.name = 'test-project';
-    if (!pjson.exports) 
-pjson.exports = { './index.js': './index.js' };
-    if (!pjson.dependencies) 
-pjson.dependencies = {};
+    if (!pjson.name) pjson.name = 'test-project';
+    if (!pjson.exports) pjson.exports = { './index.js': './index.js' };
+    if (!pjson.dependencies) pjson.dependencies = {};
     pjson.dependencies[name] = '*';
     files.set('package.json', JSON.stringify(pjson, null, 2));
 
@@ -73,9 +70,7 @@ pjson.dependencies = {};
 
     await run({
       files,
-      commands: [
-        `jspm install -p ${provider} -C production -m importmap.json`
-      ],
+      commands: [`jspm install -p ${provider} -C production -m importmap.json`],
       validationFn: async (files: Map<string, string>) => {
         const map = JSON.parse(files.get('importmap.json') ?? '{}');
         assert(map?.scopes?.['./']?.[name]);

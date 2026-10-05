@@ -242,11 +242,7 @@ export class ProviderManager {
     const providerInstance = this.#getProvider(provider);
     if (!providerInstance.pkgToUrl)
       throw new JspmError(`Provider ${provider} does not provide versioned package support`);
-    return providerInstance.pkgToUrl.call(
-      this.#getProviderContext(provider),
-      pkg,
-      layer
-    );
+    return providerInstance.pkgToUrl.call(this.#getProviderContext(provider), pkg, layer);
   }
 
   /**

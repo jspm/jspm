@@ -5,7 +5,7 @@ import {
   isVirtualUrl,
   setRetryCount,
   setPoolSize as setFetchPoolSize,
-  setNetworkFetch,
+  setNetworkFetch
 } from '@jspm/fetch';
 export type { CachedResponse, FetchOptions, SourceData } from '@jspm/fetch';
 export { fetch, clearCache, setVirtualSourceData, isVirtualUrl, setRetryCount, setFetchPoolSize };

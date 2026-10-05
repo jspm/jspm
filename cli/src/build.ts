@@ -67,8 +67,7 @@ export default async function build(flags: BuildFlags) {
   const generator = await getGenerator(flags);
 
   try {
-    if (!flags.quiet) 
-startSpinner(`Building package ${c.cyan(projectConfig.name)}...`);
+    if (!flags.quiet) startSpinner(`Building package ${c.cyan(projectConfig.name)}...`);
 
     const baseUrl = pathToFileURL(projectConfig.projectPath).href;
     const externalPackages = Object.keys(projectConfig.dependencies || {});
@@ -96,8 +95,7 @@ startSpinner(`Building package ${c.cyan(projectConfig.name)}...`);
         ? chunkInfo => {
             const name = chunkInfo.name;
             const dotIdx = name.lastIndexOf('.');
-            if (dotIdx !== -1) 
-return `${name.slice(0, dotIdx)}-[hash:8]${name.slice(dotIdx)}`;
+            if (dotIdx !== -1) return `${name.slice(0, dotIdx)}-[hash:8]${name.slice(dotIdx)}`;
             return '[name]-[hash:8]';
           }
         : '[name]',

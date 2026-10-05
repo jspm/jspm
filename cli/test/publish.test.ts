@@ -475,7 +475,10 @@ it('publish with --dir publishes the package in that directory', async () => {
     validationFn: async () => {
       const res = await fetch(`https://jspm.io/app:jspm-deploy-test@${version}/index.js`);
       assert(res.ok, `Expected the --dir package to be published at version ${version}`);
-      assert((await res.text()).includes('dir test'), 'Published package should be the --dir package');
+      assert(
+        (await res.text()).includes('dir test'),
+        'Published package should be the --dir package'
+      );
     }
   });
 });

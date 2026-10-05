@@ -51,8 +51,7 @@ export default async function install(
 
     generator = await getGenerator(flags, null, input);
 
-    if (!flags.quiet) 
-startSpinner(`Installing local package.json exports...`);
+    if (!flags.quiet) startSpinner(`Installing local package.json exports...`);
 
     const packageUrl = pathToFileURL(`${projectConfig.projectPath}/`).href;
     // Install the local package with subpaths option to trace all exports

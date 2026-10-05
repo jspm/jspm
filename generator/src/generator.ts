@@ -675,7 +675,15 @@ export interface ModuleAnalysis {
 export interface Install {
   target: string | InstallTarget;
   alias?: string;
+  /**
+   * The package subpath to install. A trailing slash such as "./directives/" installs every
+   * export of the package under that prefix, excluding the package main.
+   */
   subpath?: '.' | `./${string}`;
+  /**
+   * The package subpaths to install, each as for subpath, or true to install every export of the
+   * package including its main.
+   */
   subpaths?: ('.' | `./${string}`)[] | true;
 }
 
@@ -1256,8 +1264,9 @@ export class Generator {
    * @param install Package or list of packages to install into the import map.
    * @param mode Install constraint mode.
    *
-   * Passing no install list or an empty install list will reinsstall all top-level "imports" from the
-   * provided input import map.
+   * Passing no install list or an empty install list reinstalls all top-level "imports" of the
+   * input import map. In {@link GeneratorOptions.strict} mode this throws, as the map is not a
+   * source of top-level imports: install the root package with `subpaths: true` instead.
    *
    * @example
    * ```js
@@ -1272,6 +1281,12 @@ export class Generator {
    *
    * // Install a specific subpath of a package
    * await generator.install({ target: 'lit@2', subpath: './html.js' });
+   *
+   * // Install every export under a subpath prefix (installs lit/directives/*). A trailing slash
+   * // enumerates the package exports under the prefix, excluding the package main, with the same
+   * // unknown importer tolerance as subpaths: true.
+   * await generator.install('lit@2/directives/');
+   * await generator.install({ target: 'lit@2', subpath: './directives/' });
    *
    * // Install an export from a locally located package folder into the map with multiple subpaths.
    * // The package.json is used to determine the exports and dependencies.

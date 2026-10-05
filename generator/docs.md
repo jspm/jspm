@@ -83,6 +83,9 @@ await generator.install('react-dom');
 await generator.install('lit@2/decorators.js');
 await generator.install({ target: 'lit@2', subpath: './html.js' });
 
+// Install every export under a subpath prefix, excluding the package main:
+await generator.install('lit@2/directives/');
+
 // Install to a custom alias:
 await generator.install({ target: 'react@16', alias: 'react16' });
 
@@ -100,6 +103,8 @@ console.log(JSON.stringify(generator.getMap(), null, 2));
 {
   "imports": {
     "lit/decorators.js": "https://ga.jspm.io/npm:lit@2.0.0-rc.1/decorators.js",
+    "lit/directives/guard.js": "https://ga.jspm.io/npm:lit@2.0.0-rc.1/directives/guard.js",
+    "lit/directives/repeat.js": "https://ga.jspm.io/npm:lit@2.0.0-rc.1/directives/repeat.js",
     "lit/html.js": "https://ga.jspm.io/npm:lit@2.0.0-rc.1/html.js",
     "mypkg/feature": "./packages/local-pkg/feature.js",
     "react": "./local/react.js",

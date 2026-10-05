@@ -910,7 +910,8 @@ export default class TraceMap {
       const match = getMapMatch(specifier, pcfg.imports);
       if (!match)
         throw new JspmError(
-          `No '${specifier}' import defined in ${parentPkgUrl}${importedFrom(parentUrl)}.`
+          `No '${specifier}' import defined in ${parentPkgUrl}${importedFrom(parentUrl)}.`,
+          'MODULE_NOT_FOUND'
         );
       const target = this.resolver.resolvePackageTarget(
         pcfg.imports[match],

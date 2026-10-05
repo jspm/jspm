@@ -4,5 +4,8 @@
   "exports": {
     ".": "./index.js",
     "./*": "./*"
+  },
+  "imports": {
+    "#other": "./index.js"
   }
 }

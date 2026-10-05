@@ -43,6 +43,22 @@ if (!isBrowser) {
   );
 }
 
+// An undefined "#internal" import is a not-found failure like any other.
+if (!isBrowser) {
+  const generator = new Generator({
+    mapUrl: import.meta.url,
+    defaultProvider: 'nodemodules'
+  });
+
+  await assert.rejects(
+    generator.install({
+      target: new URL('./unknown-root', import.meta.url).href,
+      subpath: './build/internal.js'
+    }),
+    /No '#nope' import defined/
+  );
+}
+
 // Only not-found resolution failures are tolerated.
 if (!isBrowser) {
   const generator = new Generator({

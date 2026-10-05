@@ -100,3 +100,19 @@ assert.strictEqual(json.imports.react, 'https://ga.jspm.io/npm:react@17.0.1/inde
     'https://ga.jspm.io/npm:react@17.0.2/index.js'
   );
 }
+
+// Prefix mappings are reinstalled as the exports of their package under the prefix:
+{
+  const generator = new Generator({
+    mapUrl: import.meta.url,
+    defaultProvider: 'jspm.io',
+    env: ['production', 'browser'],
+    inputMap: {
+      imports: {
+        'lit/directives/': 'https://ga.jspm.io/npm:lit@2.2.7/directives/'
+      }
+    }
+  });
+  await generator.install();
+  assert.ok(Object.keys(generator.getMap().imports).some(key => key.startsWith('lit/directives/')));
+}

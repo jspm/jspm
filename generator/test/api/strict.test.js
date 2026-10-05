@@ -96,3 +96,33 @@ const opts = {
     'https://ga.jspm.io/npm:react@17.0.1/index.js'
   );
 }
+
+// Prefix roots trace the exports of their package under the prefix:
+{
+  const generator = new Generator({
+    ...opts,
+    inputMap: {
+      imports: {
+        'lit/directives/': 'https://ga.jspm.io/npm:lit@2.2.7/directives/'
+      }
+    }
+  });
+  await generator.link('lit/directives/');
+  const scopes = Object.values(generator.getMap().scopes);
+  assert.ok(
+    scopes.some(scope => Object.keys(scope).some(key => key.startsWith('lit/directives/'))),
+    'prefix root should be traced into its exports'
+  );
+}
+{
+  const generator = new Generator(opts);
+  await generator.mergeMap({
+    imports: {
+      'lit/directives/': 'https://ga.jspm.io/npm:lit@2.2.7/directives/'
+    }
+  });
+  assert.ok(
+    Object.keys(generator.getMap().imports).some(key => key.startsWith('lit/directives/')),
+    'merged prefix mapping should be traced into its exports'
+  );
+}

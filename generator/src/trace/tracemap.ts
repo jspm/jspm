@@ -3,6 +3,7 @@ import { importedFrom, isFetchProtocol, isPlain, isURL, resolveUrl } from '../co
 import { Installer } from '../install/installer.js';
 import { JspmError, throwInternalError } from '../common/err.js';
 import { parsePkg } from '../install/package.js';
+import { expandExportsResolutions } from '../common/package.js';
 // @ts-ignore
 import { ImportMap, IImportMap, getMapMatch, getScopeMatches } from '@jspm/import-map';
 import { isBuiltinScheme, isMappableScheme, Resolver, TraceEntry } from './resolver.js';
@@ -429,6 +430,48 @@ export default class TraceMap {
     );
   }
 
+  // Prefix roots like "pkg/dir/" map every export under them, so are traced as
+  // the enumerated exports of the package under that prefix, like subpaths: true
+  private prefixRoots = new Map<string, string[]>();
+  async expandRoots(modules: string[], unknownImports: Set<string>): Promise<string[]> {
+    const expanded: string[] = [];
+    for (const module of modules) {
+      if (!module.endsWith('/') || !isPlain(module)) {
+        expanded.push(module);
+        continue;
+      }
+      let subpaths = this.prefixRoots.get(module);
+      if (!subpaths) {
+        subpaths = [];
+        const { pkgName, subpath } = parsePkg(module)!;
+        const lock = this.installer!.installs.primary[pkgName];
+        const pcfg = lock && (await this.resolver.getPackageConfig(lock.installUrl));
+        if (pcfg?.exports) {
+          const resolutions = new Map<string, string>();
+          expandExportsResolutions(
+            pcfg.exports,
+            this.resolver.env,
+            await this.resolver.getFileList(lock.installUrl),
+            resolutions
+          );
+          for (const exportSubpath of resolutions.keys()) {
+            if (exportSubpath !== '.' && exportSubpath.startsWith(subpath))
+              subpaths.push(pkgName + exportSubpath.slice(1));
+          }
+        } else {
+          this.log?.(
+            'tracemap/warn',
+            `Unable to enumerate the exports under "${module}", so its prefix mapping is not traced`
+          );
+        }
+        this.prefixRoots.set(module, subpaths);
+      }
+      for (const impt of subpaths) unknownImports.add(impt);
+      expanded.push(...subpaths);
+    }
+    return expanded;
+  }
+
   async extractRoots(roots: Roots, integrity: boolean) {
     const map = new ImportMap({ mapUrl: this.mapUrl, rootUrl: this.rootUrl });
 
@@ -444,7 +487,9 @@ export default class TraceMap {
     const groups: [string[], boolean, string][] = [[roots.imports, true, this.mapUrl.href]];
     for (const [parentUrl, modules] of Object.entries(roots.scopes))
       groups.push([modules, false, parentUrl]);
-    for (const [modules, toplevel, parentUrl] of groups) {
+    for (const [roots, toplevel, parentUrl] of groups) {
+      if (!roots.length) continue;
+      const modules = await this.expandRoots(roots, this.unknownPins);
       if (!modules.length) continue;
       this.log?.('generator/extractMap', `Extracting map for ${modules.join(', ')}`);
       await this._extractGroup(

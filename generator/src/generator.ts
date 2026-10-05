@@ -994,26 +994,34 @@ export class Generator {
     if (typeof specifier === 'string') specifier = [specifier];
     let error = false;
     await this.traceMap.processInputMap;
+    const unknownImports = new Set<string>();
     try {
-      await Promise.all(
+      specifier = await this.traceMap.expandRoots(specifier, unknownImports);
+      const resolved = await Promise.all(
         specifier.map(specifier =>
           this.traceMap.visit(
             specifier,
             {
               installMode: 'freeze',
-              toplevel: !this.scopedLink
+              toplevel: !this.scopedLink,
+              unknownImporter: unknownImports.has(specifier)
             },
             parentUrl || this.baseUrl.href
           )
         )
       );
-      const { roots } = this.traceMap;
+      const { roots, unknownPins } = this.traceMap;
       const list = this.scopedLink
         ? (roots.scopes[parentUrl || this.baseUrl.href] ||= [])
         : roots.imports;
-      for (const s of specifier) {
+      specifier.forEach((s, i) => {
+        if (unknownImports.has(s)) {
+          // skipped enumerated subpaths are not roots
+          if (resolved[i] === undefined) return;
+          unknownPins.add(s);
+        }
         if (!list.includes(s)) list.push(s);
-      }
+      });
     } catch (e) {
       error = true;
       throw e;
@@ -1420,6 +1428,7 @@ export class Generator {
   // importer and are traced tolerantly.
   private async _trace(imports: string[], mode: InstallMode, unknownImports: Set<string>) {
     const { roots } = this.traceMap;
+    imports = await this.traceMap.expandRoots(imports, unknownImports);
     await Promise.all(
       imports.map(async impt => {
         const resolved = await this.traceMap.visit(

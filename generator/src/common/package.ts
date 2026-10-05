@@ -66,12 +66,7 @@ export function getWildcardPrefixes(
   for (const subpath of Object.keys(exports)) {
     if (subpath.indexOf('*') === -1) continue;
     let targetList = new Set<string>();
-    resolveTargetResolution(
-      (exports as Record<string, ExportsTarget>)[subpath],
-      files,
-      env,
-      targetList
-    );
+    resolveTargetResolution((exports as Record<string, ExportsTarget>)[subpath], env, targetList);
     for (const target of targetList) {
       if (!target.startsWith('./') || target.indexOf('*') === -1) continue;
       const targetSuffix = target.slice(target.indexOf('*') + 1);
@@ -105,12 +100,29 @@ export function getWildcardPrefixes(
  * them is not enumerated.
  */
 function resolveTargetResolution(
-  exports: ExportsTarget,
-  files: Set<string> | undefined,
+  target: ExportsTarget,
   env: string[],
   targetList: Set<string>
-) {
-  expandTargetResolutions(exports, files, env, targetList, [], true, false);
+): boolean {
+  if (typeof target === 'string') {
+    if (target.startsWith('./')) targetList.add(target);
+    return true;
+  }
+  if (Array.isArray(target)) {
+    for (const item of target) {
+      if (resolveTargetResolution(item, env, targetList)) return true;
+    }
+    return false;
+  }
+  // the null resolution target is a match for not resolving
+  if (target === null) return true;
+  for (const condition of Object.keys(target)) {
+    if (condition.startsWith('.')) continue;
+    if (condition === 'default' || env.includes(condition)) {
+      if (resolveTargetResolution(target[condition], env, targetList)) return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -125,7 +137,7 @@ export function expandExportsResolutions(
 ) {
   if (typeof exports !== 'object' || exports === null || !allDotKeys(exports)) {
     let targetList = new Set<string>();
-    resolveTargetResolution(exports, files, env, targetList);
+    resolveTargetResolution(exports, env, targetList);
     for (const target of targetList) {
       if (target.startsWith('./')) {
         const targetFile = target.slice(2);
@@ -135,12 +147,7 @@ export function expandExportsResolutions(
   } else {
     for (const subpath of Object.keys(exports)) {
       let targetList = new Set<string>();
-      resolveTargetResolution(
-        (exports as Record<string, ExportsTarget>)[subpath],
-        files,
-        env,
-        targetList
-      );
+      resolveTargetResolution((exports as Record<string, ExportsTarget>)[subpath], env, targetList);
       for (const target of targetList) {
         expandExportsTarget(
           exports as Record<string, ExportsTarget>,
@@ -151,132 +158,6 @@ export function expandExportsResolutions(
         );
       }
     }
-  }
-}
-
-/**
- * Expand a package exports field into a list of entry points
- * With an optional file list for expanding globs
- */
-export function expandExportsEntries(
-  exports: ExportsTarget | Record<string, ExportsTarget>,
-  env: string[],
-  files?: Set<string> | undefined,
-  entriesList: Set<string> = new Set()
-) {
-  if (typeof exports !== 'object' || exports === null || !allDotKeys(exports)) {
-    let targetList = new Set<string>();
-    expandTargetResolutions(exports, files, env, targetList, [], false);
-    for (const target of targetList) {
-      if (target.startsWith('./')) {
-        const targetFile = target.slice(2);
-        if (!files || files.has(targetFile)) entriesList.add(targetFile);
-      }
-    }
-  } else {
-    for (const subpath of Object.keys(exports)) {
-      let targetList = new Set<string>();
-      expandTargetResolutions(
-        (exports as Record<string, ExportsTarget>)[subpath],
-        files,
-        env,
-        targetList,
-        [],
-        false
-      );
-      for (const target of targetList) {
-        let map = new Map();
-        expandExportsTarget(exports as Record<string, ExportsTarget>, subpath, target, files, map);
-        for (const entry of map.values()) {
-          entriesList.add(entry);
-        }
-      }
-    }
-  }
-}
-
-/**
- * Expand the given exports target into its possible resolution list,
- * given an environment union.
- * Unknown environment conditions are expanded, with handling for
- * mutual exclusions between environment conditions - i.e. if env is [], and we
- * expand into a "production" branch of the environment, then "development" branches
- * will be excluded on that walk of the branch further.
- */
-const conditionMutualExclusions = {
-  production: 'development',
-  development: 'production',
-  import: 'require',
-  require: 'import'
-};
-function expandTargetResolutions(
-  exports: ExportsTarget,
-  files: Set<string> | undefined,
-  env: string[],
-  targetList: Set<string>,
-  envExclusions = env
-    .map(condition => (conditionMutualExclusions as Record<string, string>)[condition])
-    .filter(c => c),
-  firstOnly: boolean,
-  speculate = true
-): boolean {
-  if (typeof exports === 'string') {
-    if (exports.startsWith('./')) targetList.add(exports);
-    return true;
-  } else if (Array.isArray(exports)) {
-    for (const item of exports) {
-      if (
-        expandTargetResolutions(item, files, env, targetList, envExclusions, firstOnly, speculate)
-      )
-        return true;
-    }
-    return false;
-  } else if (exports === null) {
-    // the null resolution target is a match for not resolving
-    return true;
-  } else {
-    let hasSomeResolution = false;
-    for (const condition of Object.keys(exports)) {
-      if (condition.startsWith('.')) continue;
-      if (condition === 'default' || env.includes(condition)) {
-        if (
-          expandTargetResolutions(
-            exports[condition],
-            files,
-            env,
-            targetList,
-            envExclusions,
-            firstOnly,
-            speculate
-          )
-        ) {
-          return true;
-        }
-      }
-      if (!speculate || envExclusions.includes(condition)) continue;
-      const maybeNewExclusion = (conditionMutualExclusions as Record<string, string>)[condition];
-      const newExclusions =
-        maybeNewExclusion && !envExclusions.includes(maybeNewExclusion)
-          ? [...envExclusions, maybeNewExclusion]
-          : envExclusions;
-      // if we did match the condition, then we know any subsequent condition checks are under exclusion as well
-      if (
-        expandTargetResolutions(
-          exports[condition],
-          files,
-          env,
-          targetList,
-          newExclusions,
-          firstOnly,
-          speculate
-        )
-      ) {
-        if (firstOnly) return true;
-        hasSomeResolution = true;
-        envExclusions = newExclusions;
-      }
-    }
-    return hasSomeResolution;
   }
 }
 

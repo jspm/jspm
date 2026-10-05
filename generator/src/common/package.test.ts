@@ -512,6 +512,19 @@ const browserEnv = ['browser', 'development', 'module', 'import', 'default'];
   );
 }
 
+// Test: a null target is terminal, as in Node.js, rather than falling through
+// to "default"
+{
+  const resolutions = new Map<string, string>();
+  expandExportsResolutions(
+    { '.': './index.js', './node-only': { browser: null, default: './node-only.js' } },
+    browserEnv,
+    new Set(['index.js', 'node-only.js']),
+    resolutions
+  );
+  assert.deepEqual([...resolutions], [['.', 'index.js']]);
+}
+
 // Test: "types" wildcard must not shadow "default" — jspm/jspm#2717
 {
   const resolutions = new Map<string, string>();

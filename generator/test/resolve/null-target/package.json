@@ -1,0 +1,11 @@
+{
+  "name": "null-target-test",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./node-only": {
+      "browser": null,
+      "default": "./node-only.js"
+    }
+  }
+}

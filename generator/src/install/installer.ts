@@ -616,6 +616,13 @@ export class Installer {
     return changed;
   }
 
+  // Remove a primary lock, invalidating the package indices
+  removePrimary(name: string) {
+    delete this.installs.primary[name];
+    this._pkgUrls = null;
+    this._pkgsByKey = null;
+  }
+
   // Set constraint and maintain the index incrementally
   private setConstraint(
     name: string,

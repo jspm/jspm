@@ -167,3 +167,29 @@ if (!isBrowser) {
     /nonexistent-dep-xyz/
   );
 }
+
+// Enumerated pins keep their tolerance through an argumentless reinstall and
+// update, and uninstalling them clears it.
+if (!isBrowser) {
+  const generator = new Generator({
+    mapUrl: import.meta.url,
+    defaultProvider: 'nodemodules'
+  });
+
+  await generator.install({
+    target: new URL('./unknown-root', import.meta.url).href,
+    subpaths: true
+  });
+  const json = JSON.stringify(generator.getMap());
+  assert.ok(generator.traceMap.unknownPins.has('unknown-root-test/build/script.js'));
+
+  await generator.install();
+  assert.strictEqual(JSON.stringify(generator.getMap()), json);
+
+  await generator.update();
+  assert.strictEqual(JSON.stringify(generator.getMap()), json);
+
+  await generator.uninstall('unknown-root-test/');
+  assert.deepStrictEqual(Object.keys(generator.getMap().imports), ['unknown-root-test']);
+  assert.strictEqual(generator.traceMap.unknownPins.size, 0);
+}

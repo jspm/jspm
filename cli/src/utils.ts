@@ -207,7 +207,8 @@ async function writeHtmlOutput(
   }
 
   // TODO: Inject env into the import map somehow.
-  const entryPoints = pins.length ? pins : Object.keys(generator.getMap().imports || {});
+  // Without explicit pins the whole session is injected
+  const entryPoints = pins.length ? pins : true;
   const outputHtml = await generator.htmlInject(html, {
     pins: entryPoints,
     htmlUrl: generator.mapUrl, // URL of the output map
@@ -342,7 +343,7 @@ export async function getGenerator(
         resolutions: getResolutions(flags),
         cache: getCacheMode(flags),
         integrity: flags.integrity,
-        scopedLink: true,
+        strict: true,
         typeScript: true,
         commonJS: true, // TODO: only for --local flag
         // Pass provider configs from configuration file

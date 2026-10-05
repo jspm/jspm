@@ -24,6 +24,7 @@ import {
   ExactModule,
   ExactPackage,
   PackageConfig,
+  parsePkg,
   parseTarget,
   validatePkgName
 } from './install/package.js';
@@ -142,9 +143,21 @@ export interface GeneratorOptions {
    * When using JSPM {@link Generator.link}, all dependencies
    * will be placed into scopes instead of top-level "imports" in the map.
    *
-   * This will default to true in the next major version.
+   * Implies {@link GeneratorOptions.strict}.
    */
   scopedLink?: boolean;
+
+  /**
+   * Strict mode. The input map provides locks and constraints only, and the
+   * generated map is exactly the trace of what each operation names, with
+   * installs and scoped links accumulating over the session. Nothing is
+   * inferred from the map, so `install()` without arguments, `update()`,
+   * `uninstall()` and `reinstall()` throw: install the root package with
+   * `subpaths: true` to generate its map instead.
+   *
+   * This will be the default in the next major version.
+   */
+  strict?: boolean;
 
   /**
    * The provider to use for top-level (i.e. root package) installs if there's no context in the inputMap. This can be used to set the provider for a new import map. To use a specific provider for an install, rather than relying on context, register an override using the 'providers' option.
@@ -708,6 +721,7 @@ export class Generator {
   combineSubpaths: 'scopes' | 'both' | 'none';
   expandWildcards: boolean;
   scopedLink: boolean;
+  strict: boolean;
   cacheEnabled: boolean;
 
   /**
@@ -762,6 +776,7 @@ export class Generator {
     combineSubpaths = true,
     expandWildcards = false,
     scopedLink = false,
+    strict = scopedLink,
     traceCache = undefined,
     inputMapFallbacks = true,
     linkedScopes = undefined
@@ -798,7 +813,8 @@ export class Generator {
       }
     }
 
-    this.scopedLink = scopedLink;
+    this.strict = strict;
+    this.scopedLink = scopedLink || strict;
     this.integrity = integrity;
 
     const fetchOpts = createFetchOptions(cache, fetchOptions);
@@ -869,7 +885,7 @@ export class Generator {
         resolutions,
         commonJS,
         customResolver,
-        noPins: scopedLink,
+        strict,
         inputMapFallbacks,
         linkedScopes: normalizedLinkedScopes
       },
@@ -907,7 +923,7 @@ export class Generator {
    * @param jsonOrHtml The mappings are parsed as a JSON data object or string, falling back to reading an inline import map from an HTML file.
    * @param mapUrl An optional URL for the map to handle relative resolutions, defaults to generator mapUrl.
    * @param rootUrl An optional root URL for the map to handle root resolutions, defaults to generator rootUrl.
-   * @returns The list of modules pinned by this import map or HTML.
+   * @returns The inline modules of an HTML input to link, otherwise the top-level imports pinned by the map (none in strict mode).
    */
   async addMappings(
     jsonOrHtml: string | IImportMap,
@@ -931,7 +947,8 @@ export class Generator {
       }
     }
     await this.traceMap.addInputMap(jsonOrHtml, mapUrl, rootUrl, preloads);
-    return htmlModules || [...(this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports))];
+    // In strict mode the map is a lockfile with no top-level imports to link
+    return htmlModules || (this.strict ? [] : [...this.traceMap.roots.imports]);
   }
 
   /**
@@ -977,9 +994,8 @@ export class Generator {
     if (typeof specifier === 'string') specifier = [specifier];
     let error = false;
     await this.traceMap.processInputMap;
-    let pins;
     try {
-      pins = await Promise.all(
+      await Promise.all(
         specifier.map(specifier =>
           this.traceMap.visit(
             specifier,
@@ -991,20 +1007,20 @@ export class Generator {
           )
         )
       );
-      if (this.traceMap.pins) {
-        for (const s of specifier) {
-          if (!this.traceMap.pins.includes(s)) this.traceMap.pins.push(s);
-        }
+      const { roots } = this.traceMap;
+      const list = this.scopedLink
+        ? (roots.scopes[parentUrl || this.baseUrl.href] ||= [])
+        : roots.imports;
+      for (const s of specifier) {
+        if (!list.includes(s)) list.push(s);
       }
     } catch (e) {
       error = true;
       throw e;
     } finally {
-      const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
-        this.traceMap.pins || (pins?.filter(Boolean) as string[]) || [],
-        this.integrity,
-        !this.scopedLink,
-        parentUrl
+      const { map, staticDeps, dynamicDeps } = await this.traceMap.extractRoots(
+        this.traceMap.roots,
+        this.integrity
       );
       this.map = map;
       if (!error) return { staticDeps, dynamicDeps };
@@ -1077,9 +1093,10 @@ export class Generator {
 
     const analysis = analyzeHtml(html, htmlUrl);
 
+    const { roots } = this.traceMap;
     let modules =
       pins === true
-        ? this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports)
+        ? [...roots.imports, ...Object.values(roots.scopes).flat()]
         : Array.isArray(pins)
           ? pins
           : [];
@@ -1285,48 +1302,28 @@ export class Generator {
     install?: string | Install | (string | Install)[],
     mode?: InstallMode
   ): Promise<{ staticDeps: string[]; dynamicDeps: string[] }> {
-    // If there are no arguments, then we reinstall all the top-level locks:
+    await this.traceMap.processInputMap; // don't race input processing
+
+    // Without arguments, reinstall all top-level locks. To match the behaviour
+    // of an argumentless `npm install`, existing resolutions are used for
+    // everything unless out-of-range:
     if (
       install === null ||
       install === undefined ||
       (Array.isArray(install) && install.length === 0)
     ) {
-      await this.traceMap.processInputMap;
-
-      // To match the behaviour of an argumentless `npm install`, we use
-      // existing resolutions for everything unless it's out-of-range:
-      mode ??= 'default';
-
-      if (Object.keys(this.traceMap.installer!.installs.primary).length) {
-        return this._install(
-          Object.entries(this.traceMap.installer!.installs.primary).map(([alias, target]) => {
-            const pkgTarget = this.traceMap.installer!.constraints.primary[alias];
-
-            // Try to reinstall lock against constraints if possible, otherwise
-            // reinstall it as a URL directly (which has the downside that it
-            // won't have NPM versioning semantics):
-            let newTarget: string | InstallTarget = target.installUrl;
-            if (pkgTarget) {
-              if (pkgTarget instanceof URL) {
-                newTarget = pkgTarget.href;
-              } else {
-                newTarget = `${pkgTarget.registry}:${pkgTarget.name}`;
-              }
-            }
-
-            return {
-              alias,
-              target: newTarget
-            } as Install;
-          }),
-          mode
-        );
-      }
+      if (this.strict) throw strictModeError('install without arguments');
+      return this._reinstall(
+        Object.keys(this.traceMap.installer!.installs.primary),
+        mode ?? 'default'
+      );
     }
 
-    if (!Array.isArray(install)) install = [install!];
+    if (!Array.isArray(install)) install = [install];
 
-    await this.traceMap.processInputMap; // don't race input processing
+    // By default, an install takes the latest compatible version for primary
+    // dependencies, and existing in-range versions for secondaries:
+    mode ??= 'latest-primaries';
 
     const unknownImports = new Set<string>();
     const imports = (
@@ -1350,10 +1347,6 @@ export class Generator {
             'generator/install',
             `Adding primary constraint for ${alias}: ${JSON.stringify(target)}`
           );
-
-          // By default, an install takes the latest compatible version for primary
-          // dependencies, and existing in-range versions for secondaries:
-          mode ??= 'latest-primaries';
 
           const installed = await this.traceMap.add(alias, target, mode);
 
@@ -1397,13 +1390,41 @@ export class Generator {
       )
     ).flatMap((i: any) => i);
 
-    const pins = this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports);
+    return this._trace(imports, mode, unknownImports);
+  }
+
+  // Re-resolves the given top-level locks against their constraints under the
+  // install mode, then retraces their top-level imports
+  private async _reinstall(names: string[], mode: InstallMode) {
+    const { installs, constraints } = this.traceMap.installer!;
     await Promise.all(
-      imports.map(async (impt: any) => {
+      names.map(name => {
+        // URL locks carry no versioning information so are reinstalled as-is
+        const pkgTarget = constraints.primary[name] ?? new URL(installs.primary[name].installUrl);
+        return this.traceMap.add(name, { pkgTarget }, mode);
+      })
+    );
+    // enumerated pins keep their unknown importer tolerance
+    return this._trace(
+      this.traceMap.roots.imports.filter(impt =>
+        names.some(name => impt === name || impt.startsWith(name + '/'))
+      ),
+      mode,
+      this.traceMap.unknownPins
+    );
+  }
+
+  // Traces the given top-level imports under the install mode, adding them to
+  // the roots, then extracts the map. Imports in unknownImports have no known
+  // importer and are traced tolerantly.
+  private async _trace(imports: string[], mode: InstallMode, unknownImports: Set<string>) {
+    const { roots } = this.traceMap;
+    await Promise.all(
+      imports.map(async impt => {
         const resolved = await this.traceMap.visit(
           impt,
           {
-            installMode: mode!,
+            installMode: mode,
             toplevel: true,
             unknownImporter: unknownImports.has(impt)
           },
@@ -1415,17 +1436,14 @@ export class Generator {
           this.traceMap.unknownPins.add(impt);
         } else this.traceMap.unknownPins.delete(impt);
 
-        // Add the target import as a top-level pin
-        // we do this after the trace, so failed installs don't pollute the map
-        if (!pins.includes(impt)) pins.push(impt);
+        // Added after the trace so failed installs don't pollute the map
+        if (!roots.imports.includes(impt)) roots.imports.push(impt);
       })
     );
 
-    const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
-      pins,
-      this.integrity,
-      true,
-      this.mapUrl.href
+    const { map, staticDeps, dynamicDeps } = await this.traceMap.extractRoots(
+      roots,
+      this.integrity
     );
     this.map = map;
     return { staticDeps, dynamicDeps };
@@ -1449,89 +1467,44 @@ export class Generator {
    * @param {string | string[]} pkgNames Package name or list of package names to update.
    */
   async update(pkgNames?: string | string[]) {
+    if (this.strict) throw strictModeError('update');
     if (typeof pkgNames === 'string') pkgNames = [pkgNames];
     await this.traceMap.processInputMap;
 
-    const primaryResolutions = this.traceMap.installer!.installs.primary;
-    const primaryConstraints = this.traceMap.installer!.constraints.primary;
-
-    // Matching the behaviour of "npm update":
-    let mode: InstallMode = 'latest-primaries';
-    if (!pkgNames) {
-      pkgNames = Object.keys(primaryResolutions);
-      mode = 'latest-all';
-    }
-
-    const installs: Install[] = [];
-    for (const name of pkgNames) {
-      const resolution = primaryResolutions[name];
-      if (!resolution) {
+    const primaries = Object.keys(this.traceMap.installer!.installs.primary);
+    for (const name of pkgNames ?? []) {
+      if (!primaries.includes(name))
         throw new JspmError(
           `No "imports" package entry for "${name}" to update. Note update takes package names not package specifiers.`
         );
-      }
-      const { installUrl } = resolution;
-      const subpaths = (this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports))
-        .filter(pin => pin === name || (pin.startsWith(name) && pin[name.length] === '/'))
-        .map(pin => `.${pin.slice(name.length)}` as '.' | `./${string}`);
-      // use package.json range if present
-      if (primaryConstraints[name]) {
-        installs.push({
-          alias: name,
-          subpaths,
-          target: { pkgTarget: primaryConstraints[name] }
-        });
-      }
-      // otherwise synthetize a range from the current package version
-      else {
-        const pkg = await this.traceMap.resolver.pm.parseUrlPkg(installUrl);
-        if (!pkg)
-          throw new Error(
-            `Unable to determine a package version lookup for ${name}. Make sure it is supported as a provider package.`
-          );
-        const target = {
-          pkgTarget: {
-            registry: pkg.pkg.registry,
-            name: pkg.pkg.name,
-            range: new SemverRange('^' + pkg.pkg.version),
-            unstable: false
-          }
-        };
-        installs.push({ alias: name, subpaths, target });
-      }
     }
 
-    await this._install(installs, mode);
-    const { map, staticDeps, dynamicDeps } = await this.traceMap.extractMap(
-      this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports),
-      this.integrity
-    );
-    this.map = map;
-    return { staticDeps, dynamicDeps };
+    // Matching the behaviour of "npm update":
+    return this._reinstall(pkgNames ?? primaries, pkgNames ? 'latest-primaries' : 'latest-all');
   }
 
   async uninstall(names: string | string[]) {
+    if (this.strict) throw strictModeError('uninstall');
     if (typeof names === 'string') names = [names];
     await this.traceMap.processInputMap;
-    let pins = this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports);
-    const unusedNames = new Set([...names]);
-    for (let i = 0; i < pins.length; i++) {
-      const pin = pins[i];
-      const pinNames = names.filter(
-        name => name === pin || (name.endsWith('/') && pin.startsWith(name))
+    const { roots, unknownPins } = this.traceMap;
+    for (const name of names) {
+      const removed = roots.imports.filter(
+        impt => impt === name || (name.endsWith('/') && impt.startsWith(name))
       );
-      if (pinNames.length) {
-        this.traceMap.unknownPins.delete(pin);
-        pins.splice(i--, 1);
-        for (const name of pinNames) unusedNames.delete(name);
+      if (!removed.length) throw new JspmError(`No "imports" entry for "${name}" to uninstall.`);
+      for (const impt of removed) {
+        roots.imports.splice(roots.imports.indexOf(impt), 1);
+        unknownPins.delete(impt);
       }
+
+      // Drop the primary lock once no top-level import of the package remains
+      const { pkgName } = parsePkg(name)!;
+      if (!roots.imports.some(impt => impt === pkgName || impt.startsWith(pkgName + '/')))
+        this.traceMap.installer!.removePrimary(pkgName);
     }
-    if (unusedNames.size) {
-      throw new JspmError(`No "imports" entry for "${[...unusedNames][0]}" to uninstall.`);
-    }
-    if (this.traceMap.pins) this.traceMap.pins = pins;
-    const { staticDeps, dynamicDeps, map } = await this.traceMap.extractMap(
-      this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports),
+    const { staticDeps, dynamicDeps, map } = await this.traceMap.extractRoots(
+      roots,
       this.integrity
     );
     this.map = map;
@@ -1734,7 +1707,7 @@ export class Generator {
     return await (this.traceMap.resolver.pm.publish as any)(
       exactPkg,
       provider,
-      (this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports)).sort((a, b) => {
+      [...this.traceMap.roots.imports].sort((a, b) => {
         const aIsPublishAlias = a === name || (a.startsWith(name) && a[name.length] === '/');
         const bIsPublishAlias = b === name || (b.startsWith(name) && b[name.length] === '/');
         if (aIsPublishAlias && !bIsPublishAlias) return -1;
@@ -2342,6 +2315,12 @@ async function installToTarget(
     alias: install.alias || alias,
     subpath: install.subpath || subpath
   };
+}
+
+function strictModeError(operation: string) {
+  return new JspmError(
+    `Cannot ${operation} in strict mode, as the import map is not a source of top-level imports. Install the root package with { subpaths: true } to generate its map, or pass the imports to install.`
+  );
 }
 
 function detectDefaultProvider(

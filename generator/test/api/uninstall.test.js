@@ -59,3 +59,22 @@ import assert from 'assert';
   const json = generator.getMap();
   assert.strictEqual(Object.keys(json).length, 0);
 }
+
+// An uninstalled package is not resurrected by a later argumentless install:
+{
+  const generator = new Generator({
+    inputMap: {
+      imports: {
+        'lit/html.js': 'https://ga.jspm.io/npm:lit@2.0.0-rc.1/html.js'
+      }
+    },
+    mapUrl: import.meta.url,
+    defaultProvider: 'jspm.io',
+    env: ['production', 'browser']
+  });
+
+  await generator.install('react@17.0.2');
+  await generator.uninstall('react');
+  await generator.install();
+  assert.deepStrictEqual(Object.keys(generator.getMap().imports), ['lit/html.js']);
+}

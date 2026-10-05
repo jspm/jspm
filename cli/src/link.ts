@@ -51,7 +51,10 @@ export default async function link(modules: string[], flags: GenerateOutputFlags
         }
       }
 
-      await generator.install('freeze');
+      // Relink the top-level imports of the existing map
+      const input = await getInputMap(flags);
+      pins = Object.keys(input?.imports || {}).filter(isPackageSpecifier);
+      await generator.link(pins);
     } finally {
       stopSpinner();
     }
@@ -164,4 +167,14 @@ async function handleLocalFile(
   }
 
   inlinePins.push(...pins);
+}
+
+function isPackageSpecifier(specifier: string) {
+  return (
+    specifier[0] !== '#' &&
+    specifier[0] !== '/' &&
+    !specifier.startsWith('./') &&
+    !specifier.startsWith('../') &&
+    !specifier.includes(':')
+  );
 }

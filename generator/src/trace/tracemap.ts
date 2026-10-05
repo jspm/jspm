@@ -60,12 +60,10 @@ export interface TraceMapOptions extends InstallerOptions {
   ) => string | undefined | Promise<string | undefined>;
 
   /**
-   * No pins
-   *
-   * Disables treating top-level "imports" as pinned dependencies.
-   * This will be the default in the next major.
+   * Strict mode: the input map provides locks and constraints only, and the
+   * extracted map is exactly the roots named by operations in this session.
    */
-  noPins?: boolean;
+  strict?: boolean;
 
   inputMapFallbacks?: boolean | 'semver-compatible';
 }
@@ -97,6 +95,15 @@ function combineSubpaths(traceSubpath: '.' | `./${string}`): `./${string}` | '.'
 }
 
 // The tracemap fully drives the installer
+/**
+ * The roots of the generated map: top-level imports, and scoped link entries
+ * keyed by the parent URL they were linked from.
+ */
+export interface Roots {
+  imports: string[];
+  scopes: Record<string, string[]>;
+}
+
 export default class TraceMap {
   installer: Installer | undefined;
   opts: TraceMapOptions;
@@ -104,7 +111,9 @@ export default class TraceMap {
   mapUrl: URL;
   baseUrl: URL;
   rootUrl: URL | null;
-  pins: Array<string> | null;
+  strict: boolean;
+  /** Roots named by operations in this session (seeded from the input map unless strict) */
+  roots: Roots = { imports: [], scopes: {} };
   /** Pins enumerated by subpaths: true, which have no known importer */
   unknownPins = new Set<string>();
   log: Log | undefined;
@@ -131,7 +140,7 @@ export default class TraceMap {
   processInputMap: Promise<void> = Promise.resolve();
 
   constructor(opts: TraceMapOptions, log: Log | undefined, resolver: Resolver) {
-    this.pins = opts.noPins ? null : [];
+    this.strict = !!opts.strict;
     this.log = log;
     this.resolver = resolver;
     this.mapUrl = opts.mapUrl;
@@ -163,10 +172,9 @@ export default class TraceMap {
     // is always trusted at generation time.
     return (this.processInputMap = this.processInputMap.then(async () => {
       const inMap = new ImportMap({ map, mapUrl, rootUrl }).rebase(this.mapUrl, this.rootUrl);
-      if (this.pins) {
-        const pins = Object.keys(inMap.imports || []);
-        for (const pin of pins) {
-          if (!this.pins.includes(pin)) this.pins.push(pin);
+      if (!this.strict) {
+        for (const key of Object.keys(inMap.imports || {})) {
+          if (!this.roots.imports.includes(key)) this.roots.imports.push(key);
         }
       }
       const { maps, locks, constraints } = await extractLockConstraintsAndMap(
@@ -413,9 +421,45 @@ export default class TraceMap {
     toplevel: boolean = true,
     parentUrl?: string
   ) {
-    const result = await this._extractMap(modules, integrity, toplevel, parentUrl);
-    this.applyLinkedScopes(result.map);
-    return result;
+    return this.extractRoots(
+      toplevel
+        ? { imports: modules, scopes: {} }
+        : { imports: [], scopes: { [parentUrl || this.baseUrl.href]: modules } },
+      integrity
+    );
+  }
+
+  async extractRoots(roots: Roots, integrity: boolean) {
+    const map = new ImportMap({ mapUrl: this.mapUrl, rootUrl: this.rootUrl });
+
+    // Pinned mode layers the input map under the output
+    if (!this.strict) map.extend(this.inputMap);
+
+    // Clear visited URLs for cache pruning - will be populated during this extraction
+    this.resolver.visitedUrls.clear();
+
+    const staticList = new Set<string>();
+    const dynamicList = new Set<string>();
+
+    const groups: [string[], boolean, string][] = [[roots.imports, true, this.mapUrl.href]];
+    for (const [parentUrl, modules] of Object.entries(roots.scopes))
+      groups.push([modules, false, parentUrl]);
+    for (const [modules, toplevel, parentUrl] of groups) {
+      if (!modules.length) continue;
+      this.log?.('generator/extractMap', `Extracting map for ${modules.join(', ')}`);
+      await this._extractGroup(
+        modules,
+        map,
+        integrity,
+        toplevel,
+        staticList,
+        dynamicList,
+        parentUrl
+      );
+    }
+
+    this.applyLinkedScopes(map);
+    return { map, staticDeps: [...staticList], dynamicDeps: [...dynamicList] };
   }
 
   // Give every linked scope the same scope object identity as its master scope, so that a
@@ -442,28 +486,18 @@ export default class TraceMap {
     }
   }
 
-  private async _extractMap(
+  private async _extractGroup(
     modules: string[],
+    map: ImportMap,
     integrity: boolean,
-    toplevel: boolean = true,
-    parentUrl?: string
-  ) {
-    this.log?.('generator/extractMap', `Extracting map for ${modules.join(', ')}`);
-    const map = new ImportMap({ mapUrl: this.mapUrl, rootUrl: this.rootUrl });
-
-    if (this.pins) {
-      map.extend(this.inputMap);
-    }
-
-    // Clear visited URLs for cache pruning - will be populated during this extraction
-    this.resolver.visitedUrls.clear();
-
-    const staticList = new Set<string>();
-    const dynamicList = new Set<string>();
-
+    toplevel: boolean,
+    staticList: Set<string>,
+    dynamicList: Set<string>,
+    parentUrl: string
+  ): Promise<void> {
     // Pinned mode: full async traversal (legacy path)
-    if (this.pins) {
-      return this._extractMapAsync(
+    if (!this.strict) {
+      await this._extractMapAsync(
         modules,
         map,
         integrity,
@@ -472,11 +506,12 @@ export default class TraceMap {
         dynamicList,
         parentUrl
       );
+      return;
     }
 
     // Fast path: synchronous graph walk replaying edges from visit()
     const seen = new Set<string>();
-    const baseUrl = parentUrl || this.baseUrl.href;
+    const baseUrl = parentUrl;
 
     const walk = (
       specifier: string,
@@ -557,7 +592,7 @@ export default class TraceMap {
           'tracemap/extractMap',
           `Missing edge for ${module} from ${baseUrl}, falling back to async path`
         );
-        return this._extractMapAsync(
+        await this._extractMapAsync(
           modules,
           map,
           integrity,
@@ -566,15 +601,10 @@ export default class TraceMap {
           dynamicList,
           parentUrl
         );
+        return;
       }
       walk(module, baseUrl, toplevel, false);
     }
-
-    return {
-      map,
-      staticDeps: [...staticList],
-      dynamicDeps: [...dynamicList]
-    };
   }
 
   private async _extractMapAsync(

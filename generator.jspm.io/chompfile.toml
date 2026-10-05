@@ -1,0 +1,60 @@
+version = 0.1
+default-task = 'build'
+
+[[task]]
+name = 'npm:install'
+targets = [
+    'node_modules',
+    'package-lock.json',
+]
+deps = ['package.json']
+validation = 'ok-only'
+display = 'init-only'
+run = 'npm install'
+
+[[task]]
+name = 'serve'
+deps = ['build']
+run = 'npx http-server -c-1 -o /index.html'
+
+[[task]]
+name = 'build'
+targets = ['index.html']
+deps = [
+    'index.html',
+    'src/**/*',
+    'npm:install',
+]
+invalidation = 'always'
+engine = 'node'
+run = '''
+    import { Generator } from '@jspm/generator';
+    import { readFile, writeFile } from 'fs/promises';
+    import { pathToFileURL } from 'url';
+    import mkdirp from 'mkdirp';
+    import { dirname } from 'path';
+
+    const generator = new Generator({
+      cache: false,
+      mapUrl: pathToFileURL(process.env.TARGET),
+      env: ["browser", "production", "module"],
+      integrity: true,
+      inputMapFallbacks: 'semver-compatible'
+    });
+
+    const htmlSource = await readFile(process.env.DEP, 'utf-8');
+
+    mkdirp.sync(dirname(process.env.TARGET));
+    const pins = await generator.addMappings(htmlSource);
+    await writeFile(process.env.TARGET, await generator.htmlInject(htmlSource, {
+      pins,
+      htmlUrl: pathToFileURL(process.env.TARGET),
+      preload: true,
+      integrity: true
+    }));
+'''
+
+[[task]]
+name = 'deploy'
+deps = ['build']
+run = 'jspm publish -p jspm.io'

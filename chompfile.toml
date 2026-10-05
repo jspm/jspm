@@ -47,3 +47,7 @@ chomp -c generator prettier
 chomp -c cli prettier
 chomp -c cli lint:fix
 '''
+
+[[task]]
+name = 'deploy'
+run = 'chomp -c generator.jspm.io deploy'

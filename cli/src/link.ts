@@ -26,7 +26,12 @@ export default async function link(modules: string[], flags: GenerateOutputFlags
   const fallbackMap = !modules[0] || isJsExtension(extname(modules[0])) ? undefined : modules[0];
 
   const env = await getEnv(flags);
-  const generator = await getGenerator(flags, { scopedLink: true });
+  // With no modules the existing map is relinked as a frozen install, which
+  // needs the map's own imports as its top-level pins rather than strict mode
+  const generator = await getGenerator(
+    flags,
+    modules.length ? { scopedLink: true } : { strict: false }
+  );
 
   let pins = null;
   if (modules.length === 0) {
@@ -51,10 +56,7 @@ export default async function link(modules: string[], flags: GenerateOutputFlags
         }
       }
 
-      // Relink the top-level imports of the existing map
-      const input = await getInputMap(flags);
-      pins = Object.keys(input?.imports || {}).filter(isPackageSpecifier);
-      await generator.link(pins);
+      await generator.install('freeze');
     } finally {
       stopSpinner();
     }
@@ -167,14 +169,4 @@ async function handleLocalFile(
   }
 
   inlinePins.push(...pins);
-}
-
-function isPackageSpecifier(specifier: string) {
-  return (
-    specifier[0] !== '#' &&
-    specifier[0] !== '/' &&
-    !specifier.startsWith('./') &&
-    !specifier.startsWith('../') &&
-    !specifier.includes(':')
-  );
 }

@@ -97,23 +97,18 @@ const opts = {
   );
 }
 
-// Prefix roots trace the exports of their package under the prefix:
+// Link takes module specifiers only; package targets throw:
 {
-  const generator = new Generator({
-    ...opts,
-    inputMap: {
-      imports: {
-        'lit/directives/': 'https://ga.jspm.io/npm:lit@2.2.7/directives/'
-      }
-    }
-  });
-  await generator.link('lit/directives/');
-  const scopes = Object.values(generator.getMap().scopes);
-  assert.ok(
-    scopes.some(scope => Object.keys(scope).some(key => key.startsWith('lit/directives/'))),
-    'prefix root should be traced into its exports'
-  );
+  const generator = new Generator(opts);
+  const target = /package target/;
+  await assert.rejects(generator.link('lit/directives/'), target);
+  await assert.rejects(generator.link('lit@2.2.7/html.js'), target);
+  await assert.rejects(generator.link('@lit/reactive-element@1/reactive-element.js'), target);
+  await generator.link('lit/html.js');
+  assert.ok(Object.values(generator.getMap().scopes).some(scope => scope['lit/html.js']));
 }
+
+// A merged prefix mapping traces the exports of its package under the prefix:
 {
   const generator = new Generator(opts);
   await generator.mergeMap({

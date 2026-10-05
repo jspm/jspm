@@ -458,7 +458,12 @@ export default class TraceMap {
             if (exportSubpath !== '.' && exportSubpath.startsWith(subpath))
               subpaths.push(pkgName + exportSubpath.slice(1));
           }
+        } else if (this.strict) {
+          throw new JspmError(
+            `Unable to enumerate the exports under "${module}" as there is no installed package for ${pkgName}. Install the package to trace its subpath prefix.`
+          );
         } else {
+          // custom prefix mappings survive through the input map layering
           this.log?.(
             'tracemap/warn',
             `Unable to enumerate the exports under "${module}", so its prefix mapping is not traced`

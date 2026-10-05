@@ -19,7 +19,7 @@
  * @module generator.ts
  */
 
-import { baseUrl as _baseUrl, isURL, relativeUrl, resolveUrl } from './common/url.js';
+import { baseUrl as _baseUrl, isPlain, isURL, relativeUrl, resolveUrl } from './common/url.js';
 import {
   ExactModule,
   ExactPackage,
@@ -988,6 +988,9 @@ export class Generator {
    *
    * In general, using `generator.link(entryPoints)` is recommended over `generator.install()`,
    * since it represents a real module graph linkage as would be required in a browser.
+   * Package targets with a version or a subpath prefix, such as `lit@2/html.js` or
+   * `lit/directives/`, are not module specifiers and throw in {@link GeneratorOptions.strict}
+   * mode: use {@link Generator.install} for those.
    *
    * By using link, we guarantee that the import map constructed is only for what is truly
    * needed and loaded. Dynamic imports that are statically analyzable are traced by link.
@@ -1002,34 +1005,37 @@ export class Generator {
     if (typeof specifier === 'string') specifier = [specifier];
     let error = false;
     await this.traceMap.processInputMap;
-    const unknownImports = new Set<string>();
+    // Link takes module specifiers as a browser imports them, so package
+    // targets with a version or a subpath prefix are rejected in strict mode
+    if (this.strict) {
+      for (const s of specifier) {
+        if (!isPlain(s)) continue;
+        if (s.endsWith('/') || parsePkg(s)!.pkgName.indexOf('@', 1) !== -1)
+          throw new JspmError(
+            `Cannot link "${s}" as it is a package target rather than a module specifier. Use install() for package versions and subpath prefixes.`
+          );
+      }
+    }
     try {
-      specifier = await this.traceMap.expandRoots(specifier, unknownImports);
-      const resolved = await Promise.all(
+      await Promise.all(
         specifier.map(specifier =>
           this.traceMap.visit(
             specifier,
             {
               installMode: 'freeze',
-              toplevel: !this.scopedLink,
-              unknownImporter: unknownImports.has(specifier)
+              toplevel: !this.scopedLink
             },
             parentUrl || this.baseUrl.href
           )
         )
       );
-      const { roots, unknownPins } = this.traceMap;
+      const { roots } = this.traceMap;
       const list = this.scopedLink
         ? (roots.scopes[parentUrl || this.baseUrl.href] ||= [])
         : roots.imports;
-      specifier.forEach((s, i) => {
-        if (unknownImports.has(s)) {
-          // skipped enumerated subpaths are not roots
-          if (resolved[i] === undefined) return;
-          unknownPins.add(s);
-        }
+      for (const s of specifier) {
         if (!list.includes(s)) list.push(s);
-      });
+      }
     } catch (e) {
       error = true;
       throw e;

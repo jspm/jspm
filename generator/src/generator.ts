@@ -989,8 +989,8 @@ export class Generator {
    * In general, using `generator.link(entryPoints)` is recommended over `generator.install()`,
    * since it represents a real module graph linkage as would be required in a browser.
    * Package targets with a version or a subpath prefix, such as `lit@2/html.js` or
-   * `lit/directives/`, are not module specifiers and throw in {@link GeneratorOptions.strict}
-   * mode: use {@link Generator.install} for those.
+   * `lit/directives/`, are not module specifiers and throw: use {@link Generator.install}
+   * for those.
    *
    * By using link, we guarantee that the import map constructed is only for what is truly
    * needed and loaded. Dynamic imports that are statically analyzable are traced by link.
@@ -1006,15 +1006,15 @@ export class Generator {
     let error = false;
     await this.traceMap.processInputMap;
     // Link takes module specifiers as a browser imports them, so package
-    // targets with a version or a subpath prefix are rejected in strict mode
-    if (this.strict) {
-      for (const s of specifier) {
-        if (!isPlain(s)) continue;
-        if (s.endsWith('/') || parsePkg(s)!.pkgName.indexOf('@', 1) !== -1)
-          throw new JspmError(
-            `Cannot link "${s}" as it is a package target rather than a module specifier. Use install() for package versions and subpath prefixes.`
-          );
-      }
+    // targets with a version or a subpath prefix are rejected
+    for (const s of specifier) {
+      if (!isPlain(s)) continue;
+      const pkg = parsePkg(s);
+      if (!pkg) throw new JspmError(`Cannot link "${s}" as it is not a valid module specifier.`);
+      if (s.endsWith('/') || pkg.pkgName.indexOf('@', 1) !== -1)
+        throw new JspmError(
+          `Cannot link "${s}" as it is a package target rather than a module specifier. Use install() for package versions and subpath prefixes.`
+        );
     }
     try {
       await Promise.all(

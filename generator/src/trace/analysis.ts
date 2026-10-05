@@ -21,7 +21,7 @@ export interface AnalysisData {
 }
 
 export { createTsAnalysis } from './ts.js';
-export { createCjsAnalysis } from './cjs.js';
+export { createCjsAnalysis, addEsmRequires, requireRegEx } from './cjs.js';
 
 // Template literal dynamic imports are reported as globs, which cannot be traced
 export function dynamicImportSpecifier(impt: Import): string | undefined {

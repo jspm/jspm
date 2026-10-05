@@ -1,5 +1,5 @@
 import { getIntegrity } from '../common/integrity.js';
-import { Analysis, dynamicImportSpecifier } from './analysis.js';
+import { Analysis, AnalysisData, dynamicImportSpecifier } from './analysis.js';
 import type { Import } from 'es-module-lexer';
 
 // See: https://nodejs.org/docs/latest/api/modules.html#the-module-scope
@@ -11,11 +11,62 @@ export function setBabel(_babel: any) {
   babel = _babel;
 }
 
+export const requireRegEx = /\brequire\b/;
+
+// ES modules can still call require() via a shim import or createRequire, so
+// with CJS tracing enabled those calls are traced alongside the module syntax
+export async function addEsmRequires(analysis: AnalysisData, source: string, url: string) {
+  let parsed: RequireAnalysis;
+  try {
+    parsed = await parseRequires(source, url, 'module');
+  } catch {
+    return;
+  }
+  for (const req of parsed.requires) {
+    if (!analysis.deps.includes(req)) analysis.deps.push(req);
+  }
+  if (parsed.lazy.size) analysis.cjsLazyDeps = [...parsed.lazy];
+}
+
 export async function createCjsAnalysis(
   imports: ReadonlyArray<Import>,
   source: string,
   url: string
 ): Promise<Analysis> {
+  const { requires, lazy, unboundGlobals } = await parseRequires(source, url, 'script');
+
+  // Check if the module actually uses any CJS-specific globals, as otherwise
+  // other host runtimes like browser/deno can run this module anyway:
+  let usesCjs = false;
+  for (let g of cjsGlobals) {
+    if (unboundGlobals.has(g)) {
+      usesCjs = true;
+      break;
+    }
+  }
+
+  return {
+    deps: [...requires],
+    dynamicDeps: imports.map(dynamicImportSpecifier).filter(s => s !== undefined),
+    cjsLazyDeps: [...lazy],
+    size: source.length,
+    format: 'commonjs',
+    usesCjs,
+    integrity: await getIntegrity(source)
+  };
+}
+
+interface RequireAnalysis {
+  requires: Set<string>;
+  lazy: Set<string>;
+  unboundGlobals: Set<string>;
+}
+
+async function parseRequires(
+  source: string,
+  url: string,
+  sourceType: 'script' | 'module'
+): Promise<RequireAnalysis> {
   if (!babel) babel = await import('@babel/core');
 
   const requires = new Set<string>();
@@ -31,7 +82,7 @@ export async function createCjsAnalysis(
     configFile: false,
     highlightCode: false,
     compact: false,
-    sourceType: 'script',
+    sourceType,
     parserOpts: {
       allowReturnOutsideFunction: true,
       // plugins: stage3Syntax,
@@ -85,25 +136,7 @@ export async function createCjsAnalysis(
     ]
   });
 
-  // Check if the module actually uses any CJS-specific globals, as otherwise
-  // other host runtimes like browser/deno can run this module anyway:
-  let usesCjs = false;
-  for (let g of cjsGlobals) {
-    if (unboundGlobals.has(g)) {
-      usesCjs = true;
-      break;
-    }
-  }
-
-  return {
-    deps: [...requires],
-    dynamicDeps: imports.map(dynamicImportSpecifier).filter(s => s !== undefined),
-    cjsLazyDeps: [...lazy],
-    size: source.length,
-    format: 'commonjs',
-    usesCjs,
-    integrity: await getIntegrity(source)
-  };
+  return { requires, lazy, unboundGlobals };
 }
 
 function buildDynamicString(

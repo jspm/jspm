@@ -13,9 +13,7 @@ import {
   createSystemAnalysis,
   createCjsAnalysis,
   createEsmAnalysis,
-  createTsAnalysis,
-  addEsmRequires,
-  requireRegEx
+  createTsAnalysis
 } from './analysis.js';
 import { Installer } from '../install/installer.js';
 import { SemverRange } from 'sver';
@@ -1066,10 +1064,10 @@ async function getAnalysis(resolver: Resolver, resolvedUrl: string): Promise<Ana
     const [imports, , , hasModuleSyntax] = parse(sourceText);
     // CommonJS tracing applies to the file: protocol only, following the Node.js
     // detection rule that a source without module syntax is CommonJS
-    const traceCjs = resolver.traceCjs && resolvedUrl.startsWith('file:');
     if (
-      traceCjs &&
+      resolver.traceCjs &&
       !hasModuleSyntax &&
+      resolvedUrl.startsWith('file:') &&
       (resolvedUrl.endsWith('.cjs') ||
         (resolvedUrl.endsWith('.js') &&
           (await resolver.getPackageConfig(await resolver.getPackageBase(resolvedUrl)))?.type !==
@@ -1077,12 +1075,9 @@ async function getAnalysis(resolver: Resolver, resolvedUrl: string): Promise<Ana
     ) {
       return createCjsAnalysis(imports, sourceText, resolvedUrl);
     }
-    const analysis = await (resolver.traceSystem
+    return resolver.traceSystem
       ? createSystemAnalysis(sourceText, imports, resolvedUrl)
-      : createEsmAnalysis(imports, sourceText, resolvedUrl));
-    if (traceCjs && !('parseError' in analysis) && requireRegEx.test(sourceText))
-      await addEsmRequires(analysis, sourceText, resolvedUrl);
-    return analysis;
+      : createEsmAnalysis(imports, sourceText, resolvedUrl);
   } catch (e: any) {
     if (!e.message || !e.message.startsWith('Parse error @:')) {
       return {

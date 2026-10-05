@@ -22,13 +22,10 @@ if (typeof document === 'undefined') {
     './mixedcjs/node_modules/dep/index.js'
   );
 
-  // require() calls are traced alongside module syntax
+  // require() calls in ES modules are not analyzed
   assert.strictEqual(analyses['./mixedcjs/esm.js'].format, 'esm');
-  assert.deepStrictEqual(analyses['./mixedcjs/esm.js'].staticDeps, ['./shim.js', 'dep']);
-  assert.strictEqual(
-    analyses['./mixedcjs/esm.js'].map.imports.dep,
-    './mixedcjs/node_modules/dep/index.js'
-  );
+  assert.deepStrictEqual(analyses['./mixedcjs/esm.js'].staticDeps, ['./shim.js']);
+  assert.strictEqual(analyses['./mixedcjs/esm.js'].map.imports, undefined);
 
   // export {} alone is module syntax
   assert.strictEqual(analyses['./mixedcjs/export-empty.js'].format, 'esm');

@@ -1,6 +1,6 @@
 import type { BaseFlags } from './cli.ts';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { basename, dirname, join, relative } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import c from 'picocolors';
 import { getOption } from './terminal-utils.ts';
@@ -401,8 +401,7 @@ readline.close();
  * @returns ProjectConfig object with validated fields
  */
 export async function initProject(flags: BaseFlags): Promise<ProjectConfig> {
-  // --dir flag already sets cwd by here.
-  const directory = process.cwd();
+  const directory = resolve(flags.dir || process.cwd());
 
   // Verify directory exists
   if (!(await isDirectory(directory))) {

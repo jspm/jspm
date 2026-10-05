@@ -479,3 +479,34 @@ it('publish watch mode basic test', async () => {
     assert.fail(`Watch mode failed to start: ${error}`);
   }
 });
+
+// Test publish with --dir
+it('publish with --dir publishes the package in that directory', async () => {
+  const files = new Map();
+  const version = randomVersion();
+  files.set(
+    'sub/package.json',
+    JSON.stringify({
+      name: 'jspm-deploy-test',
+      version,
+      exports: './index.js'
+    })
+  );
+  files.set('sub/index.js', "console.log('dir test');");
+  // A package in the working directory that must not be published
+  files.set(
+    'package.json',
+    JSON.stringify({ name: 'jspm-deploy-test', version: randomVersion(), exports: './index.js' })
+  );
+  files.set('index.js', "console.log('wrong package');");
+
+  await run({
+    files,
+    commands: ['jspm publish -p jspm.io -d sub --no-usage'],
+    validationFn: async () => {
+      const res = await fetch(`https://jspm.io/app:jspm-deploy-test@${version}/index.js`);
+      assert(res.ok, `Expected the --dir package to be published at version ${version}`);
+      assert((await res.text()).includes('dir test'), 'Published package should be the --dir package');
+    }
+  });
+});

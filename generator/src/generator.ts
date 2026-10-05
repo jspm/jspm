@@ -653,7 +653,7 @@ export interface Publish {
 }
 
 export interface ModuleAnalysis {
-  format: 'commonjs' | 'esm' | 'system' | 'json' | 'css' | 'typescript' | 'wasm';
+  format: 'commonjs' | 'esm' | 'system' | 'json' | 'css' | 'typescript' | 'wasm' | 'asset';
   staticDeps: string[];
   dynamicDeps: string[];
   cjsLazyDeps: string[] | null;

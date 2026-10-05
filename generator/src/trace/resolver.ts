@@ -68,7 +68,16 @@ export interface TraceEntry {
   // For cjs modules, the list of hoisted deps
   // this is needed for proper cycle handling
   cjsLazyDeps: string[] | null;
-  format: 'esm' | 'commonjs' | 'system' | 'json' | 'css' | 'typescript' | 'wasm' | undefined;
+  format:
+    | 'esm'
+    | 'commonjs'
+    | 'system'
+    | 'json'
+    | 'css'
+    | 'typescript'
+    | 'wasm'
+    | 'asset'
+    | undefined;
 
   // network errors are stored on the traceEntryPromises promise, while parser
   // errors are stored here. This allows for existence checks in resolver operations.
@@ -772,6 +781,25 @@ async function legacyMainResolve(
   );
 }
 
+const moduleExtensions = [
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.jsx',
+  '.ts',
+  '.mts',
+  '.cts',
+  '.tsx',
+  '.json',
+  '.css',
+  '.wasm'
+];
+// extensionless URLs are still modules, as CDN URLs commonly omit extensions
+function isAssetUrl(url: string) {
+  const ext = url.match(/\.[a-zA-Z]\w*$/)?.[0];
+  return ext !== undefined && !moduleExtensions.includes(ext);
+}
+
 // TODO: Refactor legacy intermediate Analysis type into TraceEntry directly
 async function getAnalysis(resolver: Resolver, resolvedUrl: string): Promise<Analysis | null> {
   const res = await fetch(resolvedUrl, resolver.fetchOpts);
@@ -803,6 +831,18 @@ async function getAnalysis(resolver: Resolver, resolvedUrl: string): Promise<Ana
         cjsLazyDeps: null,
         size: source.byteLength,
         format: 'wasm',
+        integrity: await getIntegrity(new Uint8Array(source))
+      };
+    }
+
+    // Assets are validly exported and remain mapped, but have no module graph
+    if (isAssetUrl(resolvedUrl)) {
+      return {
+        deps: [],
+        dynamicDeps: [],
+        cjsLazyDeps: null,
+        size: source.byteLength,
+        format: 'asset',
         integrity: await getIntegrity(new Uint8Array(source))
       };
     }

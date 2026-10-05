@@ -35,6 +35,70 @@ if (!isBrowser) {
     'resolvable imports of an unknown root should be traced'
   );
   assert.ok(!JSON.stringify(json).includes('nonexistent-dep-xyz'));
+  assert.ok(
+    generator.importMap
+      .resolve('unknown-root-test/build/missing-import.js', import.meta.url)
+      .endsWith('/build/missing-import.js'),
+    'a missing relative import is tolerated like an unresolvable package'
+  );
+}
+
+// Only not-found resolution failures are tolerated.
+if (!isBrowser) {
+  const generator = new Generator({
+    mapUrl: import.meta.url,
+    defaultProvider: 'nodemodules',
+    customResolver: specifier => {
+      if (specifier === 'nonexistent-dep-xyz') throw new Error('boom');
+    }
+  });
+
+  await assert.rejects(
+    generator.install({
+      target: new URL('./unknown-root', import.meta.url).href,
+      subpaths: true
+    }),
+    /boom/
+  );
+}
+
+// The package main has a known importer, the install itself, so it stays strict.
+if (!isBrowser) {
+  const generator = new Generator({
+    mapUrl: import.meta.url,
+    defaultProvider: 'nodemodules'
+  });
+
+  await assert.rejects(
+    generator.install({
+      target: new URL('./unknown-root-main', import.meta.url).href,
+      subpaths: true
+    }),
+    /nonexistent-dep-xyz/
+  );
+}
+
+// An enumerated subpath whose own target is missing is skipped, but requesting
+// that subpath explicitly is still an error.
+if (!isBrowser) {
+  const target = new URL('./unknown-root-missing-target', import.meta.url).href;
+  const generator = new Generator({
+    mapUrl: import.meta.url,
+    defaultProvider: 'nodemodules'
+  });
+
+  await generator.install({ target, subpaths: true });
+  const json = generator.getMap();
+  assert.ok(json.imports['unknown-root-missing-target-test'].endsWith('/index.js'));
+  assert.strictEqual(json.imports['unknown-root-missing-target-test/foo'], undefined);
+
+  await assert.rejects(
+    new Generator({ mapUrl: import.meta.url, defaultProvider: 'nodemodules' }).install({
+      target,
+      subpath: './foo'
+    }),
+    /missing\.js/
+  );
 }
 
 // An explicitly requested subpath has a known importer: its imports must resolve.

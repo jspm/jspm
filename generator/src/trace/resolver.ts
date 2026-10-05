@@ -796,7 +796,7 @@ const moduleExtensions = [
 ];
 // extensionless URLs are still modules, as CDN URLs commonly omit extensions
 function isAssetUrl(url: string) {
-  const ext = url.match(/\.[a-zA-Z]\w*$/)?.[0];
+  const ext = url.match(/\.[a-zA-Z]\w*$/)?.[0]?.toLowerCase();
   return ext !== undefined && !moduleExtensions.includes(ext);
 }
 

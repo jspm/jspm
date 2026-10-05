@@ -77,8 +77,8 @@ interface VisitOpts {
   /**
    * The visited module has no known importer: it is enumerated by subpaths: true,
    * or reached only through such modules, so it may be imported as a module, as
-   * an asset, or with import attributes. Its imports may then fail to resolve
-   * without failing the trace, while the module itself must still resolve.
+   * an asset, or with import attributes. It and its imports may then fail to
+   * resolve without failing the trace, logged as "tracemap/warn".
    */
   unknownImporter?: boolean;
   visitor?: (
@@ -261,10 +261,11 @@ export default class TraceMap {
     try {
       resolved = await this.resolve(specifier, parentUrl, opts.installMode, opts.toplevel);
     } catch (e) {
-      if (!opts.unknownImporter || opts.toplevel) throw e;
+      if (!opts.unknownImporter || !(e instanceof JspmError && e.code === 'MODULE_NOT_FOUND'))
+        throw e;
       this.log?.(
-        'tracemap/visit',
-        `Skipping unresolvable ${specifier} from ${parentUrl}, which has no known importer: ${e.message}`
+        'tracemap/warn',
+        `Skipping unresolvable ${specifier} with no known importer, imported from ${parentUrl}: ${e.message}`
       );
       return;
     }
@@ -323,6 +324,13 @@ export default class TraceMap {
     entry: TraceEntry | null
   ): string | null | undefined | Promise<string | null | undefined> {
     if (entry === null) {
+      if (opts.unknownImporter) {
+        this.log?.(
+          'tracemap/warn',
+          `Skipping missing ${resolved} with no known importer, imported from ${parentUrl}`
+        );
+        return;
+      }
       throw new Error(`Module not found ${resolved} imported from ${parentUrl}`);
     }
     if (entry.format === 'commonjs' && entry.usesCjs && !this.opts.commonJS) {

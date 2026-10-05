@@ -74,7 +74,7 @@ export interface CachedAnalysis {
   dynamicDeps: string[];
   size: number;
   integrity: string;
-  format: 'json' | 'esm' | 'css' | 'wasm';
+  format: 'json' | 'esm' | 'css' | 'wasm' | 'asset';
   wasCjs: boolean;
 }
 
@@ -653,7 +653,7 @@ export interface Publish {
 }
 
 export interface ModuleAnalysis {
-  format: 'commonjs' | 'esm' | 'system' | 'json' | 'css' | 'typescript' | 'wasm';
+  format: 'commonjs' | 'esm' | 'system' | 'json' | 'css' | 'typescript' | 'wasm' | 'asset';
   staticDeps: string[];
   dynamicDeps: string[];
   cjsLazyDeps: string[] | null;
@@ -1252,6 +1252,8 @@ export class Generator {
    * await generator.install({ alias: 'mypkg', target: './packages/local-pkg', subpaths: ['./feature1', './feature2'] });
    *
    * // Install all exports of the package, based on enumerating all the package export subpaths.
+   * // Enumerated subpaths have no known importer, so one that is missing or has unresolvable
+   * // imports is skipped with a "tracemap/warn" log instead of failing the install.
    * await generator.install({ alias: 'mypkg', target: './packages/local-pkg', subpaths: true });
    * ```
    *
@@ -1326,6 +1328,7 @@ export class Generator {
 
     await this.traceMap.processInputMap; // don't race input processing
 
+    const unknownImports = new Set<string>();
     const imports = (
       await Promise.all(
         install.map(async install => {
@@ -1375,7 +1378,10 @@ export class Generator {
               fileList,
               resolutionMap
             );
-            return [...resolutionMap].map(([subpath, _entry]) => alias + subpath.slice(1));
+            return [...resolutionMap].map(([subpath]) => {
+              if (subpath !== '.') unknownImports.add(alias + subpath.slice(1));
+              return alias + subpath.slice(1);
+            });
           } else if (subpaths) {
             subpaths.every(subpath => {
               if (typeof subpath !== 'string' || (subpath !== '.' && !subpath.startsWith('./')))
@@ -1394,14 +1400,20 @@ export class Generator {
     const pins = this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports);
     await Promise.all(
       imports.map(async (impt: any) => {
-        await this.traceMap.visit(
+        const resolved = await this.traceMap.visit(
           impt,
           {
             installMode: mode!,
-            toplevel: true
+            toplevel: true,
+            unknownImporter: unknownImports.has(impt)
           },
           this.mapUrl.href
         );
+        if (unknownImports.has(impt)) {
+          // skipped enumerated subpaths are not pinned
+          if (resolved === undefined) return;
+          this.traceMap.unknownPins.add(impt);
+        } else this.traceMap.unknownPins.delete(impt);
 
         // Add the target import as a top-level pin
         // we do this after the trace, so failed installs don't pollute the map
@@ -1509,6 +1521,7 @@ export class Generator {
         name => name === pin || (name.endsWith('/') && pin.startsWith(name))
       );
       if (pinNames.length) {
+        this.traceMap.unknownPins.delete(pin);
         pins.splice(i--, 1);
         for (const name of pinNames) unusedNames.delete(name);
       }
@@ -2007,13 +2020,13 @@ export class Generator {
         }
         continue;
       }
-      if (['json', 'esm', 'css', 'wasm'].includes(entry.format!)) {
+      if (['json', 'esm', 'css', 'wasm', 'asset'].includes(entry.format!)) {
         cache.analysis[url] = {
           deps: entry.deps!,
           dynamicDeps: entry.dynamicDeps!,
           size: entry.size,
           integrity: entry.integrity,
-          format: entry.format as 'json' | 'esm' | 'css' | 'wasm',
+          format: entry.format as 'json' | 'esm' | 'css' | 'wasm' | 'asset',
           wasCjs: entry.wasCjs
         };
       }

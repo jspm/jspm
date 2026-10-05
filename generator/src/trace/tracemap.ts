@@ -74,12 +74,20 @@ interface VisitOpts {
   static?: boolean;
   toplevel: boolean;
   installMode: InstallMode;
+  /**
+   * The visited module has no known importer: it is enumerated by subpaths: true,
+   * or reached only through such modules, so it may be imported as a module, as
+   * an asset, or with import attributes. It and its imports may then fail to
+   * resolve without failing the trace, logged as "tracemap/warn".
+   */
+  unknownImporter?: boolean;
   visitor?: (
     specifier: string,
     parentUrl: string,
     resolvedUrl: string,
     toplevel: boolean,
-    entry: TraceEntry | null
+    entry: TraceEntry | null,
+    unknownImporter: boolean
   ) => Promise<boolean | void>;
 }
 
@@ -97,6 +105,8 @@ export default class TraceMap {
   baseUrl: URL;
   rootUrl: URL | null;
   pins: Array<string> | null;
+  /** Pins enumerated by subpaths: true, which have no known importer */
+  unknownPins = new Set<string>();
   log: Log | undefined;
   resolver: Resolver;
   customResolver?: (
@@ -247,7 +257,18 @@ export default class TraceMap {
     seen: Set<string>,
     seenKey: string
   ): Promise<string | null | undefined> {
-    const resolved = await this.resolve(specifier, parentUrl, opts.installMode, opts.toplevel);
+    let resolved: string;
+    try {
+      resolved = await this.resolve(specifier, parentUrl, opts.installMode, opts.toplevel);
+    } catch (e) {
+      if (!opts.unknownImporter || !(e instanceof JspmError && e.code === 'MODULE_NOT_FOUND'))
+        throw e;
+      this.log?.(
+        'tracemap/warn',
+        `Skipping unresolvable ${specifier} with no known importer, imported from ${parentUrl}: ${e.message}`
+      );
+      return;
+    }
     return this._afterResolve(specifier, opts, parentUrl, seen, seenKey, resolved);
   }
 
@@ -303,6 +324,13 @@ export default class TraceMap {
     entry: TraceEntry | null
   ): string | null | undefined | Promise<string | null | undefined> {
     if (entry === null) {
+      if (opts.unknownImporter) {
+        this.log?.(
+          'tracemap/warn',
+          `Skipping missing ${resolved} with no known importer, imported from ${parentUrl}`
+        );
+        return;
+      }
       throw new Error(`Module not found ${resolved} imported from ${parentUrl}`);
     }
     if (entry.format === 'commonjs' && entry.usesCjs && !this.opts.commonJS) {
@@ -328,7 +356,14 @@ export default class TraceMap {
     resolved: string,
     entry: TraceEntry
   ): Promise<string | null | undefined> {
-    const stop = await opts.visitor!(specifier, parentUrl, resolved, opts.toplevel, entry);
+    const stop = await opts.visitor!(
+      specifier,
+      parentUrl,
+      resolved,
+      opts.toplevel,
+      entry,
+      !!opts.unknownImporter
+    );
     if (stop) return;
     return this._fanout(specifier, opts, resolved, seen, entry);
   }
@@ -551,14 +586,15 @@ export default class TraceMap {
     dynamicList: Set<string>,
     parentUrl?: string
   ) {
-    const dynamics: [string, string][] = [];
+    const dynamics: [string, string, boolean][] = [];
     let list = staticList;
     const visitor = async (
       specifier: string,
       parentUrl: string,
       resolved: string,
       toplevel: boolean,
-      entry: any
+      entry: any,
+      unknownImporter: boolean
     ) => {
       if (!list.has(resolved)) list.add(resolved);
 
@@ -570,7 +606,7 @@ export default class TraceMap {
       if (entry) {
         if (integrity) map.setIntegrity(resolved, entry.integrity);
         for (const dep of entry.dynamicDeps) {
-          dynamics.push([dep, resolved]);
+          dynamics.push([dep, resolved, unknownImporter]);
         }
       }
       if (toplevel) {
@@ -603,7 +639,13 @@ export default class TraceMap {
       modules.map(async module => {
         await this.visit(
           module,
-          { static: true, visitor, installMode: 'freeze', toplevel },
+          {
+            static: true,
+            visitor,
+            installMode: 'freeze',
+            toplevel,
+            unknownImporter: this.unknownPins.has(module)
+          },
           parentUrl || this.baseUrl.href,
           seen
         );
@@ -612,10 +654,15 @@ export default class TraceMap {
 
     list = dynamicList;
     await Promise.all(
-      dynamics.map(async ([specifier, parent]) => {
+      dynamics.map(async ([specifier, parent, unknownImporter]) => {
         await this.visit(
           specifier,
-          { visitor, installMode: 'freeze', toplevel: false },
+          {
+            visitor,
+            installMode: 'freeze',
+            toplevel: false,
+            unknownImporter
+          },
           parent,
           seen
         );
@@ -863,7 +910,8 @@ export default class TraceMap {
       const match = getMapMatch(specifier, pcfg.imports);
       if (!match)
         throw new JspmError(
-          `No '${specifier}' import defined in ${parentPkgUrl}${importedFrom(parentUrl)}.`
+          `No '${specifier}' import defined in ${parentPkgUrl}${importedFrom(parentUrl)}.`,
+          'MODULE_NOT_FOUND'
         );
       const target = this.resolver.resolvePackageTarget(
         pcfg.imports[match],

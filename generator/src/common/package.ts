@@ -139,10 +139,7 @@ export function expandExportsResolutions(
     let targetList = new Set<string>();
     resolveTargetResolution(exports, env, targetList);
     for (const target of targetList) {
-      if (target.startsWith('./')) {
-        const targetFile = target.slice(2);
-        if (!files || files.has(targetFile)) exportsResolutions.set('.', targetFile);
-      }
+      if (target.startsWith('./')) exportsResolutions.set('.', target.slice(2));
     }
   } else {
     for (const subpath of Object.keys(exports)) {
@@ -174,8 +171,7 @@ function expandExportsTarget(
 ) {
   if (!target.startsWith('./') || !(subpath.startsWith('./') || subpath === '.')) return;
   if (target.indexOf('*') === -1 || subpath.indexOf('*') === -1) {
-    const targetFile = target.slice(2);
-    if (!files || files.has(targetFile)) entriesMap.set(subpath, target.slice(2));
+    entriesMap.set(subpath, target.slice(2));
     return;
   }
   if (!files) return;

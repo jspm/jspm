@@ -132,4 +132,23 @@ const browserEnv = ['browser', 'development', 'module', 'import', 'default'];
   assert.deepEqual([...prefixes], ['./src/']);
 }
 
+// Test: a missing exact target is still enumerated so that resolution fails loudly,
+// while wildcard expansion only lists files that exist
+{
+  const resolutions = new Map<string, string>();
+  expandExportsResolutions(
+    { './a': './missing.js', './lib/*': './lib/*' },
+    browserEnv,
+    new Set(['lib/x.js']),
+    resolutions
+  );
+  assert.deepEqual(
+    [...resolutions],
+    [
+      ['./a', 'missing.js'],
+      ['./lib/x.js', 'lib/x.js']
+    ]
+  );
+}
+
 console.log('All tests passed! ✨');

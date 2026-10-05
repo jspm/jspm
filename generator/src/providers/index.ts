@@ -318,11 +318,13 @@ export class ProviderManager {
 
     if (provider === 'nodemodules') {
       throw new JspmError(
-        `Cannot find package ${target.name} in node_modules from parent ${parentUrl}. Try installing "${target.name}" with npm first adding it to package.json "dependencies" or running "npm install --save ${target.name}".`
+        `Cannot find package ${target.name} in node_modules from parent ${parentUrl}. Try installing "${target.name}" with npm first adding it to package.json "dependencies" or running "npm install --save ${target.name}".`,
+        'MODULE_NOT_FOUND'
       );
     } else {
       throw new JspmError(
-        `Unable to resolve package ${target.registry}:${target.name} in range "${target.range}" from parent ${parentUrl}.`
+        `Unable to resolve package ${target.registry}:${target.name} in range "${target.range}" from parent ${parentUrl}.`,
+        'MODULE_NOT_FOUND'
       );
     }
   }

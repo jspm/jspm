@@ -101,12 +101,8 @@ export function getWildcardPrefixes(
 /**
  * Resolve an exports target to the single resolution it takes for the given env,
  * matching the strict Node conditional resolution of Resolver.resolvePackageTarget.
- *
- * Unknown conditions are only speculatively expanded as a whole-target fallback,
- * when no strict resolution exists at all, so that packages exporting solely
- * under conditions we don't know about still resolve to something. Speculating
- * inline would let an unknown condition ordered ahead of "default" shadow it,
- * enumerating subpaths that then fail to resolve.
+ * Conditions outside the env never resolve, so a target reachable only through
+ * them is not enumerated.
  */
 function resolveTargetResolution(
   exports: ExportsTarget,
@@ -114,8 +110,7 @@ function resolveTargetResolution(
   env: string[],
   targetList: Set<string>
 ) {
-  if (!expandTargetResolutions(exports, files, env, targetList, [], true, false))
-    expandTargetResolutions(exports, files, env, targetList, [], true, true);
+  expandTargetResolutions(exports, files, env, targetList, [], true, false);
 }
 
 /**

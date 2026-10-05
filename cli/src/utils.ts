@@ -518,7 +518,7 @@ function addEnvs(env: string[], newEnvs: string[]) {
   return env.sort();
 }
 
-export async function getEnv(flags: GenerateFlags) {
+export async function getEnv(flags: Pick<GenerateFlags, 'conditions' | 'release'>) {
   const envFlags = Array.isArray(flags?.conditions)
     ? flags.conditions
     : (flags.conditions || '')
@@ -1013,12 +1013,8 @@ export function allDotKeys(exports: Record<string, any>) {
 /**
  * Resolve an exports target to the single resolution it takes for the given env,
  * matching the strict Node conditional resolution of Resolver.resolvePackageTarget.
- *
- * Unknown conditions are only speculatively expanded as a whole-target fallback,
- * when no strict resolution exists at all, so that packages exporting solely
- * under conditions we don't know about still resolve to something. Speculating
- * inline would let an unknown condition ordered ahead of "default" shadow it,
- * enumerating subpaths that then fail to resolve.
+ * Conditions outside the env never resolve, so a target reachable only through
+ * them is not enumerated.
  */
 function resolveTargetResolution(
   exports: any,
@@ -1026,8 +1022,7 @@ function resolveTargetResolution(
   env: string[],
   targetList: Set<string>
 ) {
-  if (!expandTargetResolutions(exports, files, env, targetList, [], true, false))
-    expandTargetResolutions(exports, files, env, targetList, [], true, true);
+  expandTargetResolutions(exports, files, env, targetList, [], true, false);
 }
 
 /**
@@ -1344,6 +1339,10 @@ export function getExportsEntries(
   fileList: string[],
   env: string[]
 ): Record<string, string[]> {
+  // the generator resolver always resolves under the "import" condition
+  if (!env.includes('import')) {
+    env = [...env, 'import'];
+  }
   const resolutionMap = new Map<string, string>();
   expandExportsResolutions(exports, env, new Set(fileList), resolutionMap);
   const outMap: Record<string, string[]> = {};

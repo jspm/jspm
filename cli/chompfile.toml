@@ -77,6 +77,8 @@ deps = [
   'src/**/*.ts',
   'docs/intro.md',
   'docs/config.md',
+  'docs/generate.js',
+  'docs/finalize.js',
   'dist/cli.js',
 ]
 run = '''

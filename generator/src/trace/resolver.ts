@@ -713,7 +713,7 @@ export class Resolver {
       } else if (!allDotKeys(pcfg.exports)) {
         if (subpath === '.') {
           const url = this.resolvePackageTarget(pcfg.exports, pkgUrl, cjsEnv, '', false);
-          if (url === null) throwExportNotDefined();
+          if (url == null) throwExportNotDefined();
           return this.finalizeResolve(url, parentIsCjs, true, pkgUrl);
         } else throwExportNotDefined();
       } else {
@@ -736,7 +736,7 @@ export class Resolver {
             replacement,
             false
           );
-          if (resolved === null) throwExportNotDefined();
+          if (resolved == null) throwExportNotDefined();
           return this.finalizeResolve(resolved, parentIsCjs, true, pkgUrl);
         }
         throwExportNotDefined();
@@ -872,7 +872,7 @@ export class Resolver {
     cjsEnv: boolean,
     subpath: string,
     isImport: boolean
-  ): string | null {
+  ): string | null | undefined {
     if (typeof target === 'string') {
       if (target === '.') {
         // special dot export for file packages
@@ -891,7 +891,10 @@ export class Resolver {
       } else {
         throw new Error(`Expected pattern or path export resolving ./${subpath} in ${packageUrl}`);
       }
-    } else if (typeof target === 'object' && target !== null && !Array.isArray(target)) {
+    } else if (target === null) {
+      // a matched null target is terminal: the subpath is not exported
+      return null;
+    } else if (typeof target === 'object' && !Array.isArray(target)) {
       for (const condition in target) {
         if (condition === 'default' || (cjsEnv ? this.cjsEnv : this.env).includes(condition)) {
           const resolved = this.resolvePackageTarget(
@@ -901,7 +904,7 @@ export class Resolver {
             subpath,
             isImport
           );
-          if (resolved) return resolved;
+          if (resolved !== undefined) return resolved;
         }
       }
     } else if (Array.isArray(target)) {
@@ -910,7 +913,7 @@ export class Resolver {
         return this.resolvePackageTarget(targetFallback, packageUrl, cjsEnv, subpath, isImport);
       }
     }
-    return null;
+    return undefined;
   }
 }
 

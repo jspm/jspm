@@ -1,0 +1,25 @@
+{
+  "name": "types-only-subpath-test",
+  "type": "module",
+  "exports": {
+    ".": {
+      "require": {
+        "types": "./index.d.cts",
+        "default": "./index.cjs"
+      },
+      "import": {
+        "types": "./index.d.ts",
+        "default": "./index.js"
+      }
+    },
+    "./types": {
+      "require": {
+        "types": "./types.d.cts"
+      },
+      "import": {
+        "types": "./types.d.ts"
+      }
+    },
+    "./package.json": "./package.json"
+  }
+}

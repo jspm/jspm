@@ -15,6 +15,9 @@
  */
 
 import { strict as assert } from 'node:assert';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, it } from 'node:test';
 import { getPackageConfig, lookup } from '@jspm/generator';
 import ls from '../src/ls.ts';
@@ -101,6 +104,47 @@ describe('ls command', () => {
     } finally {
       // Restore console.log
       console.log = originalConsoleLog;
+    }
+  });
+
+  // Project exports are listed under the CLI default environment, with the same
+  // conditions modifiers as the generate commands.
+  it('should list current project exports for the environment', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'jspm-ls-'));
+    await fs.writeFile(
+      path.join(dir, 'package.json'),
+      JSON.stringify({
+        name: 'ls-env-test',
+        exports: {
+          '.': { import: './a.js', require: './a.cjs' },
+          './platform': { node: './node.js', browser: './browser.js' }
+        }
+      })
+    );
+    for (const file of ['a.js', 'a.cjs', 'node.js', 'browser.js'])
+      await fs.writeFile(path.join(dir, file), 'export {};\n');
+
+    const originalConsoleLog = console.log;
+    let listed: Record<string, string> = {};
+    console.log = (...args) => {
+      // colors are enabled under CI
+      const match = args
+        .join(' ')
+        .replace(/\u001B\[\d+m/g, '')
+        .match(/^(\S+) → (.+)$/);
+      if (match) listed[match[1]] = match[2];
+    };
+
+    try {
+      await ls('', { quiet: false, dir });
+      assert.deepEqual(listed, { 'ls-env-test': 'a.js', 'ls-env-test/platform': 'browser.js' });
+
+      listed = {};
+      await ls('', { quiet: false, dir, conditions: 'node' });
+      assert.deepEqual(listed, { 'ls-env-test': 'a.js', 'ls-env-test/platform': 'node.js' });
+    } finally {
+      console.log = originalConsoleLog;
+      await fs.rm(dir, { recursive: true });
     }
   });
 

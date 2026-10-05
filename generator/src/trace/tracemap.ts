@@ -61,10 +61,11 @@ export interface TraceMapOptions extends InstallerOptions {
   ) => string | undefined | Promise<string | undefined>;
 
   /**
-   * Strict mode: the input map provides locks and constraints only, and the
-   * extracted map is exactly the roots named by operations in this session.
+   * Whether the top-level "imports" of the input maps are pinned as roots and
+   * the input maps are layered under the output. When false the input maps
+   * provide locks and constraints only.
    */
-  strict?: boolean;
+  inputPins?: boolean;
 
   inputMapFallbacks?: boolean | 'semver-compatible';
 }
@@ -112,8 +113,8 @@ export default class TraceMap {
   mapUrl: URL;
   baseUrl: URL;
   rootUrl: URL | null;
-  strict: boolean;
-  /** Roots named by operations in this session (seeded from the input map unless strict) */
+  inputPins: boolean;
+  /** Roots named by operations in this session, seeded from the input maps with inputPins */
   roots: Roots = { imports: [], scopes: {} };
   /** Pins enumerated by subpaths: true, which have no known importer */
   unknownPins = new Set<string>();
@@ -141,7 +142,7 @@ export default class TraceMap {
   processInputMap: Promise<void> = Promise.resolve();
 
   constructor(opts: TraceMapOptions, log: Log | undefined, resolver: Resolver) {
-    this.strict = !!opts.strict;
+    this.inputPins = opts.inputPins !== false;
     this.log = log;
     this.resolver = resolver;
     this.mapUrl = opts.mapUrl;
@@ -173,8 +174,10 @@ export default class TraceMap {
     // is always trusted at generation time.
     return (this.processInputMap = this.processInputMap.then(async () => {
       const inMap = new ImportMap({ map, mapUrl, rootUrl }).rebase(this.mapUrl, this.rootUrl);
-      if (!this.strict) {
-        for (const key of Object.keys(inMap.imports || {})) {
+      if (this.inputPins) {
+        for (const [key, target] of Object.entries(inMap.imports || {})) {
+          // @empty.js stubs produced by link() for missing modules are not roots
+          if (target.endsWith('/@empty.js') || target.endsWith('/@empty.dew.js')) continue;
           if (!this.roots.imports.includes(key)) this.roots.imports.push(key);
         }
       }
@@ -458,7 +461,7 @@ export default class TraceMap {
             if (exportSubpath !== '.' && exportSubpath.startsWith(subpath))
               subpaths.push(pkgName + exportSubpath.slice(1));
           }
-        } else if (this.strict) {
+        } else if (!this.inputPins) {
           throw new JspmError(
             `Unable to enumerate the exports under "${module}" as there is no installed package for ${pkgName}. Install the package to trace its subpath prefix.`
           );
@@ -480,8 +483,8 @@ export default class TraceMap {
   async extractRoots(roots: Roots, integrity: boolean) {
     const map = new ImportMap({ mapUrl: this.mapUrl, rootUrl: this.rootUrl });
 
-    // Pinned mode layers the input map under the output
-    if (!this.strict) map.extend(this.inputMap);
+    // Input pins carry the input map's custom mappings into the output
+    if (this.inputPins) map.extend(this.inputMap);
 
     // Clear visited URLs for cache pruning - will be populated during this extraction
     this.resolver.visitedUrls.clear();
@@ -545,8 +548,8 @@ export default class TraceMap {
     dynamicList: Set<string>,
     parentUrl: string
   ): Promise<void> {
-    // Pinned mode: full async traversal (legacy path)
-    if (!this.strict) {
+    // Input pins: full async traversal (legacy path)
+    if (this.inputPins) {
       await this._extractMapAsync(
         modules,
         map,

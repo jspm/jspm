@@ -1,18 +1,18 @@
 import { Generator } from '@jspm/generator';
 import assert from 'assert';
 
-// Strict mode: the input map is a lockfile, the operation names what is traced,
-// and session roots accumulate into the extracted map. Nothing is inferred
-// from the map, so the argumentless and stateful operations throw.
+// Without input pins the input map is a lockfile: the operations name what is
+// traced and their roots accumulate into the extracted map. The argumentless
+// operations retrace those roots, and throw when there are none.
 
 const opts = {
   mapUrl: import.meta.url,
   defaultProvider: 'jspm.io',
   env: ['production', 'browser'],
-  strict: true
+  inputPins: false
 };
 
-// Inferred operations throw with the strict mode fix:
+// With no roots the argumentless operations throw with the fix:
 {
   const generator = new Generator({
     ...opts,
@@ -22,19 +22,54 @@ const opts = {
       }
     }
   });
-  const strict = /strict mode.*subpaths: true/s;
-  await assert.rejects(generator.install(), strict);
-  await assert.rejects(generator.install('freeze'), strict);
-  await assert.rejects(generator.reinstall(), strict);
-  await assert.rejects(generator.update(), strict);
-  await assert.rejects(generator.update('react'), strict);
-  await assert.rejects(generator.uninstall('react'), strict);
+  const noRoots = /no top-level imports.*subpaths: true/s;
+  await assert.rejects(generator.install(), noRoots);
+  await assert.rejects(generator.install('freeze'), noRoots);
+  await assert.rejects(generator.reinstall(), noRoots);
+  await assert.rejects(generator.update(), noRoots);
+  await assert.rejects(generator.uninstall('react'), /No "imports" entry/);
 }
 
-// scopedLink implies strict:
+// scopedLink is independent of input pins:
 {
-  const generator = new Generator({ ...opts, strict: undefined, scopedLink: true });
-  await assert.rejects(generator.install(), /strict mode/);
+  const generator = new Generator({
+    ...opts,
+    inputPins: undefined,
+    scopedLink: true,
+    inputMap: {
+      imports: {
+        react: 'https://ga.jspm.io/npm:react@17.0.1/index.js'
+      }
+    }
+  });
+  await generator.install('freeze');
+  assert.deepStrictEqual(Object.keys(generator.getMap().imports), ['react']);
+}
+
+// The argumentless operations retrace the session roots:
+{
+  const generator = new Generator({
+    ...opts,
+    inputMap: {
+      imports: {
+        react: 'https://ga.jspm.io/npm:react@17.0.1/index.js',
+        lodash: 'https://ga.jspm.io/npm:lodash@4.17.20/lodash.js'
+      }
+    }
+  });
+  await generator.install('react', 'freeze');
+  await generator.install('freeze');
+  assert.deepStrictEqual(Object.keys(generator.getMap().imports), ['react']);
+
+  await generator.update('react');
+  assert.strictEqual(
+    generator.getMap().imports.react,
+    'https://ga.jspm.io/npm:react@17.0.2/index.js'
+  );
+
+  await generator.uninstall('react');
+  assert.deepStrictEqual(generator.getMap(), {});
+  await assert.rejects(generator.install(), /no top-level imports/);
 }
 
 // The input map seeds nothing but its locks are honoured:
@@ -64,7 +99,7 @@ const opts = {
 
 // Scoped links accumulate into their scope:
 {
-  const generator = new Generator(opts);
+  const generator = new Generator({ ...opts, scopedLink: true });
   await generator.link('react');
   await generator.link('lodash');
   const json = generator.getMap();
@@ -75,7 +110,7 @@ const opts = {
 
 // Installs and scoped links merge into one map:
 {
-  const generator = new Generator(opts);
+  const generator = new Generator({ ...opts, scopedLink: true });
   await generator.install('react@17.0.2');
   await generator.link('lodash');
   const json = generator.getMap();
@@ -105,7 +140,7 @@ const opts = {
   await assert.rejects(generator.link('lit@2.2.7/html.js'), target);
   await assert.rejects(generator.link('@lit/reactive-element@1/reactive-element.js'), target);
   await generator.link('lit/html.js');
-  assert.ok(Object.values(generator.getMap().scopes).some(scope => scope['lit/html.js']));
+  assert.ok(generator.getMap().imports['lit/html.js']);
 }
 
 // A merged prefix mapping traces the exports of its package under the prefix:

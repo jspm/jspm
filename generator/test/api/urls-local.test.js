@@ -10,6 +10,7 @@ const generator = new Generator({
   },
   flattenScopes: false,
   scopedLink: true,
+  inputPins: false,
   packageConfig: {
     'https://site.com/': null,
     'https://site.com/foo/': {}

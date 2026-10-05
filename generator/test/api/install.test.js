@@ -75,11 +75,10 @@ assert.strictEqual(json.imports.react, 'https://ga.jspm.io/npm:react@17.0.1/inde
   });
 }
 
-// Install with no arguments and no locks is a no-op:
+// Install with no arguments and no top-level imports throws with the fix:
 {
   const generator = new Generator();
-  await generator.install();
-  assert.deepStrictEqual(generator.getMap(), {});
+  await assert.rejects(generator.install(), /no top-level imports.*subpaths: true/s);
 }
 
 // Argumentless latest-primaries respects the primary constraints like update():

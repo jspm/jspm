@@ -28,7 +28,7 @@ import {
   parseTarget,
   validatePkgName
 } from './install/package.js';
-import TraceMap from './trace/tracemap.js';
+import TraceMap, { Roots } from './trace/tracemap.js';
 // @ts-ignore
 import {
   clearCache as clearFetchCache,
@@ -143,21 +143,24 @@ export interface GeneratorOptions {
    * When using JSPM {@link Generator.link}, all dependencies
    * will be placed into scopes instead of top-level "imports" in the map.
    *
-   * Implies {@link GeneratorOptions.strict}.
+   * This will default to true in the next major version.
    */
   scopedLink?: boolean;
 
   /**
-   * Strict mode. The input map provides locks and constraints only, and the
-   * generated map is exactly the trace of what each operation names, with
-   * installs and scoped links accumulating over the session. Nothing is
-   * inferred from the map, so `install()` without arguments, `update()`,
-   * `uninstall()` and `reinstall()` throw: install the root package with
-   * `subpaths: true` to generate its map instead.
+   * Whether the top-level "imports" of the input map are pinned as roots of the
+   * generated map, with the input map's custom mappings carried into the output.
    *
-   * This will be the default in the next major version.
+   * When false the input map provides locks and constraints only, and the
+   * generated map is exactly the trace of what the operations in the session
+   * name, with installs and links accumulating as its roots. `install()` without
+   * arguments, `update()` and `uninstall()` then operate on those roots, and
+   * throw when there are none: install the root package with `subpaths: true`
+   * to generate its map.
+   *
+   * Defaults to true. This will default to false in the next major version.
    */
-  strict?: boolean;
+  inputPins?: boolean;
 
   /**
    * The provider to use for top-level (i.e. root package) installs if there's no context in the inputMap. This can be used to set the provider for a new import map. To use a specific provider for an install, rather than relying on context, register an override using the 'providers' option.
@@ -729,7 +732,7 @@ export class Generator {
   combineSubpaths: 'scopes' | 'both' | 'none';
   expandWildcards: boolean;
   scopedLink: boolean;
-  strict: boolean;
+  inputPins: boolean;
   cacheEnabled: boolean;
 
   /**
@@ -784,7 +787,7 @@ export class Generator {
     combineSubpaths = true,
     expandWildcards = false,
     scopedLink = false,
-    strict = scopedLink,
+    inputPins = true,
     traceCache = undefined,
     inputMapFallbacks = true,
     linkedScopes = undefined
@@ -821,8 +824,8 @@ export class Generator {
       }
     }
 
-    this.strict = strict;
-    this.scopedLink = scopedLink || strict;
+    this.inputPins = inputPins;
+    this.scopedLink = scopedLink;
     this.integrity = integrity;
 
     const fetchOpts = createFetchOptions(cache, fetchOptions);
@@ -893,7 +896,7 @@ export class Generator {
         resolutions,
         commonJS,
         customResolver,
-        strict,
+        inputPins,
         inputMapFallbacks,
         linkedScopes: normalizedLinkedScopes
       },
@@ -931,7 +934,7 @@ export class Generator {
    * @param jsonOrHtml The mappings are parsed as a JSON data object or string, falling back to reading an inline import map from an HTML file.
    * @param mapUrl An optional URL for the map to handle relative resolutions, defaults to generator mapUrl.
    * @param rootUrl An optional root URL for the map to handle root resolutions, defaults to generator rootUrl.
-   * @returns The inline modules of an HTML input to link, otherwise the top-level imports pinned by the map (none in strict mode).
+   * @returns The inline modules of an HTML input to link, otherwise the top-level imports pinned by the map (none without inputPins).
    */
   async addMappings(
     jsonOrHtml: string | IImportMap,
@@ -955,8 +958,8 @@ export class Generator {
       }
     }
     await this.traceMap.addInputMap(jsonOrHtml, mapUrl, rootUrl, preloads);
-    // In strict mode the map is a lockfile with no top-level imports to link
-    return htmlModules || (this.strict ? [] : [...this.traceMap.roots.imports]);
+    // Without input pins the map is a lockfile with no top-level imports to link
+    return htmlModules || (this.inputPins ? [...this.traceMap.roots.imports] : []);
   }
 
   /**
@@ -1270,9 +1273,10 @@ export class Generator {
    * @param install Package or list of packages to install into the import map.
    * @param mode Install constraint mode.
    *
-   * Passing no install list or an empty install list reinstalls all top-level "imports" of the
-   * input import map. In {@link GeneratorOptions.strict} mode this throws, as the map is not a
-   * source of top-level imports: install the root package with `subpaths: true` instead.
+   * Passing no install list or an empty install list reinstalls all top-level imports of the
+   * map, which are the input map's "imports" with {@link GeneratorOptions.inputPins} and the
+   * roots installed in this session otherwise. This throws when there are none: install the
+   * root package with `subpaths: true` to generate its map instead.
    *
    * @example
    * ```js
@@ -1342,7 +1346,7 @@ export class Generator {
       install === undefined ||
       (Array.isArray(install) && install.length === 0)
     ) {
-      if (this.strict) throw strictModeError('install without arguments');
+      if (!hasRoots(this.traceMap.roots)) throw noRootsError('install without arguments');
       return this._reinstall(
         Object.keys(this.traceMap.installer!.installs.primary),
         mode ?? 'default'
@@ -1486,7 +1490,6 @@ export class Generator {
    * @deprecated use generator.install('freeze') instead.
    */
   async reinstall() {
-    if (this.strict) throw strictModeError('reinstall');
     return await this.install('freeze');
   }
 
@@ -1499,9 +1502,9 @@ export class Generator {
    * @param {string | string[]} pkgNames Package name or list of package names to update.
    */
   async update(pkgNames?: string | string[]) {
-    if (this.strict) throw strictModeError('update');
     if (typeof pkgNames === 'string') pkgNames = [pkgNames];
     await this.traceMap.processInputMap;
+    if (!pkgNames && !hasRoots(this.traceMap.roots)) throw noRootsError('update');
 
     const primaries = Object.keys(this.traceMap.installer!.installs.primary);
     for (const name of pkgNames ?? []) {
@@ -1516,7 +1519,6 @@ export class Generator {
   }
 
   async uninstall(names: string | string[]) {
-    if (this.strict) throw strictModeError('uninstall');
     if (typeof names === 'string') names = [names];
     await this.traceMap.processInputMap;
     const { roots, unknownPins } = this.traceMap;
@@ -2351,9 +2353,13 @@ async function installToTarget(
   };
 }
 
-function strictModeError(operation: string) {
+function hasRoots(roots: Roots) {
+  return roots.imports.length > 0 || Object.values(roots.scopes).some(list => list.length > 0);
+}
+
+function noRootsError(operation: string) {
   return new JspmError(
-    `Cannot ${operation} in strict mode, as the import map is not a source of top-level imports. Install the root package with { subpaths: true } to generate its map, or pass the imports to install.`
+    `Cannot ${operation} as the map has no top-level imports to retrace. Install the root package with { subpaths: true } to generate its map, or pass the imports to install.`
   );
 }
 

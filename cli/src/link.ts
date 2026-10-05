@@ -27,11 +27,8 @@ export default async function link(modules: string[], flags: GenerateOutputFlags
 
   const env = await getEnv(flags);
   // With no modules the existing map is relinked as a frozen install, which
-  // needs the map's own imports as its top-level pins rather than strict mode
-  const generator = await getGenerator(
-    flags,
-    modules.length ? { scopedLink: true } : { strict: false }
-  );
+  // takes the map's own imports as its top-level pins
+  const generator = await getGenerator(flags, modules.length ? null : { inputPins: true });
 
   let pins = null;
   if (modules.length === 0) {

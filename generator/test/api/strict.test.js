@@ -82,3 +82,17 @@ const opts = {
   assert.deepStrictEqual(Object.keys(json.imports), ['react']);
   assert.ok(Object.values(json.scopes).some(scope => scope.lodash));
 }
+
+// Merging a map traces its top-level imports through its own locks:
+{
+  const generator = new Generator(opts);
+  await generator.mergeMap({
+    imports: {
+      react: 'https://ga.jspm.io/npm:react@17.0.1/index.js'
+    }
+  });
+  assert.strictEqual(
+    generator.getMap().imports.react,
+    'https://ga.jspm.io/npm:react@17.0.1/index.js'
+  );
+}

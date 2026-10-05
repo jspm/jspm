@@ -1093,6 +1093,7 @@ export class Generator {
 
     const analysis = analyzeHtml(html, htmlUrl);
 
+    await this.traceMap.processInputMap;
     const { roots } = this.traceMap;
     let modules =
       pins === true
@@ -1455,6 +1456,7 @@ export class Generator {
    * @deprecated use generator.install('freeze') instead.
    */
   async reinstall() {
+    if (this.strict) throw strictModeError('reinstall');
     return await this.install('freeze');
   }
 
@@ -1810,9 +1812,11 @@ export class Generator {
     const mergeGenerator = this.clone();
     mergeGenerator.flattenScopes = false;
     await mergeGenerator.addMappings(map, mapUrl);
-    await mergeGenerator.install('freeze');
-    await this.addMappings(mergeGenerator.getMap(mergeGenerator.mapUrl, mergeGenerator.rootUrl));
-    await this.install('freeze');
+    // The merged map's top-level imports are traced through its own locks
+    await mergeGenerator._trace(Object.keys(map.imports || {}), 'freeze', new Set());
+    const merged = mergeGenerator.getMap(mergeGenerator.mapUrl, mergeGenerator.rootUrl);
+    await this.addMappings(merged);
+    await this._trace(Object.keys(merged.imports || {}), 'freeze', new Set());
   }
 
   /**

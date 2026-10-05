@@ -1326,6 +1326,7 @@ export class Generator {
 
     await this.traceMap.processInputMap; // don't race input processing
 
+    const unknownImports = new Set<string>();
     const imports = (
       await Promise.all(
         install.map(async install => {
@@ -1363,6 +1364,7 @@ export class Generator {
             }
             // main only
             if (!pcfg.exports || !Object.keys(pcfg.exports).every(expt => expt[0] === '.')) {
+              unknownImports.add(alias);
               return alias;
             }
             // If the provider supports it, get a file listing for the package to assist with glob expansions
@@ -1375,7 +1377,10 @@ export class Generator {
               fileList,
               resolutionMap
             );
-            return [...resolutionMap].map(([subpath, _entry]) => alias + subpath.slice(1));
+            return [...resolutionMap].map(([subpath]) => {
+              unknownImports.add(alias + subpath.slice(1));
+              return alias + subpath.slice(1);
+            });
           } else if (subpaths) {
             subpaths.every(subpath => {
               if (typeof subpath !== 'string' || (subpath !== '.' && !subpath.startsWith('./')))
@@ -1398,10 +1403,13 @@ export class Generator {
           impt,
           {
             installMode: mode!,
-            toplevel: true
+            toplevel: true,
+            unknownImporter: unknownImports.has(impt)
           },
           this.mapUrl.href
         );
+        if (unknownImports.has(impt)) this.traceMap.unknownPins.add(impt);
+        else this.traceMap.unknownPins.delete(impt);
 
         // Add the target import as a top-level pin
         // we do this after the trace, so failed installs don't pollute the map
@@ -1509,6 +1517,7 @@ export class Generator {
         name => name === pin || (name.endsWith('/') && pin.startsWith(name))
       );
       if (pinNames.length) {
+        this.traceMap.unknownPins.delete(pin);
         pins.splice(i--, 1);
         for (const name of pinNames) unusedNames.delete(name);
       }

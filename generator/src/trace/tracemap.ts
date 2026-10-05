@@ -74,12 +74,20 @@ interface VisitOpts {
   static?: boolean;
   toplevel: boolean;
   installMode: InstallMode;
+  /**
+   * The visited module has no known importer: it is enumerated by subpaths: true,
+   * or reached only through such modules, so it may be imported as a module, as
+   * an asset, or with import attributes. Its imports may then fail to resolve
+   * without failing the trace, while the module itself must still resolve.
+   */
+  unknownImporter?: boolean;
   visitor?: (
     specifier: string,
     parentUrl: string,
     resolvedUrl: string,
     toplevel: boolean,
-    entry: TraceEntry | null
+    entry: TraceEntry | null,
+    unknownImporter: boolean
   ) => Promise<boolean | void>;
 }
 
@@ -97,6 +105,8 @@ export default class TraceMap {
   baseUrl: URL;
   rootUrl: URL | null;
   pins: Array<string> | null;
+  /** Pins enumerated by subpaths: true, which have no known importer */
+  unknownPins = new Set<string>();
   log: Log | undefined;
   resolver: Resolver;
   customResolver?: (
@@ -247,7 +257,17 @@ export default class TraceMap {
     seen: Set<string>,
     seenKey: string
   ): Promise<string | null | undefined> {
-    const resolved = await this.resolve(specifier, parentUrl, opts.installMode, opts.toplevel);
+    let resolved: string;
+    try {
+      resolved = await this.resolve(specifier, parentUrl, opts.installMode, opts.toplevel);
+    } catch (e) {
+      if (!opts.unknownImporter || opts.toplevel) throw e;
+      this.log?.(
+        'tracemap/visit',
+        `Skipping unresolvable ${specifier} from ${parentUrl}, which has no known importer: ${e.message}`
+      );
+      return;
+    }
     return this._afterResolve(specifier, opts, parentUrl, seen, seenKey, resolved);
   }
 
@@ -328,7 +348,14 @@ export default class TraceMap {
     resolved: string,
     entry: TraceEntry
   ): Promise<string | null | undefined> {
-    const stop = await opts.visitor!(specifier, parentUrl, resolved, opts.toplevel, entry);
+    const stop = await opts.visitor!(
+      specifier,
+      parentUrl,
+      resolved,
+      opts.toplevel,
+      entry,
+      !!opts.unknownImporter
+    );
     if (stop) return;
     return this._fanout(specifier, opts, resolved, seen, entry);
   }
@@ -551,14 +578,15 @@ export default class TraceMap {
     dynamicList: Set<string>,
     parentUrl?: string
   ) {
-    const dynamics: [string, string][] = [];
+    const dynamics: [string, string, boolean][] = [];
     let list = staticList;
     const visitor = async (
       specifier: string,
       parentUrl: string,
       resolved: string,
       toplevel: boolean,
-      entry: any
+      entry: any,
+      unknownImporter: boolean
     ) => {
       if (!list.has(resolved)) list.add(resolved);
 
@@ -570,7 +598,7 @@ export default class TraceMap {
       if (entry) {
         if (integrity) map.setIntegrity(resolved, entry.integrity);
         for (const dep of entry.dynamicDeps) {
-          dynamics.push([dep, resolved]);
+          dynamics.push([dep, resolved, unknownImporter]);
         }
       }
       if (toplevel) {
@@ -603,7 +631,13 @@ export default class TraceMap {
       modules.map(async module => {
         await this.visit(
           module,
-          { static: true, visitor, installMode: 'freeze', toplevel },
+          {
+            static: true,
+            visitor,
+            installMode: 'freeze',
+            toplevel,
+            unknownImporter: this.unknownPins.has(module)
+          },
           parentUrl || this.baseUrl.href,
           seen
         );
@@ -612,10 +646,15 @@ export default class TraceMap {
 
     list = dynamicList;
     await Promise.all(
-      dynamics.map(async ([specifier, parent]) => {
+      dynamics.map(async ([specifier, parent, unknownImporter]) => {
         await this.visit(
           specifier,
-          { visitor, installMode: 'freeze', toplevel: false },
+          {
+            visitor,
+            installMode: 'freeze',
+            toplevel: false,
+            unknownImporter
+          },
           parent,
           seen
         );

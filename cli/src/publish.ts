@@ -136,10 +136,7 @@ export async function publish(flags: PublishFlags = {}) {
   const { initProject } = await import('./init.ts');
 
   try {
-    // Initialize project configuration with the specified directory
-    const projectConfig = await initProject({
-      quiet: flags.quiet
-    });
+    const projectConfig = await initProject(flags);
     log(`Project initialized: ${projectConfig.name}`);
 
     if (projectConfig.private) {

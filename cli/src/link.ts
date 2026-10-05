@@ -40,7 +40,7 @@ export default async function link(modules: string[], flags: GenerateOutputFlags
         // Initialize project to validate package.json
         const projectConfig = await initProject({
           quiet: flags.quiet,
-          dir: process.cwd()
+          dir: flags.dir
         });
 
         log(`Project validated: ${projectConfig.name}`);

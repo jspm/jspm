@@ -78,14 +78,14 @@ When run with a package name:
 By default, output is limited to 20 items. Use --limit to see more items.
 
 **Options**
-* `-f, --filter` _&lt;pattern&gt;_        Filter exports by pattern (case-insensitive substring match) 
-* `-l, --limit` _&lt;number&gt;_          Limit the number of exports displayed (default: 20) 
+* `-f, --filter` _&lt;pattern&gt;_           Filter exports by pattern (case-insensitive substring match) 
+* `-l, --limit` _&lt;number&gt;_             Limit the number of exports displayed (default: 20) 
 * `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
-* `-p, --provider` &lt;[providers](#providers)&gt;     Provider to use for package resolution. Available providers: jspm.io, nodemodules, deno, jsdelivr, unpkg, esm.sh, jspm.io#system 
-* `-q, --quiet`                   Quiet output (default: false)
-* `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 
-* `--disable-warning` _&lt;warnings&gt;_  Disable specific warnings (comma-separated list, e.g. file-count) 
-* `-h, --help`                    Display this help (add --all for extended command list) 
+* `-p, --provider` &lt;[providers](#providers)&gt;        Provider to use for package resolution. Available providers: jspm.io, nodemodules, deno, jsdelivr, unpkg, esm.sh, jspm.io#system 
+* `-q, --quiet`                      Quiet output (default: false)
+* `-d, --dir` _&lt;directory&gt;_            Package directory to operate on (defaults to working directory) 
+* `--disable-warning` _&lt;warnings&gt;_     Disable specific warnings (comma-separated list, e.g. file-count) 
+* `-h, --help`                       Display this help (add --all for extended command list) 
 
 **Examples**
 
@@ -352,7 +352,7 @@ Manages publishes to the JSPM providers, currently in experimental preview.
 WARNING: jspm publish is experimental and should only be used for prototyping.
 Unlike the https://ga.jspm.io/ CDN which is stable, reliability guarantees are
 not provided for publishing on https://jspm.io/. For reliable package delivery,
-use npm publish ΓÇö all npm packages are available on the https://ga.jspm.io/ CDN.
+use npm publish — all npm packages are available on the https://ga.jspm.io/ CDN.
 
 For publishing (default):
 

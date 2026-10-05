@@ -80,6 +80,7 @@ By default, output is limited to 20 items. Use --limit to see more items.
 **Options**
 * `-f, --filter` _&lt;pattern&gt;_        Filter exports by pattern (case-insensitive substring match) 
 * `-l, --limit` _&lt;number&gt;_          Limit the number of exports displayed (default: 20) 
+* `-C, --conditions` _&lt;environments&gt;_  Comma-separated environment condition overrides (default: )
 * `-p, --provider` &lt;[providers](#providers)&gt;     Provider to use for package resolution. Available providers: jspm.io, nodemodules, deno, jsdelivr, unpkg, esm.sh, jspm.io#system 
 * `-q, --quiet`                   Quiet output (default: false)
 * `-d, --dir` _&lt;directory&gt;_         Package directory to operate on (defaults to working directory) 

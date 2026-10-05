@@ -22,6 +22,7 @@ import { initProject } from './init.ts';
 import { withType } from './logger.ts';
 import {
   getDisabledWarnings,
+  getEnv,
   getExportsEntries,
   getFilesRecursively,
   JspmError,
@@ -69,7 +70,7 @@ async function listCurrentProjectExports(flags: LsFlags) {
       projectConfig.name,
       projectConfig.exports as any,
       fileList,
-      []
+      await getEnv(flags)
     );
 
     stopSpinner();

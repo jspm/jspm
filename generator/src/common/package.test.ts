@@ -435,8 +435,8 @@ const setToArray = set => Array.from(set).sort();
 }
 
 // expandExportsResolutions must agree exactly with Resolver.resolvePackageTarget,
-// which is strict Node conditional resolution. Unknown conditions may only be
-// speculatively expanded when no env or "default" branch resolves at all.
+// which is strict Node conditional resolution. Unknown conditions never resolve
+// and so are never enumerated.
 const browserEnv = ['browser', 'development', 'module', 'import', 'default'];
 
 // Test: unknown condition ordered before "default" must not shadow it
@@ -463,7 +463,8 @@ const browserEnv = ['browser', 'development', 'module', 'import', 'default'];
   assert.deepEqual([...resolutions], [['.', 'b.js']]);
 }
 
-// Test: unknown condition still resolves when nothing else matches
+// Test: a target reachable only through unknown conditions is not enumerated,
+// since the resolver would refuse it
 {
   const resolutions = new Map<string, string>();
   expandExportsResolutions(
@@ -472,7 +473,43 @@ const browserEnv = ['browser', 'development', 'module', 'import', 'default'];
     new Set(['w.js']),
     resolutions
   );
-  assert.deepEqual([...resolutions], [['.', 'w.js']]);
+  assert.deepEqual([...resolutions], []);
+}
+
+// Test: a "types"-only subpath alongside resolvable siblings — jspm/jspm#2751
+{
+  const resolutions = new Map<string, string>();
+  expandExportsResolutions(
+    {
+      '.': {
+        require: { types: './index.d.cts', default: './index.cjs' },
+        import: { types: './index.d.ts', default: './index.js' }
+      },
+      './types': {
+        require: { types: './types.d.cts' },
+        import: { types: './types.d.ts' }
+      },
+      './package.json': './package.json'
+    },
+    browserEnv,
+    new Set([
+      'index.js',
+      'index.cjs',
+      'index.d.ts',
+      'index.d.cts',
+      'types.d.ts',
+      'types.d.cts',
+      'package.json'
+    ]),
+    resolutions
+  );
+  assert.deepEqual(
+    [...resolutions],
+    [
+      ['.', 'index.js'],
+      ['./package.json', 'package.json']
+    ]
+  );
 }
 
 // Test: "types" wildcard must not shadow "default" — jspm/jspm#2717

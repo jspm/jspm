@@ -263,6 +263,9 @@ cli
     {}
   )
   .option('-l, --limit <number>', 'Limit the number of exports displayed (default: 20)', {})
+  .option('-C, --conditions <environments>', 'Comma-separated environment condition overrides', {
+    default: []
+  })
   .option(
     '-p, --provider <provider>',
     `Provider to use for package resolution. Available providers: ${availableProviders.join(', ')}`,
@@ -754,6 +757,8 @@ export interface LsFlags extends BaseFlags {
   filter?: string;
   /** Limit the number of exports displayed (defaults to 20) */
   limit?: number | string;
+  /** Comma-separated environment condition overrides or array of conditions */
+  conditions?: string | string[];
   /** Provider to use for package resolution (defaults to configured defaultProvider) */
   provider?: string;
 }

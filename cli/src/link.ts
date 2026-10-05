@@ -1,4 +1,4 @@
-import type {Generator} from '@jspm/generator';
+import type { Generator } from '@jspm/generator';
 import type { GenerateOutputFlags } from './cli.ts';
 import * as fs from 'node:fs/promises';
 import { extname } from 'node:path';

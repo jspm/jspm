@@ -108,8 +108,15 @@ import { Generator } from '@jspm/generator';
   assert.ok(primarySemver, 'primary scope should have semver');
   assert.ok(secondarySemver, 'secondary scope should have semver');
   assert.ok(primarySemver.includes('semver@6.'), 'primary should resolve semver@6');
-  assert.ok(secondarySemver.includes('semver@6.'), 'secondary should resolve semver@6 via primary range');
-  assert.strictEqual(primarySemver, secondarySemver, 'both scopes should share the same resolution');
+  assert.ok(
+    secondarySemver.includes('semver@6.'),
+    'secondary should resolve semver@6 via primary range'
+  );
+  assert.strictEqual(
+    primarySemver,
+    secondarySemver,
+    'both scopes should share the same resolution'
+  );
 }
 
 // #-prefixed inputMap specifiers resolve via linked master scope
@@ -125,16 +132,16 @@ import { Generator } from '@jspm/generator';
       scopes: {
         [masterScope]: {
           '#framer/local/comp/abc/abc.js': `${CDN}/masterAAA/save1/mod.js`,
-          lodash: 'https://ga.jspm.io/npm:lodash@4.17.21/lodash.js',
-        },
-      },
+          lodash: 'https://ga.jspm.io/npm:lodash@4.17.21/lodash.js'
+        }
+      }
     },
     env: ['production', 'browser', 'module'],
     flattenScopes: false,
     combineSubpaths: false,
     scopedLink: true,
     linkedScopes: {
-      [masterScope]: [masterScope, otherScope],
+      [masterScope]: [masterScope, otherScope]
     },
     customProviders: {
       test: {
@@ -145,22 +152,19 @@ import { Generator } from '@jspm/generator';
           if (!url.startsWith(CDN + '/')) return {};
           const segments = url.slice(CDN.length + 1).split('/');
           const moduleId = segments[0];
-          if (
-            (moduleId === 'masterAAA' || moduleId === 'otherBBB') &&
-            segments.length > 2
-          )
+          if ((moduleId === 'masterAAA' || moduleId === 'otherBBB') && segments.length > 2)
             return null;
           return {};
-        },
-      },
-    },
+        }
+      }
+    }
   });
 
   generator.setVirtualSourceData(`${CDN}/otherBBB/save1/`, {
-    'mod.js': 'import comp from "#framer/local/comp/abc/abc.js";\nexport default comp;',
+    'mod.js': 'import comp from "#framer/local/comp/abc/abc.js";\nexport default comp;'
   });
   generator.setVirtualSourceData(`${CDN}/masterAAA/save1/`, {
-    'mod.js': "export default 'A';",
+    'mod.js': "export default 'A';"
   });
 
   await generator.link([`${CDN}/otherBBB/save1/mod.js`]);
@@ -203,5 +207,8 @@ import { Generator } from '@jspm/generator';
 
   const secondarySemver = json.scopes['./local/linked-version-secondary/']?.semver;
   assert.ok(secondarySemver, 'secondary scope should have semver');
-  assert.ok(secondarySemver.includes('semver@6.3.0'), 'freeze should preserve primary inputMap resolution');
+  assert.ok(
+    secondarySemver.includes('semver@6.3.0'),
+    'freeze should preserve primary inputMap resolution'
+  );
 }

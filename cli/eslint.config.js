@@ -10,6 +10,7 @@ export default antfu(
       'no-control-regex': 'off',
       'no-regex-spaces': 'off',
       'style/if-newline': 'off',
+      'antfu/if-newline': 'off',
       'ts/no-use-before-define': 'off',
       'node/prefer-global/process': 'off',
       'node/prefer-global/buffer': 'off',

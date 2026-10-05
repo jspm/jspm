@@ -38,16 +38,14 @@ export function extractExportNames(source: string): string[] {
       names.add('default');
       continue;
     }
-    if (/^(?:type|interface)\b/.test(rest)) 
-continue;
+    if (/^(?:type|interface)\b/.test(rest)) continue;
 
     let sub = rest.match(new RegExp(`^\\*\\s+as\\s+(${ID})`));
     if (sub) {
       names.add(sub[1]);
       continue;
     }
-    if (/^\*/.test(rest)) 
-continue; // export * from — names not recoverable
+    if (/^\*/.test(rest)) continue; // export * from — names not recoverable
 
     sub = rest.match(new RegExp(`^(?:async\\s+)?function\\s*\\*?\\s*(${ID})`));
     if (sub) {
@@ -70,15 +68,13 @@ continue; // export * from — names not recoverable
       if (close > 0) {
         for (const spec of rest.slice(1, close).split(',')) {
           const t = spec.trim();
-          if (!t) 
-continue;
+          if (!t) continue;
           const asMatch = t.match(new RegExp(`\\sas\\s+(${ID})\\s*$`));
           if (asMatch) {
             names.add(asMatch[1]);
           } else {
             const idMatch = t.match(new RegExp(`^(${ID})`));
-            if (idMatch) 
-names.add(idMatch[1]);
+            if (idMatch) names.add(idMatch[1]);
           }
         }
       }
@@ -149,8 +145,7 @@ function setupKeyHandler(serverUrl: string) {
 
 // Function to hide keyboard shortcuts
 export function hideShortcuts() {
-  if (!showingShortcuts) 
-return;
+  if (!showingShortcuts) return;
 
   // Remove the event listener if it exists
   if (currentKeyHandler) {
@@ -193,8 +188,7 @@ export function lintMessage({
   console.log(`${c.yellow('Warning:')} Problem in HTML file ${c.bold(file)}:`);
   console.log(`${c.yellow(` → ${name}`)}${description ? `\n   ${c.dim(description)}` : ''}`);
   if (code) {
-    if (code.title) 
-console.log(`\n${c.magenta(code.title)}`);
+    if (code.title) console.log(`\n${c.magenta(code.title)}`);
     console.log(`\n${cliHtmlHighlight(code.snippet)}\n`);
   }
 }

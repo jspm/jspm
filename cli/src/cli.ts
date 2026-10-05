@@ -30,7 +30,7 @@
  * {@link https://jspm.org/docs/cli JSPM CLI documentation}.
  */
 
-import type {Command} from 'cac';
+import type { Command } from 'cac';
 import { readFileSync } from 'node:fs';
 import cac from 'cac';
 import c from 'picocolors';
@@ -218,14 +218,12 @@ cli
   .usage('[command] [options]')
   .action(
     wrapCommand((args: string[]) => {
-      if (args[0] === 'help') 
-return cli.outputHelp();
+      if (args[0] === 'help') return cli.outputHelp();
       if (args[0] === '--version') {
         console.log(version);
         return;
       }
-      if (!args.length) 
-return cli.outputHelp();
+      if (!args.length) return cli.outputHelp();
       throw new JspmError(
         `Unknown command: ${args[0]}\nRun "jspm" without any arguments to see the help file.`
       );
@@ -917,8 +915,7 @@ function defaultHelpCb(helpSections: HelpSection[]) {
         .split('\n')
         .slice(1)
         .filter(l => {
-          if (process.argv.includes('--all')) 
-return true;
+          if (process.argv.includes('--all')) return true;
           return !(
             l.includes('link') ||
             l.includes('config') ||
@@ -933,8 +930,7 @@ return true;
   }
 
   for (const section of Object.values(helpSections)) {
-    if (section.title) 
-section.title = c.bold(section.title);
+    if (section.title) section.title = c.bold(section.title);
   }
 
   return helpSections;

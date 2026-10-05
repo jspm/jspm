@@ -1080,14 +1080,16 @@ export class Generator {
       pins === true
         ? this.traceMap.pins || Object.keys(this.traceMap.inputMap.imports)
         : Array.isArray(pins)
-        ? pins
-        : [];
+          ? pins
+          : [];
     if (trace) {
       const impts = await this.linkHtml(html, htmlUrl);
       modules = [...new Set([...modules, ...impts])];
     }
 
-    var map: any, staticDeps: string[] = [], dynamicDeps: string[] = [];
+    var map: any,
+      staticDeps: string[] = [],
+      dynamicDeps: string[] = [];
     try {
       ({ map, staticDeps, dynamicDeps } = await this.extractMap(
         modules,
@@ -1107,8 +1109,8 @@ export class Generator {
     const newlineTab = !whitespace
       ? analysis.newlineTab
       : analysis.newlineTab.includes('\n')
-      ? analysis.newlineTab
-      : '\n' + analysis.newlineTab;
+        ? analysis.newlineTab
+        : '\n' + analysis.newlineTab;
 
     const replacer = new Replacer(html);
 
@@ -1255,7 +1257,10 @@ export class Generator {
    * Will respect {@link GeneratorOptions.customResolver} for dependency specifier resolution. If requiring
    * a {@link GeneratorOptions.customResolver} to apply at the top-level, use {@link Generator.link} instead.
    */
-  async install(install: string | Install | (string | Install)[], mode?: InstallMode): Promise<{ staticDeps: string[]; dynamicDeps: string[] }>;
+  async install(
+    install: string | Install | (string | Install)[],
+    mode?: InstallMode
+  ): Promise<{ staticDeps: string[]; dynamicDeps: string[] }>;
   async install(mode?: InstallMode): Promise<{ staticDeps: string[]; dynamicDeps: string[] }>;
   async install(
     install?: string | Install | (string | Install)[] | InstallMode,
@@ -1703,8 +1708,8 @@ export class Generator {
       importMap === true
         ? this.map.clone()
         : importMap
-        ? new ImportMap({ map: importMap })
-        : undefined;
+          ? new ImportMap({ map: importMap })
+          : undefined;
     if (map) {
       if (this.flattenScopes) map.flatten();
       map.sort();
@@ -2068,8 +2073,8 @@ export class Generator {
             firstSlash === -1
               ? key
               : key[0] === '@'
-              ? key.slice(0, key.indexOf('/', firstSlash + 1))
-              : key.slice(0, firstSlash);
+                ? key.slice(0, key.indexOf('/', firstSlash + 1))
+                : key.slice(0, firstSlash);
           for (const prefix of wildcardPrefixes) prefixes.add(pkgName + prefix.slice(1));
         }
         return prefixes.size ? prefixes : undefined;

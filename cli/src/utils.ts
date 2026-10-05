@@ -1,4 +1,4 @@
-import type {GeneratorOptions} from '@jspm/generator';
+import type { GeneratorOptions } from '@jspm/generator';
 import type { GenerateFlags, GenerateOutputFlags } from './cli.ts';
 import type { IImportMap, IImportMapJspm } from './types.ts';
 import { execSync, spawn } from 'node:child_process';
@@ -14,7 +14,7 @@ import fs from 'node:fs/promises';
 import { platform, tmpdir } from 'node:os';
 import path, { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { analyzeHtml, Generator  } from '@jspm/generator';
+import { analyzeHtml, Generator } from '@jspm/generator';
 import { minimatch } from 'minimatch';
 import ora from 'ora';
 import c from 'picocolors';
@@ -29,10 +29,8 @@ export function cliHtmlHighlight(code: string) {
   return code
     .split('\n')
     .map(l => {
-      if (l.startsWith('<!--') && l.endsWith('-->')) 
-return `  ${c.gray(l)}`;
-      if (l.startsWith('//')) 
-return `  ${c.gray(l)}`;
+      if (l.startsWith('<!--') && l.endsWith('-->')) return `  ${c.gray(l)}`;
+      if (l.startsWith('//')) return `  ${c.gray(l)}`;
       l = l.replace(/("[^"]*")/g, s => c.red(s)).replace(/>?<\/?script>?/g, s => c.blue(s));
       return `  ${l}`;
     })
@@ -67,7 +65,7 @@ const defaultHtmlTemplate = `<!DOCTYPE html>
 function relativeUrlLike(value: string) {
   return value.startsWith('./') || value.startsWith('../') || value.startsWith('/');
 }
-export function jsTemplate (map: IImportMap, compact: boolean) {
+export function jsTemplate(map: IImportMap, compact: boolean) {
   const mapJson = compact ? JSON.stringify(map) : JSON.stringify(map, null, 2);
   const importsRebase =
     map.imports &&
@@ -161,8 +159,7 @@ export async function writeOutput(
   flags: GenerateOutputFlags,
   silent = false
 ): Promise<IImportMap | undefined> {
-  if (flags.stdout) 
-return writeStdoutOutput(generator, pins);
+  if (flags.stdout) return writeStdoutOutput(generator, pins);
 
   const mapFile = getOutputPath(flags);
   if (mapFile.endsWith('.html')) {
@@ -390,7 +387,7 @@ function findJsMap(input: string, mapPath: string): { map: IImportMap; range: [n
           map: {} as IImportMapJspm,
           range: [objectIdx, objectIdx + 2]
         };
-}
+      }
       throw new JspmError(
         `Could not find a valid import map object in the JavaScript file "${mapPath}"`
       );
@@ -489,8 +486,7 @@ function getOutputMapUrl(flags: GenerateOutputFlags): URL {
 }
 
 function getRootUrl(flags: GenerateOutputFlags): URL | undefined {
-  if (!flags?.root) 
-return undefined;
+  if (!flags?.root) return undefined;
   return pathToFileURL(resolve(flags.root)) as URL;
 }
 
@@ -505,23 +501,19 @@ const excludeDefinitions: Record<string, string[]> = {
 
 function removeEnvs(env: string[], removeEnvs: string[]) {
   for (const removeEnv of removeEnvs) {
-    if (env.includes(removeEnv)) 
-env.splice(env.indexOf(removeEnv), 1);
+    if (env.includes(removeEnv)) env.splice(env.indexOf(removeEnv), 1);
   }
   return env.sort();
 }
 function addEnvs(env: string[], newEnvs: string[]) {
   let excludeEnvs: string[] = [];
   for (const newEnv of newEnvs) {
-    if (!env.includes(newEnv)) 
-env.push(newEnv);
+    if (!env.includes(newEnv)) env.push(newEnv);
     const excludes = excludeDefinitions[newEnv];
-    if (excludes) 
-excludeEnvs = excludeEnvs.concat(excludes);
+    if (excludes) excludeEnvs = excludeEnvs.concat(excludes);
   }
   for (const exclude of excludeEnvs) {
-    if (env.includes(exclude) && !newEnvs.includes(exclude)) 
-env.splice(env.indexOf(exclude), 1);
+    if (env.includes(exclude) && !newEnvs.includes(exclude)) env.splice(env.indexOf(exclude), 1);
   }
   return env.sort();
 }
@@ -552,7 +544,7 @@ function getProvider(flags: GenerateFlags): (typeof availableProviders)[number] 
         '", "'
       )}".`
     );
-}
+  }
   return flags.provider!;
 }
 
@@ -561,8 +553,7 @@ function removeNonStaticEnvKeys(env: string[]) {
 }
 
 function getResolutions(flags: GenerateFlags): Record<string, string> | undefined {
-  if (!flags.resolution) 
-return;
+  if (!flags.resolution) return;
   const resolutions = Array.isArray(flags.resolution)
     ? flags.resolution
     : flags.resolution.split(',').map(r => r.trim());
@@ -583,8 +574,7 @@ return;
 
 const validCacheModes = ['online', 'offline', 'no-cache'];
 function getCacheMode(flags: GenerateFlags): 'offline' | boolean {
-  if (!flags.cache) 
-return true;
+  if (!flags.cache) return true;
   if (!validCacheModes.includes(flags.cache)) {
     throw new JspmError(
       `Invalid cache mode "${flags.cache}". Available modes are: "${validCacheModes.join(
@@ -595,19 +585,16 @@ return true;
         'no-cache'
       )}   Never use the local cache.`
     );
-}
+  }
 
-  if (flags.cache === 'offline') 
-return 'offline';
-  if (flags.cache === 'online') 
-return true;
+  if (flags.cache === 'offline') return 'offline';
+  if (flags.cache === 'online') return true;
   return false;
 }
 
 const validPreloadModes = ['static', 'dynamic'];
 function getPreloadMode(flags: GenerateOutputFlags): boolean | 'static' | 'all' {
-  if (flags.preload === null || flags.preload === undefined) 
-return false;
+  if (flags.preload === null || flags.preload === undefined) return false;
   if (typeof flags.preload === 'boolean') {
     return flags.preload;
   }
@@ -622,12 +609,10 @@ return false;
         'dynamic'
       )} Inject preload tags for static and dynamic dependencies.`
     );
-}
+  }
 
-  if (flags.preload === 'static') 
-return 'static';
-  if (flags.preload === 'dynamic') 
-return 'all';
+  if (flags.preload === 'static') return 'static';
+  if (flags.preload === 'dynamic') return 'all';
   return false; // should never get here
 }
 
@@ -669,8 +654,7 @@ function canRead(file: string) {
 
 function canWrite(file: string) {
   try {
-    if (!exists(file)) 
-return true;
+    if (!exists(file)) return true;
     accessSync(file, constants.W_OK);
     return true;
   } catch (e) {
@@ -896,8 +880,7 @@ export async function getPackageJson(dir?: string): Promise<{
         );
       }
     }
-    if (dir) 
-return null;
+    if (dir) return null;
     currentDir = path.dirname(currentDir);
   }
   return null;
@@ -995,17 +978,14 @@ export function getMapMatch<T = any>(
   specifier: string,
   map: Record<string, T>
 ): string | undefined {
-  if (specifier in map) 
-return specifier;
+  if (specifier in map) return specifier;
   let bestMatch;
   for (const match of Object.keys(map)) {
     const wildcardIndex = match.indexOf('*');
-    if (!match.endsWith('/') && wildcardIndex === -1) 
-continue;
+    if (!match.endsWith('/') && wildcardIndex === -1) continue;
     if (match.endsWith('/')) {
       if (specifier.startsWith(match)) {
-        if (!bestMatch || match.length > bestMatch.length) 
-bestMatch = match;
+        if (!bestMatch || match.length > bestMatch.length) bestMatch = match;
       }
     } else {
       const prefix = match.slice(0, wildcardIndex);
@@ -1025,8 +1005,7 @@ bestMatch = match;
 
 export function allDotKeys(exports: Record<string, any>) {
   for (const p in exports) {
-    if (p[0] !== '.') 
-return false;
+    if (p[0] !== '.') return false;
   }
   return true;
 }
@@ -1067,8 +1046,7 @@ export function expandExportsResolutions(
     for (const target of targetList) {
       if (target.startsWith('./')) {
         const targetFile = target.slice(2);
-        if (!files || files.has(targetFile))
-exportsResolutions.set('.', targetFile);
+        if (!files || files.has(targetFile)) exportsResolutions.set('.', targetFile);
       }
     }
   } else {
@@ -1104,8 +1082,7 @@ export function expandExportsEntries(
     for (const target of targetList) {
       if (target.startsWith('./')) {
         const targetFile = target.slice(2);
-        if (!files || files.has(targetFile)) 
-entriesList.add(targetFile);
+        if (!files || files.has(targetFile)) entriesList.add(targetFile);
       }
     }
   } else {
@@ -1147,12 +1124,13 @@ function expandTargetResolutions(
   speculate = true
 ): boolean {
   if (typeof exports === 'string') {
-    if (exports.startsWith('./'))
-targetList.add(exports);
+    if (exports.startsWith('./')) targetList.add(exports);
     return true;
   } else if (Array.isArray(exports)) {
     for (const item of exports) {
-      if (expandTargetResolutions(item, files, env, targetList, envExclusions, firstOnly, speculate))
+      if (
+        expandTargetResolutions(item, files, env, targetList, envExclusions, firstOnly, speculate)
+      )
         return true;
     }
     return false;
@@ -1162,8 +1140,7 @@ targetList.add(exports);
   } else {
     let hasSomeResolution = false;
     for (const condition of Object.keys(exports)) {
-      if (condition.startsWith('.')) 
-continue;
+      if (condition.startsWith('.')) continue;
       if (condition === 'default' || env.includes(condition)) {
         if (
           expandTargetResolutions(
@@ -1179,8 +1156,7 @@ continue;
           return true;
         }
       }
-      if (!speculate || envExclusions.includes(condition))
-continue;
+      if (!speculate || envExclusions.includes(condition)) continue;
       const maybeNewExclusion = conditionMutualExclusions[condition];
       const newExclusions =
         maybeNewExclusion && !envExclusions.includes(maybeNewExclusion)
@@ -1198,8 +1174,7 @@ continue;
           speculate
         )
       ) {
-        if (firstOnly)
-return true;
+        if (firstOnly) return true;
         hasSomeResolution = true;
         envExclusions = newExclusions;
       }
@@ -1219,16 +1194,13 @@ function expandExportsTarget(
   files: Set<string> | undefined,
   entriesMap: Map<string, string>
 ) {
-  if (!target.startsWith('./') || !(subpath.startsWith('./') || subpath === '.')) 
-return;
+  if (!target.startsWith('./') || !(subpath.startsWith('./') || subpath === '.')) return;
   if (!target.includes('*') || !subpath.includes('*')) {
     const targetFile = target.slice(2);
-    if (!files || files.has(targetFile)) 
-entriesMap.set(subpath, target.slice(2));
+    if (!files || files.has(targetFile)) entriesMap.set(subpath, target.slice(2));
     return;
   }
-  if (!files) 
-return;
+  if (!files) return;
 
   // First determine the list of files that could match the target glob
   const lhs = target.slice(2, target.indexOf('*'));
@@ -1248,8 +1220,7 @@ return;
     const pattern = fileMatch.slice(lhs.length, fileMatch.length - rhs.length);
     const originalSubpath = subpath.replace('*', pattern);
     const matchedSubpath = getMapMatch(originalSubpath, exports);
-    if (matchedSubpath === subpath) 
-entriesMap.set(originalSubpath, fileMatch);
+    if (matchedSubpath === subpath) entriesMap.set(originalSubpath, fileMatch);
   }
 }
 
@@ -1303,8 +1274,7 @@ export async function querySelection(
 
       // Handle keypress events
       const handleKeypress = (str: string, key: { name: string; ctrl: boolean }) => {
-        if (!key) 
-return;
+        if (!key) return;
 
         if (key.name === 'up' && selectedIndex > 0) {
           selectedIndex--;

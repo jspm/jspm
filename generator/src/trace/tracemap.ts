@@ -221,7 +221,11 @@ export default class TraceMap {
     const parentAnalysis = this.resolver.getAnalysis(parentUrl);
     const parentIsCjs =
       parentAnalysis?.format === 'commonjs' || (!parentAnalysis && this.opts.commonJS);
-    if (!parentIsCjs && (!isPlain(specifier) || specifier === '..') && !isMappableScheme(specifier)) {
+    if (
+      !parentIsCjs &&
+      (!isPlain(specifier) || specifier === '..') &&
+      !isMappableScheme(specifier)
+    ) {
       try {
         const url = new URL(specifier, parentUrl);
         if (this.resolver.getAnalysis(url.href) !== undefined) {
@@ -514,7 +518,10 @@ export default class TraceMap {
       const key = `${module}##${baseUrl}`;
       if (!this.visitedEdges.has(key)) {
         // Edge was never visited — fall back to async path which will trace it
-        this.log?.('tracemap/extractMap', `Missing edge for ${module} from ${baseUrl}, falling back to async path`);
+        this.log?.(
+          'tracemap/extractMap',
+          `Missing edge for ${module} from ${baseUrl}, falling back to async path`
+        );
         return this._extractMapAsync(
           modules,
           map,
@@ -784,7 +791,9 @@ export default class TraceMap {
       const masterScope = resolveScopeGroup(parentPkgUrl, this.opts.linkedScopes);
       if (masterScope !== parentPkgUrl) {
         const masterScopeMatches = getScopeMatches(
-          masterScope, this.inputMap.scopes, this.inputMap.mapUrl!
+          masterScope,
+          this.inputMap.scopes,
+          this.inputMap.mapUrl!
         );
         for (const [scope] of masterScopeMatches) {
           const mapMatch = getMapMatch(specifier, this.inputMap.scopes[scope]);

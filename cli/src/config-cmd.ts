@@ -220,8 +220,7 @@ function parseKeyParts(key: string): string[] {
  * Helper to get a nested configuration value using dot notation
  */
 function getConfigValue(config: any, key: string): any {
-  if (key.trim() === '') 
-throw new JspmError(`No key provided to get`);
+  if (key.trim() === '') throw new JspmError(`No key provided to get`);
   const parts = parseKeyParts(key);
   let current = config;
 

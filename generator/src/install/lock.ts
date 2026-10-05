@@ -128,9 +128,8 @@ export function setConstraint(
 ) {
   if (pkgScope === null) constraints.primary[name] = target;
   else
-    (constraints.secondary[pkgScope as `${string}/`] = constraints.secondary[pkgScope as `${string}/`] || Object.create(null))[
-      name
-    ] = target;
+    (constraints.secondary[pkgScope as `${string}/`] =
+      constraints.secondary[pkgScope as `${string}/`] || Object.create(null))[name] = target;
 }
 
 export function setResolution(
@@ -160,11 +159,15 @@ export function mergeLocks(resolutions: LockResolutions, newResolutions: LockRes
   }
   for (const pkgUrl of Object.keys(newResolutions.secondary) as `${string}/`[]) {
     if (resolutions.secondary[pkgUrl])
-      Object.assign((resolutions.secondary[pkgUrl] = Object.create(null)), newResolutions.secondary[pkgUrl]);
+      Object.assign(
+        (resolutions.secondary[pkgUrl] = Object.create(null)),
+        newResolutions.secondary[pkgUrl]
+      );
     else resolutions.secondary[pkgUrl] = newResolutions.secondary[pkgUrl];
   }
   for (const scopeUrl of Object.keys(newResolutions.flattened) as `${string}/`[]) {
-    if (resolutions.flattened[scopeUrl]) Object.assign(resolutions.flattened[scopeUrl], newResolutions.flattened[scopeUrl]);
+    if (resolutions.flattened[scopeUrl])
+      Object.assign(resolutions.flattened[scopeUrl], newResolutions.flattened[scopeUrl]);
     else resolutions.flattened[scopeUrl] = newResolutions.flattened[scopeUrl];
   }
 }
@@ -178,7 +181,10 @@ export function mergeConstraints(
   }
   for (const pkgUrl of Object.keys(newConstraints.secondary) as `${string}/`[]) {
     if (constraints.secondary[pkgUrl])
-      Object.assign((constraints.secondary[pkgUrl] = Object.create(null)), newConstraints.secondary[pkgUrl]);
+      Object.assign(
+        (constraints.secondary[pkgUrl] = Object.create(null)),
+        newConstraints.secondary[pkgUrl]
+      );
     else constraints.secondary[pkgUrl] = newConstraints.secondary[pkgUrl];
   }
 }
@@ -528,17 +534,15 @@ async function enforceProviderConstraints(
       setResolution(res, pkgName, installUrl, pkgUrl as `${string}/`);
     }
   }
-  for (const [scopeUrl, pkgLocks] of Object.entries(locks.flattened) as [`${string}/`, Record<string, FlatInstalledResolution[]>][]) {
+  for (const [scopeUrl, pkgLocks] of Object.entries(locks.flattened) as [
+    `${string}/`,
+    Record<string, FlatInstalledResolution[]>
+  ][]) {
     res.flattened[scopeUrl] = {};
     for (const [pkgName, locks] of Object.entries(pkgLocks)) {
       res.flattened[scopeUrl][pkgName] = [];
       for (const lock of locks) {
-        const newLock = await translateLock(
-          lock.resolution,
-          provider,
-          resolver,
-          scopeUrl
-        );
+        const newLock = await translateLock(lock.resolution, provider, resolver, scopeUrl);
         res.flattened[scopeUrl][pkgName].push({
           export: lock.export,
           resolution: newLock

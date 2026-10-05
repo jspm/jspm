@@ -90,8 +90,8 @@ export function resolveBuiltin(
   let builtin = specifier.startsWith('node:')
     ? specifier.slice(5)
     : nodeBuiltinSet.has(specifier)
-    ? specifier
-    : null;
+      ? specifier
+      : null;
   if (!builtin) return;
 
   // Deno supports all node builtins via bare "node:XXX" specifiers. As of

@@ -4,9 +4,9 @@ import { Analysis } from './analysis.js';
 let babel: any, babelPresetTs: any, babelPluginImportAttributes: any;
 
 export function setBabel(_babel: any, _babelPresetTs: any, _babelPluginImportAttributes: any) {
-  (babel = _babel),
+  ((babel = _babel),
     (babelPresetTs = _babelPresetTs),
-    (babelPluginImportAttributes = _babelPluginImportAttributes);
+    (babelPluginImportAttributes = _babelPluginImportAttributes));
 }
 
 const globalConsole = globalThis.console;
@@ -112,7 +112,12 @@ export async function createTsAnalysis(source: string, url: string): Promise<Ana
 }
 
 // We use the special character \x10 as a "wildcard symbol"
-function buildDynamicString(node: any, fileName: any, isEsm = false, lastIsWildcard = false): string {
+function buildDynamicString(
+  node: any,
+  fileName: any,
+  isEsm = false,
+  lastIsWildcard = false
+): string {
   if (node.type === 'StringLiteral') {
     return node.value;
   }

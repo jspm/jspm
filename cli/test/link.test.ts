@@ -164,3 +164,29 @@ it('support HTML as import map when no importmap.json exists', async () => {
     }
   });
 });
+
+it('linking with no arguments relinks prefix mappings', async () => {
+  await run({
+    files: new Map([
+      [
+        'importmap.json',
+        JSON.stringify({
+          imports: {
+            'lit/directives/': 'https://ga.jspm.io/npm:lit@2.2.7/directives/'
+          },
+          scopes: {
+            'https://ga.jspm.io/': {
+              'lit-html': 'https://ga.jspm.io/npm:lit-html@2.2.6/lit-html.js',
+              'lit-html/directives/': 'https://ga.jspm.io/npm:lit-html@2.2.6/directives/'
+            }
+          }
+        })
+      ]
+    ]),
+    commands: ['jspm link --map importmap.json -o importmap.json'],
+    validationFn: async (files: Map<string, string>) => {
+      const map = JSON.parse(files.get('importmap.json')!);
+      assert(Object.keys(map.imports).some(key => key.startsWith('lit/directives/')));
+    }
+  });
+});

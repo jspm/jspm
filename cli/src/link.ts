@@ -26,7 +26,9 @@ export default async function link(modules: string[], flags: GenerateOutputFlags
   const fallbackMap = !modules[0] || isJsExtension(extname(modules[0])) ? undefined : modules[0];
 
   const env = await getEnv(flags);
-  const generator = await getGenerator(flags, { scopedLink: true });
+  // With no modules the existing map is relinked as a frozen install, which
+  // takes the map's own imports as its top-level pins
+  const generator = await getGenerator(flags, modules.length ? null : { inputPins: true });
 
   let pins = null;
   if (modules.length === 0) {

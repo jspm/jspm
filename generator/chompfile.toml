@@ -69,7 +69,7 @@ run = 'node ../node_modules/@swc/cli/bin/swc.js $DEP -o $TARGET --no-swcrc --sou
 [[task]]
 name = 'build:dec'
 deps = ['src/**/*.ts', 'fetch']
-run = 'tsc --emitDeclarationOnly'
+run = '../node_modules/.bin/tsc --emitDeclarationOnly'
 
 [[task]]
 target = 'lib/version.js'
@@ -218,5 +218,5 @@ deps = [
     'fetch',
 ]
 run = '''
-    tsc --noEmit
+    ../node_modules/.bin/tsc --noEmit
 '''

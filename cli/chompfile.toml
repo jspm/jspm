@@ -113,7 +113,7 @@ deps = [
   'src/**/*.ts',
   'test/*.ts',
 ]
-run = 'tsc --noEmit'
+run = '../node_modules/.bin/tsc --noEmit'
 
 [[task]]
 name = 'link:test'

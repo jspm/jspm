@@ -36,3 +36,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PREV: ${{ steps.release.outputs.prev }}
+      - name: Redeploy sites
+        run: gh workflow run deploy.yml -R jspm/jspm-sites -f package="$NAME" -f version="$VERSION"
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          NAME: ${{ steps.release.outputs.name }}
+          VERSION: ${{ steps.release.outputs.version }}

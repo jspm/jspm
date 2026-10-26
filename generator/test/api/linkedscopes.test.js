@@ -212,3 +212,24 @@ import { Generator } from '@jspm/generator';
     'freeze should preserve primary inputMap resolution'
   );
 }
+
+// collapseLinkedScopes hoists the shared group mappings to imports under relative scope keys
+{
+  const generator = new Generator({
+    baseUrl: new URL('../', import.meta.url),
+    mapUrl: import.meta.url,
+    env: ['production', 'browser'],
+    flattenScopes: false,
+    linkedScopes: {
+      './api/local/linked-primary/': ['./api/local/linked-secondary/']
+    }
+  });
+
+  await generator.install({ target: './api/local/linked-primary' });
+  await generator.install({ target: './api/local/linked-secondary' });
+  const json = generator.getMap({ collapseLinkedScopes: true });
+
+  assert.ok(json.imports.dep?.includes('dep/main.js'), 'shared dep should hoist to imports');
+  assert.strictEqual(json.scopes?.['./local/linked-primary/'], undefined);
+  assert.strictEqual(json.scopes?.['./local/linked-secondary/'], undefined);
+}

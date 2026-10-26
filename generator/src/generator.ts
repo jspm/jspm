@@ -52,7 +52,7 @@ import {
   type HtmlAnalysis
 } from './html/analyze.js';
 import { InstallTarget, PackageProvider, type InstallMode } from './install/installer.js';
-import type { LockResolutions } from './install/lock.js';
+import { type LockResolutions, resolveScopeGroup } from './install/lock.js';
 import {
   type PublishOutput,
   getDefaultProviderStrings,
@@ -617,6 +617,10 @@ export interface GeneratorOptions {
    * Modules in `https://site.com/bar/` will use the dependency ranges
    * and resolution locks from `https://site.com/foo/`, while their
    * scope boundaries remain unchanged.
+   *
+   * Every scope in a group outputs the same mappings. Use
+   * `getMap({ collapseLinkedScopes: true })` to output them once as
+   * top-level imports instead.
    */
   linkedScopes?: Record<string, string[]>;
 }
@@ -2149,6 +2153,13 @@ export class Generator {
    * Obtain the final generated import map, with flattening and subpaths combined
    * (unless otherwise disabled via the Generator flattenScopes and combineSubpaths options).
    *
+   * @param options Output options, see {@link GetMapOptions}.
+   */
+  getMap(options?: GetMapOptions): IImportMap;
+  /**
+   * Obtain the final generated import map, with flattening and subpaths combined
+   * (unless otherwise disabled via the Generator flattenScopes and combineSubpaths options).
+   *
    * A mapUrl can be provided typically as a file URL corresponding to the location of the import map on the file
    * system. Relative paths to other files on the filesystem will then be tracked as map-relative and
    * output as relative paths, assuming the map retains its relative relation to local modules regardless
@@ -2157,14 +2168,92 @@ export class Generator {
    * When a root URL is provided pointing to a local file URL, `/` prefixed URLs will be used for all
    * modules contained within this file URL base as root URL relative instead of map relative URLs like the above.
    */
-  getMap(mapUrl?: string | URL, rootUrl?: string | URL | null) {
-    const map = this.map.clone();
+  getMap(mapUrl?: string | URL, rootUrl?: string | URL | null): IImportMap;
+  getMap(
+    mapUrlOrOptions?: string | URL | GetMapOptions,
+    rootUrl?: string | URL | null
+  ): IImportMap {
+    let mapUrl: string | URL | undefined;
+    let collapseLinkedScopes = false;
+    if (mapUrlOrOptions instanceof URL || typeof mapUrlOrOptions !== 'object')
+      mapUrl = mapUrlOrOptions;
+    else ({ mapUrl, rootUrl, collapseLinkedScopes = false } = mapUrlOrOptions);
+    const map = collapseLinkedScopes ? this.collapseLinkedScopes() : this.map.clone();
     if (mapUrl) map.rebase(mapUrl, rootUrl);
     if (this.flattenScopes) map.flatten();
     map.sort();
     this.simplify(map);
     return map.toJSON();
   }
+
+  // Linked scopes share one scope object, so cloning the map copies the shared mappings once per
+  // linked scope URL. Instead hoist them to the top-level imports and drop the group scopes, keeping
+  // scoped only the mappings that conflict with an existing top-level import.
+  private collapseLinkedScopes(): ImportMap {
+    const mapUrl = this.map.mapUrl!;
+    const { rootUrl, imports: sourceImports, scopes: sourceScopes, integrity } = this.map;
+    const linkedScopes = this.traceMap.opts.linkedScopes;
+    // Groups hoist in declaration order, so the first declared wins a conflict between groups
+    const groups = new Map<string, { masterKey?: string; keys: string[] }>();
+    const linked = new Set<string>();
+    if (linkedScopes) {
+      for (const master of Object.keys(linkedScopes)) groups.set(master, { keys: [] });
+      for (const scope of Object.keys(sourceScopes)) {
+        const scopeUrl = resolveUrl(scope, mapUrl, rootUrl) as `${string}/`;
+        const master = resolveScopeGroup(scopeUrl, linkedScopes);
+        if (master !== scopeUrl || master in linkedScopes) {
+          const group = groups.get(master)!;
+          if (master === scopeUrl) group.masterKey = scope;
+          group.keys.push(scope);
+          linked.add(scope);
+        }
+      }
+    }
+    const imports: Record<string, string> = Object.assign(Object.create(null), sourceImports);
+    const scopes: Record<string, Record<string, string>> = Object.create(null);
+    for (const scope of Object.keys(sourceScopes))
+      if (!linked.has(scope)) scopes[scope] = sourceScopes[scope];
+    for (const { masterKey, keys } of groups.values()) {
+      if (!keys.length) continue;
+      const shared = sourceScopes[masterKey ?? keys[0]];
+      let conflicts: Record<string, string> | null = null;
+      for (const name of Object.keys(shared)) {
+        if (!(name in imports)) imports[name] = shared[name];
+        else if (
+          resolveUrl(imports[name], mapUrl, rootUrl) !== resolveUrl(shared[name], mapUrl, rootUrl)
+        )
+          (conflicts ??= Object.create(null) as Record<string, string>)[name] = shared[name];
+      }
+      if (conflicts) for (const key of keys) scopes[key] = conflicts;
+    }
+    return new ImportMap({ mapUrl, rootUrl, map: { imports, scopes, integrity } });
+  }
+}
+
+/**
+ * Options for {@link Generator.getMap}
+ */
+export interface GetMapOptions {
+  /**
+   * URL to output the import map relative to, typically the file URL of the import map on the file
+   * system so that local modules are output as map-relative paths.
+   */
+  mapUrl?: string | URL;
+  /**
+   * Root URL under which local modules are output as `/` prefixed paths instead of map-relative paths.
+   */
+  rootUrl?: string | URL | null;
+  /**
+   * Hoist the shared mappings of each `linkedScopes` group into the top-level imports.
+   *
+   * Linked scopes resolve identically, so by default the map repeats their mappings under every
+   * linked scope URL. With this option the shared mappings are output once as top-level imports and
+   * the group's scopes are dropped. Groups hoist in `linkedScopes` declaration order, and a mapping
+   * that conflicts with an existing top-level import stays in its group's scopes.
+   *
+   * @default false
+   */
+  collapseLinkedScopes?: boolean;
 }
 
 export interface LookupOptions {

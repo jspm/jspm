@@ -53,8 +53,7 @@ jobs:
         run: |
           echo "Merging tags \`$TAG\` and publishes it to npm." > body.md
           echo >> body.md
-          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" \
-            -f target_commitish="$GITHUB_SHA" ${PREV:+-f previous_tag_name="$PREV"} --jq .body >> body.md
+          node .github/release.mjs notes "$PACKAGE" >> body.md
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git checkout -b "$BRANCH"
@@ -62,6 +61,6 @@ jobs:
           git push origin "$BRANCH"
           gh pr create --base main --head "$BRANCH" --title "$TAG" --body-file body.md
         env:
+          PACKAGE: ${{ inputs.package }}
           TAG: ${{ steps.bump.outputs.tag }}
-          PREV: ${{ steps.bump.outputs.prev }}
           BRANCH: release/${{ steps.bump.outputs.dir }}-${{ steps.bump.outputs.version }}

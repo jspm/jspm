@@ -33,6 +33,9 @@ const prevTag = (name, version) =>
     .filter(t => t.v && cmp(t.v, semver(version)) < 0)
     .sort((a, b) => cmp(b.v, a.v))[0]?.tag ?? '';
 
+const repo = process.env.GITHUB_REPOSITORY ?? 'jspm/jspm';
+const isReleaseCommit = subject => /^(\S+@)?\d+\.\d+\.\d+(\s|$)/.test(subject);
+
 const [cmd, arg] = process.argv.slice(2);
 switch (cmd) {
   case 'dir':
@@ -63,6 +66,23 @@ switch (cmd) {
     break;
   }
 
+  // Release notes from the package directory's own history since its previous tag
+  case 'notes': {
+    const pkg = byName(arg);
+    const tag = tagOf(pkg.name, pkg.version);
+    const prev = prevTag(pkg.name, pkg.version);
+    const lines = git('log', '--format=%s', prev ? `${prev}..HEAD` : 'HEAD', '--', pkg.dir)
+      .split('\n')
+      .filter(subject => subject && !isReleaseCommit(subject))
+      .map(
+        subject => '* ' + subject.replace(/\(#(\d+)\)$/, `(https://github.com/${repo}/pull/$1)`)
+      );
+    console.log(lines.join('\n'));
+    if (prev)
+      console.log(`\n**Full Changelog**: https://github.com/${repo}/compare/${prev}...${tag}`);
+    break;
+  }
+
   // Tags for every package whose version changed since the given commit
   case 'changed': {
     try {
@@ -81,5 +101,5 @@ switch (cmd) {
   }
 
   default:
-    fail('Usage: release.mjs dir|info|sync-deps <package> | changed <commit>');
+    fail('Usage: release.mjs dir|info|sync-deps|notes <package> | changed <commit>');
 }

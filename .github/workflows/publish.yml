@@ -1,0 +1,44 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - '[0-9]*.*.*'
+      - '@jspm/*@*'
+
+jobs:
+  publish:
+    name: Publish ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Setup Chomp
+        uses: guybedford/chomp-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - id: release
+        run: node .github/release.mjs info "$GITHUB_REF_NAME" | tee -a "$GITHUB_OUTPUT"
+      - run: npm install
+      - run: npm run -ws build
+      - run: npm publish --access public
+        working-directory: ${{ steps.release.outputs.dir }}
+      - run: >
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+          ${PREV:+--notes-start-tag "$PREV"} --latest=${{ steps.release.outputs.name == 'jspm' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREV: ${{ steps.release.outputs.prev }}
+      - name: Redeploy sites
+        run: gh workflow run deploy.yml -R jspm/jspm-sites -f package="$NAME" -f version="$VERSION"
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          NAME: ${{ steps.release.outputs.name }}
+          VERSION: ${{ steps.release.outputs.version }}

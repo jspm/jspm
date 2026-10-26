@@ -1,0 +1,23 @@
+name: Tag Release
+
+on:
+  push:
+    branches: main
+
+jobs:
+  tag:
+    name: Tag version bumps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+      - run: |
+          for TAG in $(node .github/release.mjs changed "$BEFORE"); do
+            git ls-remote --exit-code --tags origin "refs/tags/$TAG" && continue
+            git tag "$TAG"
+            git push origin "refs/tags/$TAG"
+          done
+        env:
+          BEFORE: ${{ github.event.before }}

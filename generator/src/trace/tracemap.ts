@@ -296,11 +296,6 @@ export default class TraceMap {
   ): string | null | undefined | Promise<string | null | undefined> {
     if (isBuiltinScheme(resolved)) return null;
 
-    if (resolved.endsWith('/'))
-      throw new JspmError(
-        `Trailing "/" installs not supported installing ${resolved} for ${parentUrl}`
-      );
-
     const cachedEntry = this.resolver.getAnalysis(resolved);
     if (cachedEntry !== undefined) {
       return this._afterAnalyze(specifier, opts, parentUrl, seen, seenKey, resolved, cachedEntry);
@@ -817,7 +812,7 @@ export default class TraceMap {
     if ((!isPlain(specifier) || specifier === '..') && !isMappableScheme(specifier)) {
       const resolvedUrl = new URL(specifier, parentUrl);
       const resolvedHref = resolvedUrl.href;
-      if (!parentIsCjs && specifier === resolvedHref && !resolvedHref.endsWith('/')) {
+      if (!parentIsCjs && specifier === resolvedHref) {
         const urlResolved = this.inputMap.resolve(resolvedHref, parentUrl) as string;
         if (
           urlResolved === resolvedHref ||
@@ -855,12 +850,16 @@ export default class TraceMap {
         finalized = urlResolved;
       }
       if (finalized !== resolvedHref) {
-        // unless it is a package resolve operation
-        if (!finalized.endsWith('/'))
-          this.inputMap.set(
-            resolvedHref.endsWith('/') ? resolvedHref.slice(0, -1) : resolvedHref,
-            finalized
+        // A CommonJS require of a folder resolves without its trailing slash. A
+        // URL key ending in "/" is also a prefix mapping, so the import map can
+        // only express it against a target ending in "/"
+        const key =
+          parentIsCjs && resolvedHref.endsWith('/') ? resolvedHref.slice(0, -1) : resolvedHref;
+        if (key.endsWith('/') && !finalized.endsWith('/'))
+          throw new JspmError(
+            `Unable to map ${resolvedHref} to ${finalized} as an import map key ending in "/" must map to a URL ending in "/"${importedFrom(parentUrl)}.`
           );
+        this.inputMap.set(key, finalized);
         resolvedUrl = new URL(finalized);
       }
       this.log?.(

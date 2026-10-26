@@ -238,12 +238,14 @@ export default class TraceMap {
       `Attempting to resolve ${specifier} to a module from ${parentUrl}, toplevel=${opts.toplevel}, mode=${opts.installMode}`
     );
 
-    // Try sync resolve for non-plain, non-CJS specifiers via analysis cache
+    // Try sync resolve for non-plain, non-CJS specifiers via analysis cache,
+    // unless a customResolver must see the resolution
     let resolved: string | undefined;
     const parentAnalysis = this.resolver.getAnalysis(parentUrl);
     const parentIsCjs =
       parentAnalysis?.format === 'commonjs' || (!parentAnalysis && this.opts.commonJS);
     if (
+      !this.customResolver &&
       !parentIsCjs &&
       (!isPlain(specifier) || specifier === '..') &&
       !isMappableScheme(specifier)
@@ -781,26 +783,6 @@ export default class TraceMap {
 
     const parentIsCjs = parentAnalysis?.format === 'commonjs';
 
-    // Absolute URL fast path
-    if ((!isPlain(specifier) || specifier === '..') && !isMappableScheme(specifier)) {
-      const resolvedUrl = new URL(specifier, parentUrl);
-      const resolvedHref = resolvedUrl.href;
-      if (!parentIsCjs && specifier === resolvedHref && !resolvedHref.endsWith('/')) {
-        const urlResolved = this.inputMap.resolve(resolvedHref, parentUrl) as string;
-        if (
-          urlResolved === resolvedHref ||
-          urlResolved.startsWith('node:') ||
-          urlResolved.startsWith('deno:')
-        ) {
-          this.log?.(
-            'tracemap/resolve',
-            `${specifier} ${parentUrl} -> ${resolvedHref} (absolute URL fast path)`
-          );
-          return resolvedHref;
-        }
-      }
-    }
-
     if (this.customResolver) {
       try {
         const customResolved = await this.customResolver(specifier, parentUrl, {
@@ -828,6 +810,26 @@ export default class TraceMap {
         throw new JspmError(
           `Custom resolver error for "${specifier}": ${error.message}${importedFrom(parentUrl)}`
         );
+      }
+    }
+
+    // Absolute URL fast path
+    if ((!isPlain(specifier) || specifier === '..') && !isMappableScheme(specifier)) {
+      const resolvedUrl = new URL(specifier, parentUrl);
+      const resolvedHref = resolvedUrl.href;
+      if (!parentIsCjs && specifier === resolvedHref && !resolvedHref.endsWith('/')) {
+        const urlResolved = this.inputMap.resolve(resolvedHref, parentUrl) as string;
+        if (
+          urlResolved === resolvedHref ||
+          urlResolved.startsWith('node:') ||
+          urlResolved.startsWith('deno:')
+        ) {
+          this.log?.(
+            'tracemap/resolve',
+            `${specifier} ${parentUrl} -> ${resolvedHref} (absolute URL fast path)`
+          );
+          return resolvedHref;
+        }
       }
     }
 

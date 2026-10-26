@@ -159,3 +159,56 @@ import assert from 'assert';
     'https://ga.jspm.io/npm:@babel/core@7.24.7/lib/index.js'
   );
 }
+
+{
+  const calls = [];
+  const generator = new Generator({
+    mapUrl: import.meta.url,
+    defaultProvider: 'jspm.io',
+    env: ['production', 'browser'],
+    customResolver: async specifier => {
+      calls.push(specifier);
+      if (specifier === 'https://example.com/removed.js')
+        return 'https://ga.jspm.io/npm:ms@2.1.3/index.js';
+      return undefined;
+    }
+  });
+
+  await generator.link('https://example.com/removed.js');
+  const json = generator.getMap();
+
+  assert(calls.includes('https://example.com/removed.js'));
+  assert.strictEqual(
+    json.imports['https://example.com/removed.js'],
+    'https://ga.jspm.io/npm:ms@2.1.3/index.js'
+  );
+}
+
+{
+  const url = 'https://ga.jspm.io/npm:ms@2.1.3/index.js';
+  const calls = [];
+  const customResolver = async specifier => {
+    calls.push(specifier);
+    return undefined;
+  };
+
+  const gen1 = new Generator({
+    mapUrl: import.meta.url,
+    env: ['production', 'browser'],
+    traceCache: true,
+    customResolver
+  });
+  await gen1.link(url);
+  const gen1Calls = calls.filter(s => s === url).length;
+  assert(gen1Calls > 0);
+
+  const gen2 = new Generator({
+    mapUrl: import.meta.url,
+    env: ['production', 'browser'],
+    traceCache: gen1.getCache(),
+    customResolver
+  });
+  await gen2.link(url);
+
+  assert(calls.filter(s => s === url).length > gen1Calls);
+}

@@ -382,11 +382,12 @@ export class Resolver {
         import('url' as any)
       ]);
     }
-    const outUrl = pathToFileURL(
+    let outUrl = pathToFileURL(
       await new Promise((resolve, reject) =>
         realpath(new URL(url), (err: any, result: any) => (err ? reject(err) : resolve(result)))
       )
     ).href;
+    if (url.endsWith('/') && !outUrl.endsWith('/')) outUrl += '/';
     if (encodedColon) return 'file:' + outUrl.slice(5).replace(':', '%3a');
     return outUrl;
   }

@@ -175,18 +175,14 @@ export class Resolver {
         if (await this.checkPjson(testUrlHref)) return testUrlHref;
         if (testUrl.href === rootUrl) return new URL('./', url).href as `${string}/`;
       } while ((testUrl = new URL('../', testUrl)));
-    })() as Promise<`${string}/`>;
-    this.packageBaseCache[url] = packageBasePromise;
-    return packageBasePromise.then(
-      packageBase => {
-        this.packageBaseCache[url] = packageBase;
-        return packageBase;
-      },
+    })().then(
+      packageBase => (this.packageBaseCache[url] = packageBase),
       error => {
         delete this.packageBaseCache[url];
         throw error;
       }
-    );
+    ) as Promise<`${string}/`>;
+    return (this.packageBaseCache[url] = packageBasePromise);
   }
 
   // TODO: there are actually two different kinds of "package" in the codebase.

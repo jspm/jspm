@@ -46,3 +46,41 @@ const r = g.traceMap.resolver;
     encodeBase64(new URL('./node_modules/sver/', rootUrl).href)
   );
 }
+
+{
+  /* one lock per package per scope: the package pin takes it over subpath
+     pins in either key order, and subpath-only pins resolve by key order */
+  const main = 'https://ga.jspm.io/npm:three@0.136.0/build/three.module.js';
+  const subpath = 'https://ga.jspm.io/npm:three@0.179.1/examples/jsm/postprocessing/ShaderPass.js';
+  const scope = 'https://ga.jspm.io/npm:@react-three/fiber@8.0.0/' as const;
+  for (const pins of [
+    { three: main, 'three/examples/jsm/postprocessing/ShaderPass.js': subpath },
+    { 'three/examples/jsm/postprocessing/ShaderPass.js': subpath, three: main }
+  ]) {
+    const g = new Generator({
+      mapUrl: rootUrl.href,
+      inputMap: { imports: pins, scopes: { [scope]: pins } }
+    });
+    await g.traceMap.processInputMap;
+    const { installs } = g.traceMap.installer!;
+    strictEqual(installs.primary.three.installUrl, 'https://ga.jspm.io/npm:three@0.136.0/');
+    strictEqual(
+      installs.secondary[scope].three.installUrl,
+      'https://ga.jspm.io/npm:three@0.136.0/'
+    );
+  }
+  const g = new Generator({
+    mapUrl: rootUrl.href,
+    inputMap: {
+      imports: {
+        'three/examples/jsm/postprocessing/ShaderPass.js': subpath,
+        'three/build/three.module.js': main
+      }
+    }
+  });
+  await g.traceMap.processInputMap;
+  strictEqual(
+    g.traceMap.installer!.installs.primary.three.installUrl,
+    'https://ga.jspm.io/npm:three@0.179.1/'
+  );
+}

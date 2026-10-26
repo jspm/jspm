@@ -7,8 +7,16 @@ const packages = read('package.json').workspaces.map(dir => ({
   dir,
   ...read(`${dir}/package.json`)
 }));
-const git = (...args) =>
-  execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+const run = (cmd, ...args) =>
+  execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+const git = (...args) => run('git', ...args);
+const published = (name, version) => {
+  try {
+    return run('npm', 'view', `${name}@${version}`, 'version');
+  } catch {
+    return '';
+  }
+};
 const fail = msg => {
   console.error(msg);
   process.exit(1);
@@ -51,7 +59,7 @@ switch (cmd) {
       fail(`Tag ${arg} does not match ${pkg.dir}/package.json version ${pkg.version}`);
     if (!semver(pkg.version)) fail(`Unsupported version ${pkg.version}`);
     console.log(
-      `name=${name}\nversion=${pkg.version}\ndir=${pkg.dir}\ntag=${tagOf(name, pkg.version)}\nprev=${prevTag(name, pkg.version)}`
+      `name=${name}\nversion=${pkg.version}\ndir=${pkg.dir}\ntag=${tagOf(name, pkg.version)}\nprev=${prevTag(name, pkg.version)}\npublished=${published(name, pkg.version)}`
     );
     break;
   }

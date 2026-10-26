@@ -1,0 +1,66 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to release
+        required: true
+        type: choice
+        options:
+          - jspm
+          - '@jspm/generator'
+          - '@jspm/import-map'
+          - '@jspm/plugin-rollup'
+          - '@jspm/fetch'
+      bump:
+        description: Version bump
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  release-pr:
+    name: Release PR
+    runs-on: ubuntu-latest
+    # Events raised with GITHUB_TOKEN never trigger workflows, so a PAT is
+    # needed for the release PR to get CI and for the release tag to publish
+    env:
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Bump ${{ inputs.package }} ${{ inputs.bump }}
+        id: bump
+        run: |
+          npm version "$BUMP" -w "$(node .github/release.mjs dir "$PACKAGE")" --no-git-tag-version
+          node .github/release.mjs sync-deps "$PACKAGE"
+          npm install --package-lock-only --ignore-scripts
+          node .github/release.mjs info "$PACKAGE" | tee -a "$GITHUB_OUTPUT"
+        env:
+          PACKAGE: ${{ inputs.package }}
+          BUMP: ${{ inputs.bump }}
+      - name: Open release PR
+        run: |
+          echo "Merging tags \`$TAG\` and publishes it to npm." > body.md
+          echo >> body.md
+          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" \
+            -f target_commitish="$GITHUB_SHA" ${PREV:+-f previous_tag_name="$PREV"} --jq .body >> body.md
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git checkout -b "$BRANCH"
+          git commit -am "$TAG"
+          git push origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" --title "$TAG" --body-file body.md
+        env:
+          TAG: ${{ steps.bump.outputs.tag }}
+          PREV: ${{ steps.bump.outputs.prev }}
+          BRANCH: release/${{ steps.bump.outputs.dir }}-${{ steps.bump.outputs.version }}

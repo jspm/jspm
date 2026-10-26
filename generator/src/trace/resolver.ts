@@ -170,11 +170,12 @@ export class Resolver {
     }
     const packageBasePromise = (async () => {
       const rootUrl = new URL('/', testUrl).href as `${string}/`;
-      do {
-        let testUrlHref: `${string}/` = testUrl.href as `${string}/`;
+      while (true) {
+        const testUrlHref = testUrl.href as `${string}/`;
         if (await this.checkPjson(testUrlHref)) return testUrlHref;
         if (testUrl.href === rootUrl) return new URL('./', url).href as `${string}/`;
-      } while ((testUrl = new URL('../', testUrl)));
+        testUrl = new URL('../', testUrl);
+      }
     })().then(
       packageBase => (this.packageBaseCache[url] = packageBase),
       error => {

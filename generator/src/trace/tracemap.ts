@@ -870,7 +870,7 @@ export default class TraceMap {
     }
 
     // Subscope override
-    const scopeMatches = getScopeMatches(parentUrl, this.inputMap.scopes, this.inputMap.mapUrl!);
+    const scopeMatches = getScopeMatches(parentUrl, this.inputMap.scopes, this.inputMap.mapUrl);
     const pkgSubscopes = scopeMatches.filter(([, url]) => url.startsWith(parentPkgUrl));
     if (pkgSubscopes.length) {
       for (const [scope] of pkgSubscopes) {
@@ -879,7 +879,7 @@ export default class TraceMap {
           const resolved = await this.resolver.realPath(
             resolveUrl(
               this.inputMap.scopes[scope][mapMatch] + specifier.slice(mapMatch.length),
-              this.inputMap.mapUrl!,
+              this.inputMap.mapUrl,
               this.inputMap.rootUrl!
             )
           );
@@ -902,7 +902,7 @@ export default class TraceMap {
         ? await this.resolver.realPath(
             resolveUrl(
               imports[userImportsMatch] + specifier.slice(userImportsMatch.length),
-              this.inputMap.mapUrl!,
+              this.inputMap.mapUrl,
               this.inputMap.rootUrl!
             )
           )
@@ -924,7 +924,7 @@ export default class TraceMap {
         const masterScopeMatches = getScopeMatches(
           masterScope,
           this.inputMap.scopes,
-          this.inputMap.mapUrl!
+          this.inputMap.mapUrl
         );
         for (const [scope] of masterScopeMatches) {
           const mapMatch = getMapMatch(specifier, this.inputMap.scopes[scope]);
@@ -932,7 +932,7 @@ export default class TraceMap {
             const resolved = await this.resolver.realPath(
               resolveUrl(
                 this.inputMap.scopes[scope][mapMatch] + specifier.slice(mapMatch.length),
-                this.inputMap.mapUrl!,
+                this.inputMap.mapUrl,
                 this.inputMap.rootUrl!
               )
             );
@@ -952,7 +952,7 @@ export default class TraceMap {
       ? await this.resolver.realPath(
           resolveUrl(
             this.inputMap.imports[userImportsMatch] + specifier.slice(userImportsMatch.length),
-            this.inputMap.mapUrl!,
+            this.inputMap.mapUrl,
             this.inputMap.rootUrl!
           )
         )

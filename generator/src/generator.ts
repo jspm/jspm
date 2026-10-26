@@ -2090,7 +2090,7 @@ export class Generator {
       const resolveTarget = (target: string): string => {
         if (isURL(target)) return target;
         if (map.rootUrl && target.startsWith('/')) return new URL(target, map.rootUrl).href;
-        return new URL(target, map.mapUrl!).href;
+        return new URL(target, map.mapUrl).href;
       };
 
       const packageBaseCache = new Map<string, string | null>();
@@ -2190,7 +2190,7 @@ export class Generator {
   // linked scope URL. Instead hoist them to the top-level imports and drop the group scopes, keeping
   // scoped only the mappings that conflict with an existing top-level import.
   private collapseLinkedScopes(): ImportMap {
-    const mapUrl = this.map.mapUrl!;
+    const mapUrl = this.map.mapUrl;
     const { rootUrl, imports: sourceImports, scopes: sourceScopes, integrity } = this.map;
     const linkedScopes = this.traceMap.opts.linkedScopes;
     // Groups hoist in declaration order, so the first declared wins a conflict between groups

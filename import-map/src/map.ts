@@ -38,7 +38,7 @@ export class ImportMap implements IImportMap {
    * The absolute URL of the import map, for determining relative resolutions
    * When using file:/// URLs this allows relative modules to be co-located
    */
-  mapUrl: URL | null;
+  mapUrl: URL;
   /**
    * The URL to use for root-level resolutions in the import map
    * If null, root resolutions are not resolved and instead left as-is
@@ -453,7 +453,7 @@ export class ImportMap implements IImportMap {
       if (isURL(resolvedScope)) {
         const scopeUrl = new URL(resolvedScope);
         if (sameOrigin(scopeUrl, this.mapUrl)) {
-          scopemapUrl = relativeLocalScopemapUrl;
+          scopemapUrl = relativeLocalScopemapUrl!;
         } else {
           scopemapUrl =
             scopeUrl.protocol +
@@ -463,7 +463,7 @@ export class ImportMap implements IImportMap {
             "/";
         }
       } else {
-        scopemapUrl = relativeLocalScopemapUrl;
+        scopemapUrl = relativeLocalScopemapUrl!;
       }
 
       let scopeBase: Record<string, string> | null =
@@ -743,7 +743,10 @@ export function getScopeMatches(
   let cached = scopeCandidateCache.get(scopes);
   if (!cached || cached.keyCount !== keys.length) {
     const candidates = keys
-      .map((scope): [string, string] => [scope, resolve(scope, mapUrl, rootUrl)])
+      .map((scope): [string, string] => [
+        scope,
+        resolve(scope, mapUrl, rootUrl ?? null),
+      ])
       .sort(([, a], [, b]) => (a.length < b.length ? 1 : -1));
     cached = { keyCount: keys.length, candidates };
     scopeCandidateCache.set(scopes, cached);

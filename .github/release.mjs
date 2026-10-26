@@ -7,8 +7,16 @@ const packages = read('package.json').workspaces.map(dir => ({
   dir,
   ...read(`${dir}/package.json`)
 }));
-const git = (...args) =>
-  execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+const run = (cmd, ...args) =>
+  execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+const git = (...args) => run('git', ...args);
+const published = (name, version) => {
+  try {
+    return run('npm', 'view', `${name}@${version}`, 'version');
+  } catch {
+    return '';
+  }
+};
 const fail = msg => {
   console.error(msg);
   process.exit(1);
@@ -33,6 +41,9 @@ const prevTag = (name, version) =>
     .filter(t => t.v && cmp(t.v, semver(version)) < 0)
     .sort((a, b) => cmp(b.v, a.v))[0]?.tag ?? '';
 
+const repo = process.env.GITHUB_REPOSITORY ?? 'jspm/jspm';
+const isReleaseCommit = subject => /^(\S+@)?\d+\.\d+\.\d+(\s|$)/.test(subject);
+
 const [cmd, arg] = process.argv.slice(2);
 switch (cmd) {
   case 'dir':
@@ -48,7 +59,7 @@ switch (cmd) {
       fail(`Tag ${arg} does not match ${pkg.dir}/package.json version ${pkg.version}`);
     if (!semver(pkg.version)) fail(`Unsupported version ${pkg.version}`);
     console.log(
-      `name=${name}\nversion=${pkg.version}\ndir=${pkg.dir}\ntag=${tagOf(name, pkg.version)}\nprev=${prevTag(name, pkg.version)}`
+      `name=${name}\nversion=${pkg.version}\ndir=${pkg.dir}\ntag=${tagOf(name, pkg.version)}\nprev=${prevTag(name, pkg.version)}\npublished=${published(name, pkg.version)}`
     );
     break;
   }
@@ -60,6 +71,23 @@ switch (cmd) {
     for (const dep of packages)
       if (json.dependencies?.[dep.name]) json.dependencies[dep.name] = `^${dep.version}`;
     writeFileSync(new URL(`${pkg.dir}/package.json`, root), JSON.stringify(json, null, 2) + '\n');
+    break;
+  }
+
+  // Release notes from the package directory's own history since its previous tag
+  case 'notes': {
+    const pkg = byName(arg);
+    const tag = tagOf(pkg.name, pkg.version);
+    const prev = prevTag(pkg.name, pkg.version);
+    const lines = git('log', '--format=%s', prev ? `${prev}..HEAD` : 'HEAD', '--', pkg.dir)
+      .split('\n')
+      .filter(subject => subject && !isReleaseCommit(subject))
+      .map(
+        subject => '* ' + subject.replace(/\(#(\d+)\)$/, `(https://github.com/${repo}/pull/$1)`)
+      );
+    console.log(lines.join('\n'));
+    if (prev)
+      console.log(`\n**Full Changelog**: https://github.com/${repo}/compare/${prev}...${tag}`);
     break;
   }
 
@@ -81,5 +109,5 @@ switch (cmd) {
   }
 
   default:
-    fail('Usage: release.mjs dir|info|sync-deps <package> | changed <commit>');
+    fail('Usage: release.mjs dir|info|sync-deps|notes <package> | changed <commit>');
 }

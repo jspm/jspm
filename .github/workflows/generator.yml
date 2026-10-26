@@ -34,7 +34,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        firefox: ['107.0.1']
+        firefox: ['latest']
     steps:
       - uses: actions/checkout@v2
         with:
@@ -48,14 +48,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Firefox ${{ matrix.firefox }}
-        uses: browser-actions/setup-firefox@latest
+        id: firefox
+        uses: browser-actions/setup-firefox@v1.7.2
         with:
           firefox-version: ${{ matrix.firefox }}
       - run: npm install
       - run: npm run -ws build
       - run: chomp -c generator test:browser
         env:
-          CI_BROWSER: C:\Program Files\Firefox_${{ matrix.firefox }}\firefox.exe
+          CI_BROWSER: ${{ steps.firefox.outputs.firefox-path }}
           CI_BROWSER_FLAGS: -headless
           CI_BROWSER_FLUSH: taskkill /F /IM firefox.exe
           SKIP_PERF: 1

@@ -337,6 +337,16 @@ export function getConstraintFor(
   return installs;
 }
 
+// A map pin of a package on a provider, applied to the locks in key order
+interface PinLock {
+  pkgName: string;
+  subpath: '.' | `./${string}`;
+  pkg: ExactPackage;
+  pkgUrl: `${string}/`;
+  versionScope: `${string}/` | null;
+  flattened: boolean;
+}
+
 export async function extractLockConstraintsAndMap(
   log: Log | undefined,
   map: IImportMap,
@@ -373,7 +383,7 @@ export async function extractLockConstraintsAndMap(
   };
 
   const pkgUrls = new Set<string>();
-  const promises: Promise<void>[] = [];
+  const promises: Promise<PinLock | undefined>[] = [];
 
   for (let key of Object.keys(map.imports || {})) {
     promises.push(
@@ -403,15 +413,13 @@ export async function extractLockConstraintsAndMap(
           if (parsedTarget) {
             // Package "imports" and own-name resolutions don't constrain versions.
             if (key[0] === '#') return;
-
-            if (!constraints.primary[parsedKey.pkgName]) {
-              constraints.primary[parsedKey.pkgName] = await packageTargetFromExact(
-                parsedTarget.pkg,
-                resolver
-              );
-            }
-            setResolution(locks, parsedKey.pkgName, pkgUrl, null);
-            return;
+            return {
+              ...parsedKey,
+              pkg: parsedTarget.pkg,
+              pkgUrl,
+              versionScope: null,
+              flattened: false
+            };
           }
 
           // own name package resolution
@@ -437,7 +445,7 @@ export async function extractLockConstraintsAndMap(
         (async () => {
           const scopePkgUrl = await resolver.getPackageBase(resolvedScopeUrl);
           const versionScope = resolveScopeGroup(scopePkgUrl, linkedScopes);
-          const flattenedScope = new URL(scopePkgUrl).pathname === '/';
+          const flattened = new URL(scopePkgUrl).pathname === '/';
           pkgUrls.add(scopePkgUrl);
 
           // We are careful here NOT to read the package.json for scopes yet,
@@ -462,27 +470,7 @@ export async function extractLockConstraintsAndMap(
             if (parsedTarget) {
               // Imports resolutions that resolve as expected can be skipped (no resolution data)
               if (key[0] === '#') return;
-
-              // If there is no constraint, we just make one as the semver major on the current version
-              if (!constraints.secondary[pkgUrl]?.[parsedKey.pkgName]) {
-                (constraints.secondary[pkgUrl] = constraints.secondary[pkgUrl] || {})[
-                  parsedKey.pkgName
-                ] = parsedTarget
-                  ? await packageTargetFromExact(parsedTarget.pkg, resolver)
-                  : new URL(pkgUrl);
-              }
-              if (flattenedScope) {
-                const flattened = (locks.flattened[versionScope] =
-                  locks.flattened[versionScope] || {});
-                flattened[parsedKey.pkgName] = flattened[parsedKey.pkgName] || [];
-                flattened[parsedKey.pkgName].push({
-                  export: parsedKey.subpath,
-                  resolution: { installUrl: pkgUrl }
-                });
-              } else {
-                setResolution(locks, parsedKey.pkgName, pkgUrl, versionScope);
-              }
-              return;
+              return { ...parsedKey, pkg: parsedTarget.pkg, pkgUrl, versionScope, flattened };
             }
           }
 
@@ -498,7 +486,29 @@ export async function extractLockConstraintsAndMap(
   // for every package we resolved, add their package constraints into the list of constraints
   // this step requires fetching package configuration for all packages, therefore takes a little time, but caches
   log?.('generator/processInputMap', `Extracting constraints`);
-  await Promise.all(promises);
+  // A scope locks one version per package, which the pin of the package itself
+  // takes over its subpath pins, then the first subpath pin in key order.
+  const pins = (await Promise.all(promises))
+    .filter((pin): pin is PinLock => pin !== undefined)
+    .sort((a, b) => Number(a.subpath !== '.') - Number(b.subpath !== '.'));
+  for (const { pkgName, subpath, pkg, pkgUrl, versionScope, flattened } of pins) {
+    // If there is no constraint, we just make one as the semver major on the current version
+    if (versionScope === null) {
+      if (!constraints.primary[pkgName])
+        constraints.primary[pkgName] = await packageTargetFromExact(pkg, resolver);
+    } else if (!constraints.secondary[pkgUrl]?.[pkgName]) {
+      (constraints.secondary[pkgUrl] ||= {})[pkgName] = await packageTargetFromExact(pkg, resolver);
+    }
+    if (flattened) {
+      const flattenedLocks = (locks.flattened[versionScope!] ||= {});
+      (flattenedLocks[pkgName] ||= []).push({
+        export: subpath,
+        resolution: { installUrl: pkgUrl }
+      });
+    } else if (!getResolution(locks, pkgName, versionScope)) {
+      setResolution(locks, pkgName, pkgUrl, versionScope);
+    }
+  }
   return {
     maps,
     constraints,

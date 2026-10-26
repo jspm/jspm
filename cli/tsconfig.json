@@ -3,8 +3,9 @@
     "target": "es2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "typeRoots": ["node_modules/@types"],
+    "types": ["node"],
     "allowImportingTsExtensions": true,
+    "strict": false,
     "strictBindCallApply": true,
     "declaration": true,
     "noEmit": true,
@@ -14,6 +15,6 @@
     "esModuleInterop": true
   },
   "include": [
-    "jspm/cli/src/**/*.ts"
+    "src/**/*.ts"
   ]
 }

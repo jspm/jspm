@@ -34,7 +34,7 @@
     "@babel/plugin-syntax-import-attributes": "^7.24.7",
     "@babel/preset-typescript": "^7.24.7",
     "@jspm/fetch": "^0.1.0",
-    "@jspm/import-map": "^1.5.0",
+    "@jspm/import-map": "^1.5.1",
     "es-module-lexer": "^3.0.1",
     "minimatch": "^10.0.1",
     "pako": "^2.1.0",

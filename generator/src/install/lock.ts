@@ -339,6 +339,13 @@ export function getConstraintFor(
 
 // A map pin of a package on a provider, applied to the locks in key order
 interface PinLock {
+  key: string;
+  targetUrl: string;
+  // the map scope of the pin: null for a top-level pin, and the master scope
+  // for a pin of any scope of a linked group
+  scopeUrl: string | null;
+  // a pin of a linked scope other than its master
+  linked: boolean;
   pkgName: string;
   subpath: '.' | `./${string}`;
   pkg: ExactPackage;
@@ -414,6 +421,10 @@ export async function extractLockConstraintsAndMap(
             // Package "imports" and own-name resolutions don't constrain versions.
             if (key[0] === '#') return;
             return {
+              key,
+              targetUrl,
+              scopeUrl: null,
+              linked: false,
               ...parsedKey,
               pkg: parsedTarget.pkg,
               pkgUrl,
@@ -470,7 +481,17 @@ export async function extractLockConstraintsAndMap(
             if (parsedTarget) {
               // Imports resolutions that resolve as expected can be skipped (no resolution data)
               if (key[0] === '#') return;
-              return { ...parsedKey, pkg: parsedTarget.pkg, pkgUrl, versionScope, flattened };
+              return {
+                key,
+                targetUrl,
+                scopeUrl: scopePkgUrl === versionScope ? resolvedScopeUrl : versionScope,
+                linked: scopePkgUrl !== versionScope,
+                ...parsedKey,
+                pkg: parsedTarget.pkg,
+                pkgUrl,
+                versionScope,
+                flattened
+              };
             }
           }
 
@@ -487,11 +508,20 @@ export async function extractLockConstraintsAndMap(
   // this step requires fetching package configuration for all packages, therefore takes a little time, but caches
   log?.('generator/processInputMap', `Extracting constraints`);
   // A scope locks one version per package, which the pin of the package itself
-  // takes over its subpath pins, then the first subpath pin in key order.
+  // takes over its subpath pins, then the first subpath pin in key order, with
+  // the master of a linked group ahead of its other scopes. A pin of another
+  // version cannot be held by that lock, so it is kept as a custom mapping
+  // rather than re-resolved against the locked version.
   const pins = (await Promise.all(promises))
     .filter((pin): pin is PinLock => pin !== undefined)
-    .sort((a, b) => Number(a.subpath !== '.') - Number(b.subpath !== '.'));
-  for (const { pkgName, subpath, pkg, pkgUrl, versionScope, flattened } of pins) {
+    .sort(
+      (a, b) =>
+        Number(a.subpath !== '.') - Number(b.subpath !== '.') || Number(a.linked) - Number(b.linked)
+    );
+  // The scopes of a linked group can pin the same key, which the first decides
+  const decided = new Set<string>();
+  for (const pin of pins) {
+    const { pkgName, subpath, pkg, pkgUrl, versionScope, flattened } = pin;
     // If there is no constraint, we just make one as the semver major on the current version
     if (versionScope === null) {
       if (!constraints.primary[pkgName])
@@ -505,8 +535,17 @@ export async function extractLockConstraintsAndMap(
         export: subpath,
         resolution: { installUrl: pkgUrl }
       });
-    } else if (!getResolution(locks, pkgName, versionScope)) {
-      setResolution(locks, pkgName, pkgUrl, versionScope);
+    } else {
+      const slot = `${pin.scopeUrl}\n${pin.key}`;
+      if (decided.has(slot)) continue;
+      decided.add(slot);
+      const lock = getResolution(locks, pkgName, versionScope);
+      if (!lock) {
+        setResolution(locks, pkgName, pkgUrl, versionScope);
+      } else if (lock.installUrl !== pkgUrl) {
+        if (pin.scopeUrl === null) maps.imports![pin.key] = pin.targetUrl;
+        else (maps.scopes![pin.scopeUrl] ||= Object.create(null))[pin.key] = pin.targetUrl;
+      }
     }
   }
   return {

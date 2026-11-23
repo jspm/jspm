@@ -173,6 +173,20 @@ console.log(JSON.stringify(generator.getMap(), null, 2));
   "scopes": { ... }
 }
 ```
+
+A scope resolves a single version of a package. When an input map pins a package and one of its subpaths at different versions, the package pin sets the version of the package and the subpath pin is held as a custom mapping, so both stay as they are:
+
+```json
+{
+  "imports": {
+    "motion": "https://ga.jspm.io/npm:motion@10.14.1/dist/main.es.js",
+    "motion/react": "https://ga.jspm.io/npm:motion@11.15.0/dist/es/motion/lib/react.mjs"
+  }
+}
+```
+
+Installing or updating `motion` brings `motion/react` to its version when that version has the export, and uninstalling `motion/react` removes it. Like any top-level mapping, it applies to every importer without a scope mapping of its own whatever version range that importer depends on, and it is not moved when switching provider.
+
 ### Providers
 
 ```js

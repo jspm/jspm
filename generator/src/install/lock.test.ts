@@ -5,7 +5,7 @@ import { translateProvider } from '@jspm/generator/install/lock.js';
 import { Generator } from '@jspm/generator';
 // @ts-ignore
 import { encodeBase64 } from '@jspm/generator/common/b64.js';
-import { strictEqual } from 'assert';
+import { deepStrictEqual, strictEqual } from 'assert';
 
 const rootUrl = new URL('../../../', import.meta.url);
 const g = new Generator({
@@ -83,4 +83,70 @@ const r = g.traceMap.resolver;
     g.traceMap.installer!.installs.primary.three.installUrl,
     'https://ga.jspm.io/npm:three@0.179.1/'
   );
+}
+
+{
+  /* the pin that loses the lock is kept as a custom mapping of its own scope */
+  const main = 'https://ga.jspm.io/npm:motion@10.14.1/dist/main.es.js';
+  const subpath = 'https://ga.jspm.io/npm:motion@11.15.0/dist/es/motion/lib/react.mjs';
+  const scope = 'https://ga.jspm.io/npm:@react-three/fiber@8.0.0/' as const;
+  for (const pins of [
+    { motion: main, 'motion/react': subpath },
+    { 'motion/react': subpath, motion: main }
+  ]) {
+    const g = new Generator({
+      mapUrl: rootUrl.href,
+      inputMap: { imports: pins, scopes: { [scope]: pins } }
+    });
+    await g.traceMap.processInputMap;
+    const { inputMap, installer } = g.traceMap;
+    strictEqual(
+      installer!.installs.primary.motion.installUrl,
+      'https://ga.jspm.io/npm:motion@10.14.1/'
+    );
+    deepStrictEqual({ ...inputMap.imports }, { 'motion/react': subpath });
+    deepStrictEqual({ ...inputMap.scopes[scope] }, { 'motion/react': subpath });
+  }
+
+  const index = 'https://ga.jspm.io/npm:motion@11.18.2/dist/es/motion/lib/index.mjs';
+  const g = new Generator({
+    mapUrl: rootUrl.href,
+    inputMap: { imports: { 'motion/react': subpath, 'motion/index': index, motion: index } }
+  });
+  await g.traceMap.processInputMap;
+  strictEqual(
+    g.traceMap.installer!.installs.primary.motion.installUrl,
+    'https://ga.jspm.io/npm:motion@11.18.2/'
+  );
+  deepStrictEqual({ ...g.traceMap.inputMap.imports }, { 'motion/react': subpath });
+}
+
+{
+  /* a linked group shares the mappings of its master scope: the losing pin of
+     any of its scopes is kept there, and the master's own pin of a key decides it */
+  const main = 'https://ga.jspm.io/npm:motion@11.18.2/dist/es/motion/lib/index.mjs';
+  const other = 'https://ga.jspm.io/npm:motion@10.14.1/dist/main.es.js';
+  const subpath = 'https://ga.jspm.io/npm:motion@11.15.0/dist/es/motion/lib/react.mjs';
+  const master = 'https://ga.jspm.io/npm:@react-three/fiber@8.0.0/' as const;
+  const secondary = 'https://ga.jspm.io/npm:@react-three/drei@9.0.0/' as const;
+  for (const scopes of [
+    { [master]: { motion: main }, [secondary]: { motion: other, 'motion/react': subpath } },
+    { [secondary]: { 'motion/react': subpath, motion: other }, [master]: { motion: main } }
+  ]) {
+    const g = new Generator({
+      mapUrl: rootUrl.href,
+      linkedScopes: { [master]: [secondary] },
+      inputMap: { scopes }
+    });
+    await g.traceMap.processInputMap;
+    const { inputMap, installer } = g.traceMap;
+    deepStrictEqual(
+      { ...installer!.installs.secondary[master] },
+      {
+        motion: { installUrl: 'https://ga.jspm.io/npm:motion@11.18.2/' }
+      }
+    );
+    deepStrictEqual({ ...inputMap.scopes[master] }, { 'motion/react': subpath });
+    strictEqual(inputMap.scopes[secondary], undefined);
+  }
 }

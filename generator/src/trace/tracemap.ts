@@ -444,14 +444,17 @@ export default class TraceMap {
       if (!subpaths) {
         subpaths = [];
         const { pkgName, subpath } = parsePkg(module)!;
-        const lock = this.installer!.installs.primary[pkgName];
-        const pcfg = lock && (await this.resolver.getPackageConfig(lock.installUrl));
+        // a retained prefix pin maps into its own version of the package
+        const pkgUrl = this.retainedPins(pkgName).includes(module)
+          ? await this.resolver.getPackageBase(this.inputTarget(module))
+          : this.installer!.installs.primary[pkgName]?.installUrl;
+        const pcfg = pkgUrl && (await this.resolver.getPackageConfig(pkgUrl));
         if (pcfg?.exports) {
           const resolutions = new Map<string, string>();
           expandExportsResolutions(
             pcfg.exports,
             this.resolver.env,
-            await this.resolver.getFileList(lock.installUrl),
+            await this.resolver.getFileList(pkgUrl),
             resolutions
           );
           for (const exportSubpath of resolutions.keys()) {
@@ -475,6 +478,83 @@ export default class TraceMap {
       expanded.push(...subpaths);
     }
     return expanded;
+  }
+
+  private inputTarget(key: string): string {
+    return resolveUrl(this.inputMap.imports[key], this.inputMap.mapUrl, this.inputMap.rootUrl!);
+  }
+
+  // The retained pins of a top-level package: input pins of the package or its
+  // subpaths that its lock could not hold, as they were for another version.
+  // They are the custom mappings of its specifiers into that same package.
+  private retainedPins(pkgName: string): string[] {
+    const lock = this.installer!.installs.primary[pkgName];
+    const pkg = lock && this.resolver.pm.parseUrlPkg(lock.installUrl)?.pkg;
+    if (!pkg) return [];
+    return Object.keys(this.inputMap.imports).filter(key => {
+      if (!isPlain(key) || parsePkg(key)?.pkgName !== pkgName) return false;
+      const target = this.resolver.pm.parseUrlPkg(this.inputTarget(key))?.pkg;
+      return target?.registry === pkg.registry && target.name === pkg.name;
+    });
+  }
+
+  private dropRetainedPin(key: string) {
+    delete this.inputMap.imports[key];
+    this.prefixRoots.delete(key);
+  }
+
+  /**
+   * An operation that reinstalls a package takes its retained pins with it:
+   * each is dropped where the resulting lock has its export, to resolve with
+   * the package again, and is otherwise left in place.
+   */
+  async reconcileRetainedPins(pkgName: string) {
+    const pkgUrl = this.installer!.installs.primary[pkgName]?.installUrl;
+    await Promise.all(
+      this.retainedPins(pkgName).map(async key => {
+        if (await this.hasExport(pkgUrl, parsePkg(key)!.subpath, key)) this.dropRetainedPin(key);
+      })
+    );
+  }
+
+  /**
+   * Drops the retained pin of an uninstalled specifier, or those under an
+   * uninstalled prefix.
+   */
+  dropRetainedPins(name: string) {
+    for (const key of this.retainedPins(parsePkg(name)!.pkgName)) {
+      if (key === name || (name.endsWith('/') && key.startsWith(name))) this.dropRetainedPin(key);
+    }
+  }
+
+  // Whether the package has a module for the export subpath, or any export
+  // under a subpath prefix
+  private async hasExport(
+    pkgUrl: `${string}/`,
+    subpath: '.' | `./${string}`,
+    specifier: string
+  ): Promise<boolean> {
+    try {
+      if (subpath.endsWith('/')) {
+        const pcfg = await this.resolver.getPackageConfig(pkgUrl);
+        if (!pcfg?.exports) return false;
+        const resolutions = new Map<string, string>();
+        expandExportsResolutions(
+          pcfg.exports,
+          this.resolver.env,
+          await this.resolver.getFileList(pkgUrl),
+          resolutions
+        );
+        return [...resolutions.keys()].some(key => key !== '.' && key.startsWith(subpath));
+      }
+      const resolved = await this.resolver.realPath(
+        await this.resolver.resolveExport(pkgUrl, subpath, false, false, specifier)
+      );
+      return (await this.resolver.analyze(resolved)) !== null;
+    } catch (e) {
+      if (e instanceof JspmError && e.code === 'MODULE_NOT_FOUND') return false;
+      throw e;
+    }
   }
 
   async extractRoots(roots: Roots, integrity: boolean) {

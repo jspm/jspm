@@ -136,6 +136,15 @@ export interface GeneratorOptions {
    *
    * An initial import map to start with - can be from a previous
    * install or to provide custom mappings.
+   *
+   * A scope resolves one version of a package, so a map that pins a package
+   * and one of its subpaths at different versions keeps the version of the
+   * package pin, and holds the other pin as a custom mapping. Like any
+   * top-level mapping it then applies to every importer without a scope
+   * mapping of its own, whatever version range that importer depends on, and
+   * it is not moved to another provider with the package. Installing or
+   * updating the package drops it where the resulting version has its export,
+   * and uninstalling its specifier removes it.
    */
   inputMap?: IImportMap;
 
@@ -1387,6 +1396,7 @@ export class Generator {
           );
 
           const installed = await this.traceMap.add(alias, target, mode);
+          if (mode !== 'freeze') await this.traceMap.reconcileRetainedPins(alias);
 
           // expand all package subpaths
           if (subpaths === true) {
@@ -1442,6 +1452,9 @@ export class Generator {
         return this.traceMap.add(name, { pkgTarget }, mode);
       })
     );
+    // An update moves the retained pins of its packages along with them
+    if (mode.includes('latest'))
+      await Promise.all(names.map(name => this.traceMap.reconcileRetainedPins(name)));
 
     // Retrace the matching roots of every group under the install mode, each
     // from its own parent, keeping the unknown importer tolerance of enumerated pins
@@ -1556,6 +1569,7 @@ export class Generator {
         }
       }
       if (!removed) throw new JspmError(`No "imports" entry for "${name}" to uninstall.`);
+      this.traceMap.dropRetainedPins(name);
 
       // Drop the primary lock once no root of the package remains
       const { pkgName } = parsePkg(name)!;

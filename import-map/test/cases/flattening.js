@@ -465,3 +465,73 @@ import { deepStrictEqual } from 'assert';
     }
   });
 }
+
+// A mapping that differs from the top-level import of its specifier is not
+// shared, as the shared scope would override that import for the other
+// modules under it, whether they map the specifier themselves
+{
+  const imports = { three: 'https://ga.jspm.io/npm:three@0.136.0/build/three.module.js' };
+  const own = {
+    'https://ga.jspm.io/npm:three@0.179.1/': {
+      three: 'https://ga.jspm.io/npm:three@0.179.1/build/three.module.js'
+    }
+  };
+  const toplevel = {
+    'https://ga.jspm.io/npm:troika-three-utils@0.47.2/': {
+      three: 'https://ga.jspm.io/npm:three@0.136.0/build/three.module.js',
+      'three/examples/jsm/': 'https://ga.jspm.io/npm:three@0.136.0/examples/jsm/'
+    }
+  };
+  for (const scopes of [
+    { ...own, ...toplevel },
+    { ...toplevel, ...own }
+  ]) {
+    const map = new ImportMap({
+      mapUrl: 'https://site.com/',
+      map: { imports, scopes: structuredClone(scopes) }
+    });
+    map.flatten();
+    deepStrictEqual(map.toJSON(), {
+      imports,
+      scopes: {
+        'https://ga.jspm.io/': {
+          'three/examples/jsm/': 'https://ga.jspm.io/npm:three@0.136.0/examples/jsm/'
+        },
+        ...own
+      }
+    });
+  }
+}
+
+// or use the top-level import without a mapping of their own
+{
+  const imports = { pkg: 'https://cdn.example/pkg@2.1.0/index.js' };
+  const scopes = {
+    'https://cdn.example/a@1.0.0/': { pkg: 'https://cdn.example/pkg@1.1.0/index.js' }
+  };
+  const map = new ImportMap({
+    mapUrl: 'https://site.com/',
+    map: { imports, scopes: structuredClone(scopes) }
+  });
+  map.flatten();
+  deepStrictEqual(map.toJSON(), { imports, scopes });
+  deepStrictEqual(
+    map.resolve('pkg', 'https://cdn.example/b@1.0.0/index.js'),
+    'https://cdn.example/pkg@2.1.0/index.js'
+  );
+}
+
+// A mapping matching the top-level import stays where a wider scope maps the
+// specifier to something else
+{
+  const map = {
+    imports: { pkg: 'https://cdn.example/pkg@2.1.0/index.js' },
+    scopes: {
+      'https://cdn.example/': { pkg: 'https://cdn.example/pkg@1.1.0/index.js' },
+      'https://cdn.example/b@1.0.0/': { pkg: 'https://cdn.example/pkg@2.1.0/index.js' }
+    }
+  };
+  const flattened = new ImportMap({ mapUrl: 'https://site.com/', map: structuredClone(map) });
+  flattened.flatten();
+  deepStrictEqual(flattened.toJSON(), map);
+}

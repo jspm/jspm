@@ -403,6 +403,10 @@ export class ImportMap implements IImportMap {
    * a single scope will be constructed for "https://site.com/" including
    * their shared mappings, only retaining the scopes if they have differences.
    *
+   * A mapping that differs from the top-level import of its specifier is not
+   * shared, since the shared scope would then override that import for every
+   * other module under it.
+   *
    * In the case where the scope is on the same origin as the mapUrl, the grouped
    * scope is determined based on determining the common baseline over all local scopes
    *
@@ -445,6 +449,20 @@ export class ImportMap implements IImportMap {
     const relativeLocalScopemapUrl = localScopemapUrl
       ? rebase(localScopemapUrl, this.mapUrl, this.rootUrl)
       : null;
+
+    // Whether a wider scope maps the name to something else, which a scope
+    // without its own mapping of the name then resolves to
+    const shadowed = (scope: string, name: string, target: string) => {
+      const resolvedScope = cachedResolve(scope);
+      return Object.keys(this.scopes).some(
+        (wider) =>
+          wider !== scope &&
+          name in this.scopes[wider] &&
+          resolvedScope.startsWith(cachedResolve(wider)) &&
+          cachedResolve(this.scopes[wider][name]) !== cachedResolve(target)
+      );
+    };
+
     for (const scope of Object.keys(this.scopes)) {
       const scopeImports = this.scopes[scope];
 
@@ -473,13 +491,19 @@ export class ImportMap implements IImportMap {
       let flattenedAll = true;
       for (const name of Object.keys(scopeImports)) {
         const target = scopeImports[name];
+        // A mapping matching the top-level import is redundant, unless a wider
+        // scope would take it over. One that differs from the top-level import
+        // is not shared, as a module under the shared scope can be using the
+        // top-level import without a mapping of its own.
         if (
           this.imports[name] &&
           cachedResolve(this.imports[name]) === cachedResolve(target)
         ) {
-          delete scopeImports[name];
+          if (shadowed(scope, name, target)) flattenedAll = false;
+          else delete scopeImports[name];
         } else if (
           scopeBase &&
+          !this.imports[name] &&
           (!scopeBase[name] ||
             cachedResolve(scopeBase[name]) === cachedResolve(target))
         ) {

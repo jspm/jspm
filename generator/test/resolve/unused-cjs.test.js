@@ -3,7 +3,8 @@ import assert from 'assert';
 
 const generator = new Generator({
   mapUrl: import.meta.url,
-  commonJS: true
+  commonJS: true,
+  resolutions: { jquery: '4.0.0' }
 });
 
 // Should not throw, index file doesn't use CJS:
